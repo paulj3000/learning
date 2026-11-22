@@ -48,6 +48,10 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'the-dark-lighthouse-counting',
     'the-dark-lighthouse-groups',
     'the-dark-lighthouse-two-step',
+    // SC-final-B: the castle Writing Room's three banded stories (castle-writing-room).
+    'writing-room-picture-story',
+    'writing-room-sentence-story',
+    'writing-room-own-story',
   ],
   questIds: [
     'repair-the-bridge',
@@ -82,6 +86,8 @@ export const HOME_ISLAND_PACK: WorldContentPack = {
     'painted-words-brush',
     'three-clues-lens',
     'secret-door-key',
+    // Final F: the Secret Chamber mouse door's keepsake (discovery castle-chamber-mouse-door).
+    'tiny-brass-knob',
   ],
   collectibleSetIds: ['harbor-shells', 'castle-keepsakes'],
   npcIds: [

@@ -275,7 +275,7 @@ describe('regionAssetsFor and Asset Manager collision profiles', () => {
     collisionProfiles: vi.fn(async () => profiles),
   });
 
-  it('gives a served region the resolver\'s profiles', async () => {
+  it("gives a served region the resolver's profiles", async () => {
     const resolver = withProfiles();
     const assets = regionAssetsFor('child-1', REGION, SOURCE, enabled, () => resolver);
     await expect(assets.collisionProfiles?.(['crate'])).resolves.toBe(profiles);

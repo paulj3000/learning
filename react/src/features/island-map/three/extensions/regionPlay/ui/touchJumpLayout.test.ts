@@ -13,7 +13,9 @@ const SRC = resolve(__dirname, '../../../../../..');
 const read = (path: string) => readFileSync(resolve(SRC, path), 'utf8');
 
 const hudCss = read('features/island-map/three/WorldHud.module.css');
-const panelsCss = read('features/island-map/three/extensions/regionPlay/ui/RegionPlayPanels.module.css');
+const panelsCss = read(
+  'features/island-map/three/extensions/regionPlay/ui/RegionPlayPanels.module.css',
+);
 const tokensCss = read('styles/tokens.css');
 
 const stripComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -89,7 +91,8 @@ describe('touch Jump button and region play controls (jumping standard)', () => 
     const jumpLowest = rem(/max\([^,]+,\s*([^)]+)\)/.exec(declaration(jumpPhone, 'bottom'))![1]);
     const hint = ruleBody(panelsCss, '.hintButton');
     const backpack = ruleBody(panelsCss, '.backpackButton');
-    const top = (body: string) => rem(declaration(body, 'bottom')) + rem(declaration(body, 'min-height'));
+    const top = (body: string) =>
+      rem(declaration(body, 'bottom')) + rem(declaration(body, 'min-height'));
     expect(top(hint)).toBeLessThan(jumpLowest);
     expect(top(backpack)).toBeLessThan(jumpLowest);
   });

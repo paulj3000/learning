@@ -33,9 +33,19 @@ import {
   type Vec3Like,
 } from '@lai/game-engine';
 import type { JsonValue } from '../../island-map/three/runtime/locationManifest';
-import type { WorldExtension, WorldExtensionContext, WorldExtensionMount } from '../../island-map/three/runtime/extensionRegistry';
+import type {
+  WorldExtension,
+  WorldExtensionContext,
+  WorldExtensionMount,
+} from '../../island-map/three/runtime/extensionRegistry';
 import { mountBridgePresentation, type BridgePresentation } from './bridgePresentation';
-import { deviceParticleTier, hostSupport, type BridgeHostSupport, type BridgePlayerState, type LocationBridgeHost } from './bridgeHost';
+import {
+  deviceParticleTier,
+  hostSupport,
+  type BridgeHostSupport,
+  type BridgePlayerState,
+  type LocationBridgeHost,
+} from './bridgeHost';
 
 /**
  * GE-065: the location engine bridge.
@@ -102,9 +112,14 @@ const FORWARDED_EVENTS = [
 
 // Every presentation event except PlayerRecovered is forwarded (a type error lists any missed).
 /** Host (live movement) events relayed into the engine runtime for components that consume them. */
-const RELAYED_HOST_EVENTS = ['PlayerFootstep'] as const satisfies readonly (keyof EnginePresentationEventMap)[];
+const RELAYED_HOST_EVENTS = [
+  'PlayerFootstep',
+] as const satisfies readonly (keyof EnginePresentationEventMap)[];
 
-type Unforwarded = Exclude<keyof EnginePresentationEventMap, (typeof FORWARDED_EVENTS)[number] | 'PlayerRecovered'>;
+type Unforwarded = Exclude<
+  keyof EnginePresentationEventMap,
+  (typeof FORWARDED_EVENTS)[number] | 'PlayerRecovered'
+>;
 const allForwarded: [Unforwarded] extends [never] ? true : false = true;
 void allForwarded;
 
@@ -166,7 +181,13 @@ export interface EngineBridgeApi {
    */
   isSafeGround(x: number, y: number, z: number): boolean;
   /** GE-068: every engine platform's state, for realm parity tests. Empty with no engine platforms. */
-  platforms(): readonly { id: string; phase: string; position: Vec3Like; size: Vec3Like; kind: string }[];
+  platforms(): readonly {
+    id: string;
+    phase: string;
+    position: Vec3Like;
+    size: Vec3Like;
+    kind: string;
+  }[];
 }
 
 /** Reads `config.capabilities` and refuses what the live runtime owns. Pure; never throws. */
@@ -187,36 +208,64 @@ export function bridgeCapabilityRequests(
     return { requests, issues };
   }
   if (!Array.isArray(list)) {
-    return { requests, issues: [{ path: 'capabilities', message: 'must be a list of { id, config }' }] };
+    return {
+      requests,
+      issues: [{ path: 'capabilities', message: 'must be a list of { id, config }' }],
+    };
   }
   list.forEach((entry, index) => {
     const path = `capabilities[${index}]`;
-    if (typeof entry !== 'object' || entry === null || Array.isArray(entry) || typeof entry.id !== 'string') {
+    if (
+      typeof entry !== 'object' ||
+      entry === null ||
+      Array.isArray(entry) ||
+      typeof entry.id !== 'string'
+    ) {
       issues.push({ path, message: 'must be { id, config }' });
       return;
     }
     const id = entry.id;
     if (HOST_OWNED_PREFIXES.some((prefix) => id.startsWith(prefix))) {
-      issues.push({ path, message: `"${id}" is owned by the live location runtime (movement, camera and avatar); the bridge never runs it` });
+      issues.push({
+        path,
+        message: `"${id}" is owned by the live location runtime (movement, camera and avatar); the bridge never runs it`,
+      });
       return;
     }
     if (id === ENGINE_PLATFORMS && !allowEnginePlatforms) {
-      issues.push({ path, message: `"${id}" is owned by the live platform system until GE-076; set allowEnginePlatforms to run engine platforms (beside any live ones, each id in one system)` });
+      issues.push({
+        path,
+        message: `"${id}" is owned by the live platform system until GE-076; set allowEnginePlatforms to run engine platforms (beside any live ones, each id in one system)`,
+      });
       return;
     }
     // GE-068: staff tuning (`scene.platformTuning`, handed over as `platformTuning`) reaches the
     // platforms capability, which validates and applies it. The platforms' own config wins.
     const tuning = config.platformTuning;
     const entryConfig = entry.config;
-    if (id === ENGINE_PLATFORMS && typeof tuning === 'object' && tuning !== null && !Array.isArray(tuning)) {
-      const own = typeof entryConfig === 'object' && entryConfig !== null && !Array.isArray(entryConfig) ? entryConfig : {};
+    if (
+      id === ENGINE_PLATFORMS &&
+      typeof tuning === 'object' &&
+      tuning !== null &&
+      !Array.isArray(tuning)
+    ) {
+      const own =
+        typeof entryConfig === 'object' && entryConfig !== null && !Array.isArray(entryConfig)
+          ? entryConfig
+          : {};
       requests.push({ id, config: { platformTuning: tuning, ...own } });
       return;
     }
     if (id === ENVIRONMENT_PARTICLES && deviceTier !== undefined) {
-      const own = typeof entryConfig === 'object' && entryConfig !== null && !Array.isArray(entryConfig) ? entryConfig : {};
-      const seedTier = (TIER_ORDER as readonly JsonValue[]).includes(own.tier ?? null) ? (own.tier as Tier) : 'MEDIUM';
-      const tier = TIER_ORDER[Math.min(TIER_ORDER.indexOf(seedTier), TIER_ORDER.indexOf(deviceTier))];
+      const own =
+        typeof entryConfig === 'object' && entryConfig !== null && !Array.isArray(entryConfig)
+          ? entryConfig
+          : {};
+      const seedTier = (TIER_ORDER as readonly JsonValue[]).includes(own.tier ?? null)
+        ? (own.tier as Tier)
+        : 'MEDIUM';
+      const tier =
+        TIER_ORDER[Math.min(TIER_ORDER.indexOf(seedTier), TIER_ORDER.indexOf(deviceTier))];
       requests.push({ id, config: { ...own, tier } });
       return;
     }
@@ -246,11 +295,15 @@ interface HostCollider {
  * A `PhysicsProvider` for engine components that keeps its own AABB bookkeeping (raycast,
  * overlaps) and mirrors every blocking collider into the host's live list by reference.
  */
-function createHostMirroredPhysics(host: LocationBridgeHost, warn: (code: string, id: string) => void) {
+function createHostMirroredPhysics(
+  host: LocationBridgeHost,
+  warn: (code: string, id: string) => void,
+) {
   const inner = createAabbPhysicsProvider();
   const mirrored = new Map<string, HostCollider>();
 
-  const boxOf = (id: string): Box3 | undefined => inner.boxes.find((box) => inner.idOfBox(box) === id);
+  const boxOf = (id: string): Box3 | undefined =>
+    inner.boxes.find((box) => inner.idOfBox(box) === id);
 
   const mirror = (spec: ColliderSpec): void => {
     if (spec.kind === 'TRIGGER') {
@@ -297,7 +350,8 @@ function createHostMirroredPhysics(host: LocationBridgeHost, warn: (code: string
     hasCollider: (id) => inner.hasCollider(id),
     getCollider: (id) => inner.getCollider(id),
     colliders: () => inner.colliders(),
-    raycast: (origin, direction, maxDistance, filter) => inner.raycast(origin, direction, maxDistance, filter),
+    raycast: (origin, direction, maxDistance, filter) =>
+      inner.raycast(origin, direction, maxDistance, filter),
     overlaps: (min, max) => inner.overlaps(min, max),
     onChange: (listener) => inner.onChange(listener),
   };
@@ -322,9 +376,17 @@ function createPlayerReader(host: LocationBridgeHost) {
     const ground = host.playerPosition();
     const position = { x: ground.x, y: 0, z: ground.z };
     const velocity =
-      last && dt > 0 ? { x: (position.x - last.x) / dt, y: 0, z: (position.z - last.z) / dt } : { x: 0, y: 0, z: 0 };
+      last && dt > 0
+        ? { x: (position.x - last.x) / dt, y: 0, z: (position.z - last.z) / dt }
+        : { x: 0, y: 0, z: 0 };
     last = position;
-    return { position, yaw: host.childPlacement?.().yaw ?? 0, velocity, grounded: true, supportId: null };
+    return {
+      position,
+      yaw: host.childPlacement?.().yaw ?? 0,
+      velocity,
+      grounded: true,
+      supportId: null,
+    };
   };
 }
 
@@ -337,7 +399,10 @@ export interface ClaimsBinding {
  * A factory that resolves its binding at emit time. It rebuilds the inner factory only when the
  * binding's context changes (a new visit), and returns null (no claim) while unbound.
  */
-function lazyFactory(resolve: () => ClaimsBinding | null, onUnbound: () => void): GameplayEventFactory {
+function lazyFactory(
+  resolve: () => ClaimsBinding | null,
+  onUnbound: () => void,
+): GameplayEventFactory {
   let boundContext: GameplayEventContext | null = null;
   let inner: GameplayEventFactory | null = null;
   const current = (): GameplayEventFactory | null => {
@@ -395,12 +460,16 @@ export interface EngineBridgeMount extends WorldExtensionMount {
   dispose(): void;
 }
 
-export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridgeOptions = {}): EngineBridgeMount {
+export function mountEngineBridge(
+  host: LocationBridgeHost,
+  options: EngineBridgeOptions = {},
+): EngineBridgeMount {
   const support = hostSupport(host);
   let dropped = 0;
   let unbound = 0;
   // `scene.engineBridge.allowEnginePlatforms` (seed data) or the creation option may allow it.
-  const allowPlatforms = options.allowEnginePlatforms === true || host.config.allowEnginePlatforms === true;
+  const allowPlatforms =
+    options.allowEnginePlatforms === true || host.config.allowEnginePlatforms === true;
   const deviceTier = deviceParticleTier(host.quality);
   const { requests, issues } = bridgeCapabilityRequests(host.config, allowPlatforms, deviceTier);
 
@@ -427,7 +496,10 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
     };
   }
 
-  const runtime = createEngineRuntime<EventMap>({ id: ENGINE_BRIDGE_EXTENSION_ID, capabilities: registry });
+  const runtime = createEngineRuntime<EventMap>({
+    id: ENGINE_BRIDGE_EXTENSION_ID,
+    capabilities: registry,
+  });
   const warn = (code: string, id: string) => runtime.diagnostics.warn(code, { id });
   const physics = createHostMirroredPhysics(host, warn);
   const settings: GameplaySettings = { reducedMotion: host.reducedMotion };
@@ -442,7 +514,10 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
       typeof binding === 'function'
         ? lazyFactory(binding, () => (unbound += 1))
         : createGameplayEventFactory(binding.context, binding.options);
-    runtime.services.provide(GameplayEventFactoryService, droppingFactory(factory, () => (dropped += 1)));
+    runtime.services.provide(
+      GameplayEventFactoryService,
+      droppingFactory(factory, () => (dropped += 1)),
+    );
   }
   if (!support.playerState) {
     runtime.diagnostics.warn('HOST_PLAYER_STATE_MISSING', { fallback: 'playerPosition' });
@@ -451,7 +526,11 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   // The canonical transform, written from the host before any component runs.
   const player = runtime.world.create(PLAYER_ENTITY_ID);
   const first = createPlayerReader(host)(0);
-  runtime.world.add(player, PlayerTransformComponent, createPlayerTransform(first.position, first.yaw));
+  runtime.world.add(
+    player,
+    PlayerTransformComponent,
+    createPlayerTransform(first.position, first.yaw),
+  );
   const readPlayer = createPlayerReader(host);
   runtime.systems.add({
     id: 'bridge.playerTransform',
@@ -468,7 +547,13 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
         pitch: 0,
         velocity: { ...state.velocity },
         grounded: state.grounded,
-        state: state.grounded ? (moving ? 'WALK' : 'IDLE') : state.velocity.y > 0 ? 'AIRBORNE' : 'FALLING',
+        state: state.grounded
+          ? moving
+            ? 'WALK'
+            : 'IDLE'
+          : state.velocity.y > 0
+            ? 'AIRBORNE'
+            : 'FALLING',
         gait: state.grounded && moving ? 'walk' : 'idle',
         supportId: state.supportId,
       });
@@ -476,20 +561,23 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   });
 
   // Claims: validated, then handed to the sink; nothing reaches the child as an error.
-  runtime.events.on('gameplay.event' as never, ((event: AnyGameplayEvent | null) => {
-    if (event === null) {
-      return; // already counted by the dropping factory
-    }
-    if (!validateGameplayEvent(event).ok) {
-      dropped += 1;
-      return;
-    }
-    try {
-      options.onGameplayEvent?.(event);
-    } catch {
-      dropped += 1;
-    }
-  }) as never);
+  runtime.events.on(
+    'gameplay.event' as never,
+    ((event: AnyGameplayEvent | null) => {
+      if (event === null) {
+        return; // already counted by the dropping factory
+      }
+      if (!validateGameplayEvent(event).ok) {
+        dropped += 1;
+        return;
+      }
+      try {
+        options.onGameplayEvent?.(event);
+      } catch {
+        dropped += 1;
+      }
+    }) as never,
+  );
 
   // Events the HOST's live movement emits that engine components consume (the host owns movement
   // under the bridge). Relayed host -> engine, and never forwarded back, so the buses cannot loop.
@@ -510,19 +598,26 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
 
   // Presentation events both buses share go to the host bus (never one the host just sent us).
   for (const name of FORWARDED_EVENTS) {
-    runtime.events.on(name as never, ((payload: unknown) => {
-      if (relaying === name) {
-        return;
-      }
-      host.bus.emit(name, payload as never);
-    }) as never);
+    runtime.events.on(
+      name as never,
+      ((payload: unknown) => {
+        if (relaying === name) {
+          return;
+        }
+        host.bus.emit(name, payload as never);
+      }) as never,
+    );
   }
 
   // Hazards: the host moves the child, then exactly one PlayerRecovered names the hazard.
   runtime.resources.track(
     onPresentation(runtime, 'HazardRecoveryRequested', (request) => {
       host.teleportPlayer(request.position.x, request.position.z, request.yaw);
-      host.bus.emit('PlayerRecovered', { reason: 'HAZARD', checkpointId: request.checkpointId, hazardId: request.hazardId });
+      host.bus.emit('PlayerRecovered', {
+        reason: 'HAZARD',
+        checkpointId: request.checkpointId,
+        hazardId: request.hazardId,
+      });
     }),
   );
 
@@ -532,7 +627,9 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   });
 
   let environmentHanded = false;
-  const environment = runtime.installed.has(ENVIRONMENT_VOLUMES) ? runtime.services.get(EnvironmentQueryService) : undefined;
+  const environment = runtime.installed.has(ENVIRONMENT_VOLUMES)
+    ? runtime.services.get(EnvironmentQueryService)
+    : undefined;
   if (environment) {
     if (host.setEnvironment) {
       host.setEnvironment(environment);
@@ -543,10 +640,25 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   }
 
   // Presentation: only with a scene; otherwise one warning and nothing is drawn.
-  const wantsPresentation = (['gameplay.platforms', 'gameplay.hazards', 'environment.weather', 'environment.lighting', 'environment.particles'] as const).some((id) => runtime.installed.has(id));
+  const wantsPresentation = (
+    [
+      'gameplay.platforms',
+      'gameplay.hazards',
+      'environment.weather',
+      'environment.lighting',
+      'environment.particles',
+    ] as const
+  ).some((id) => runtime.installed.has(id));
   let presentation: BridgePresentation | null = null;
   if (host.scene) {
-    presentation = mountBridgePresentation(runtime, host.scene, { reducedMotion: () => settings.reducedMotion, center: host.playerPosition(), playerPosition: () => host.playerPosition(), ...(deviceTier ? { tier: deviceTier } : {}), ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}), ...(host.groundHeightAt ? { groundHeightAt: (x, z) => host.groundHeightAt!(x, z) } : {}) });
+    presentation = mountBridgePresentation(runtime, host.scene, {
+      reducedMotion: () => settings.reducedMotion,
+      center: host.playerPosition(),
+      playerPosition: () => host.playerPosition(),
+      ...(deviceTier ? { tier: deviceTier } : {}),
+      ...(host.loadModel ? { loadModel: (assetId) => host.loadModel!(assetId) } : {}),
+      ...(host.groundHeightAt ? { groundHeightAt: (x, z) => host.groundHeightAt!(x, z) } : {}),
+    });
   } else if (wantsPresentation) {
     runtime.diagnostics.warn('HOST_SCENE_MISSING', { fallback: 'nothing is drawn' });
   }
@@ -554,7 +666,10 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
   // Engine platforms: carry and bounce go through the host's live controller.
   const platforms = runtime.services.get(PlatformsService);
   if (platforms && !support.carryLaunch) {
-    runtime.diagnostics.warn('HOST_CARRY_UNSUPPORTED', { carryPlayer: typeof host.carryPlayer === 'function', launchPlayer: typeof host.launchPlayer === 'function' });
+    runtime.diagnostics.warn('HOST_CARRY_UNSUPPORTED', {
+      carryPlayer: typeof host.carryPlayer === 'function',
+      launchPlayer: typeof host.launchPlayer === 'function',
+    });
   }
   const applyPlatformMotion = (seconds: number): void => {
     if (!platforms) {
@@ -585,17 +700,23 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
 
   // Resume: authored order decides "furthest" (the order of gameplay.checkpoints' list).
   const authoredOrder = (): string[] => {
-    const config = runtime.capabilityConfig<{ checkpoints?: { id: string }[] }>('gameplay.checkpoints');
+    const config = runtime.capabilityConfig<{ checkpoints?: { id: string }[] }>(
+      'gameplay.checkpoints',
+    );
     return (config?.checkpoints ?? []).map((checkpoint) => checkpoint.id);
   };
-  const resume = (checkpointIds: readonly string[]): { placedAt: string | null; unknown: string[] } => {
+  const resume = (
+    checkpointIds: readonly string[],
+  ): { placedAt: string | null; unknown: string[] } => {
     const checkpoints = runtime.services.get(CheckpointsService);
     if (!checkpoints) {
       return { placedAt: null, unknown: [...checkpointIds] };
     }
     const order = authoredOrder();
     const unknown = checkpointIds.filter((id) => !checkpoints.has(id));
-    const known = checkpointIds.filter((id) => checkpoints.has(id)).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    const known = checkpointIds
+      .filter((id) => checkpoints.has(id))
+      .sort((a, b) => order.indexOf(a) - order.indexOf(b));
     for (const id of known) {
       checkpoints.markReached(id); // no event, no claim: the server already holds these
     }
@@ -636,7 +757,9 @@ export function mountEngineBridge(host: LocationBridgeHost, options: EngineBridg
       resume,
       latestCheckpoint: () => {
         const latest = runtime.services.get(CheckpointsService)?.latest() ?? null;
-        return latest ? { id: latest.id, x: latest.position.x, z: latest.position.z, yaw: latest.yaw } : null;
+        return latest
+          ? { id: latest.id, x: latest.position.x, z: latest.position.z, yaw: latest.yaw }
+          : null;
       },
       setSignals,
       isSafeGround: (x, y, z) => platforms?.isSafeGround(x, y, z) ?? true,

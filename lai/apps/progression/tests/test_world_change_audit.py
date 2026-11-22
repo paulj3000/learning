@@ -51,14 +51,16 @@ CHILD_WRITE_ROUTES = {
     "POST /game-launches/",
     "POST /npc-memory/<slug:npc_id>/dialogue/",
     "POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/",
-    "POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/advance/",
+    "POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/"
+    "<uuid:conversation_id>/advance/",
     "POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/choose/",
     "POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/end/",
     "POST /places/<slug:place_slug>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/hint/",
     "POST /quests/<slug:quest_id>/accept/",
     "POST /regions/<slug:region_id>/launch-points/<slug:launch_id>/start/",
     "POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/",
-    "POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/advance/",
+    "POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/"
+    "<uuid:conversation_id>/advance/",
     "POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/choose/",
     "POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/end/",
     "POST /regions/<slug:region_id>/npcs/<slug:npc_id>/interactions/<uuid:conversation_id>/hint/",
@@ -154,6 +156,7 @@ def test_another_familys_child_is_not_found_exactly_like_an_unknown_one(content,
         "application/json",
     )
     assert real.status_code == unknown.status_code == 404
+
     def shape(response):
         body = response.json()
         body.pop("request_id", None)

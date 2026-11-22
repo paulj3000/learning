@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { advanceMotion, createPathMotion, initialMotionState, motionOffset } from './platformMotion';
+import {
+  advanceMotion,
+  createPathMotion,
+  initialMotionState,
+  motionOffset,
+} from './platformMotion';
 
-const at = (motion: ReturnType<typeof createPathMotion>, state: ReturnType<typeof initialMotionState>) =>
-  motionOffset(motion, state, { x: 0, y: 0, z: 0 });
+const at = (
+  motion: ReturnType<typeof createPathMotion>,
+  state: ReturnType<typeof initialMotionState>,
+) => motionOffset(motion, state, { x: 0, y: 0, z: 0 });
 
 describe('platform path motion', () => {
   it('interpolates along a horizontal path at its speed', () => {
@@ -26,7 +33,13 @@ describe('platform path motion', () => {
   });
 
   it('loops through every waypoint and back to the start', () => {
-    const motion = createPathMotion([{ x: 2, y: 0, z: 0 }, { x: 2, y: 0, z: 2 }], 'LOOP');
+    const motion = createPathMotion(
+      [
+        { x: 2, y: 0, z: 0 },
+        { x: 2, y: 0, z: 2 },
+      ],
+      'LOOP',
+    );
     const state = initialMotionState();
     advanceMotion(motion, state, 3, 1); // 2 m to the first, 1 m toward the second
     expect(at(motion, state)).toEqual({ x: 2, y: 0, z: 1 });
@@ -57,7 +70,14 @@ describe('platform path motion', () => {
   });
 
   it('is deterministic however the time is split into frames', () => {
-    const motion = createPathMotion([{ x: 5, y: 0, z: 0 }, { x: 5, y: 2, z: 3 }], 'PING_PONG', 0.4);
+    const motion = createPathMotion(
+      [
+        { x: 5, y: 0, z: 0 },
+        { x: 5, y: 2, z: 3 },
+      ],
+      'PING_PONG',
+      0.4,
+    );
     const coarse = initialMotionState();
     const fine = initialMotionState();
     for (let i = 0; i < 30; i += 1) advanceMotion(motion, coarse, 1 / 30, 1.5);

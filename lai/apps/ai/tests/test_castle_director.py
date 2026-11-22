@@ -211,9 +211,7 @@ def test_a_malformed_reply_is_invalid_schema(families, api, fake_model):
     assert audit(families.a1).validation_status == "INVALID_SCHEMA"
 
 
-def test_a_guardrail_intervention_returns_the_default_and_a_safety_event(
-    families, api, fake_model
-):
+def test_a_guardrail_intervention_returns_the_default_and_a_safety_event(families, api, fake_model):
     fake_model(GUARDRAIL_BLOCK)
     assert_default(post(api(families.a), families.a1))
     assert audit(families.a1).validation_status == "BLOCKED_GUARDRAIL"
@@ -328,7 +326,13 @@ def test_the_client_cannot_supply_candidates_or_anything_else(families, api, fak
 
 @pytest.mark.parametrize(
     "payload",
-    [{}, {"roomId": ROOM}, {"visitId": str(uuid.uuid4())}, body(visit="not-a-uuid"), body(room="a b")],
+    [
+        {},
+        {"roomId": ROOM},
+        {"visitId": str(uuid.uuid4())},
+        body(visit="not-a-uuid"),
+        body(room="a b"),
+    ],
 )
 def test_a_malformed_request_is_a_400(families, api, payload):
     assert post(api(families.a), families.a1, payload).status_code == 400
@@ -396,8 +400,9 @@ def test_the_writes_are_only_the_audit_the_counters_and_usage(families, api, fak
     with CaptureQueriesContext(connection) as queries:
         post(api(families.a), families.a1)
     touched = {
-        q["sql"].split()[2].strip('"') if q["sql"].upper().startswith("INSERT") else
-        q["sql"].split()[1].strip('"')
+        q["sql"].split()[2].strip('"')
+        if q["sql"].upper().startswith("INSERT")
+        else q["sql"].split()[1].strip('"')
         for q in queries
         if q["sql"].lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE"))
     }
@@ -409,9 +414,7 @@ def test_the_audit_row_holds_no_event_text_or_child_data(families, api, fake_mod
     fake_model(choice("quill-hums-in-hall"))
     post(api(families.a), families.a1)
     row = audit(families.a1)
-    dump = json.dumps(
-        {k: v for k, v in vars(row).items() if not k.startswith("_")}, default=str
-    )
+    dump = json.dumps({k: v for k, v in vars(row).items() if not k.startswith("_")}, default=str)
     for text in ("Keeper Quill", "hums", "quill-hums-in-hall", "Zinnia", "Secret-Interest"):
         assert text not in dump
     assert str(families.a1.pk) not in dump.replace(str(row.child_id), "")
@@ -424,4 +427,6 @@ def test_the_audit_row_holds_no_event_text_or_child_data(families, api, fake_mod
 @pytest.mark.parametrize("event_id", sorted(EVENTS))
 def test_every_authored_line_passes_the_output_policy(event_id):
     for band in ("SPROUT", "PATHFINDER", "EXPLORER"):
-        assert boundary_violations(castle_events.turn_for(EVENTS[event_id], band)["spokenText"]) == []
+        assert (
+            boundary_violations(castle_events.turn_for(EVENTS[event_id], band)["spokenText"]) == []
+        )

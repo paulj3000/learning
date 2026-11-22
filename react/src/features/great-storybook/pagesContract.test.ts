@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { GREAT_STORYBOOK_MORE_QUEST_IDS, GREAT_STORYBOOK_QUEST_IDS } from '../quests/content/islandQuests';
+import {
+  GREAT_STORYBOOK_MORE_QUEST_IDS,
+  GREAT_STORYBOOK_QUEST_IDS,
+} from '../quests/content/islandQuests';
 import { STORYBOOK_EDITION, STORYBOOK_PAGES } from './pages';
 
 /**

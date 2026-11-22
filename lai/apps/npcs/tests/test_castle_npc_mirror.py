@@ -29,7 +29,8 @@ def _node_texts(npc_id: str) -> dict[str, str]:
     block = source[start : start + 1 + following.start()] if following else source[start:]
     found: dict[str, str] = {}
     pattern = re.compile(
-        r"id: '(?P<id>[a-z0-9-]+)',(?:(?!\n      \{).)*?\btext:\s*(?P<q>['\"])(?P<text>.*?)(?<!\\)(?P=q)",
+        r"id: '(?P<id>[a-z0-9-]+)',(?:(?!\n      "
+        r"\{).)*?\btext:\s*(?P<q>['\"])(?P<text>.*?)(?<!\\)(?P=q)",
         re.S,
     )
     for match in pattern.finditer(block):

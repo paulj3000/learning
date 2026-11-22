@@ -169,7 +169,10 @@ describe('Keeper Quill in the Writing Room (SC-final-B)', () => {
     expect(node?.text).toContain('Writing Room');
     expect(node?.setsMemoryFlags).toEqual(['heardAboutWritingRoom']);
     // After he has said it, his other lines are heard again, exactly as before.
-    const next = selectDialogueNode(quill(), afternoon({ metQuill: true, heardAboutWritingRoom: true }));
+    const next = selectDialogueNode(
+      quill(),
+      afternoon({ metQuill: true, heardAboutWritingRoom: true }),
+    );
     expect(next?.id).toBe('quill-the-damaged-book');
   });
 
@@ -185,7 +188,9 @@ describe('Keeper Quill in the Writing Room (SC-final-B)', () => {
   });
 
   it('asks for no arithmetic, no writing and no private details, and carries no em dash', () => {
-    const node = quill().dialogue.find((candidate) => candidate.id === 'quill-writing-room-afternoon')!;
+    const node = quill().dialogue.find(
+      (candidate) => candidate.id === 'quill-writing-room-afternoon',
+    )!;
     const copy = [node.text, ...node.choices.map((choice) => choice.label)].join(' ');
     expect(copy).not.toMatch(/\d|count|add |solve|sum/i);
     expect(copy).not.toContain('—');

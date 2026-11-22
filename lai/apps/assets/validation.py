@@ -368,7 +368,8 @@ def _check_document(result, document, bin_info, stream, definition):
         "skinned": bool(_list(document, "skins")),
     }
     if box:
-        # Collision profiles size themselves from this (`collision.py`): min and max corners, metres.
+        # Collision profiles size themselves from this (`collision.py`): min and max corners,
+        # metres.
         result.metadata["bounds"] = box
 
 

@@ -8,7 +8,9 @@ import type { AdventureDefinition } from './adventure';
 import { defineAdventure } from './adventure';
 
 /** A registry with a stub `movement.jump` (needs `movement.walk`) and `camera.thirdPerson`. */
-export function createTestRegistry(log: string[] = []): CapabilityRegistry<EngineRuntime<EventMap>> {
+export function createTestRegistry(
+  log: string[] = [],
+): CapabilityRegistry<EngineRuntime<EventMap>> {
   const registry = createCapabilityRegistry<EngineRuntime<EventMap>>();
   registry.register({
     id: 'movement.walk',
@@ -29,7 +31,10 @@ export function createTestRegistry(log: string[] = []): CapabilityRegistry<Engin
     defaults: { jumpHeight: 1.2 },
     validate: (input) => {
       const value = (input ?? {}) as { jumpHeight?: unknown };
-      if (value.jumpHeight !== undefined && (typeof value.jumpHeight !== 'number' || value.jumpHeight < 0.2 || value.jumpHeight > 2.5)) {
+      if (
+        value.jumpHeight !== undefined &&
+        (typeof value.jumpHeight !== 'number' || value.jumpHeight < 0.2 || value.jumpHeight > 2.5)
+      ) {
         return validationFailed([{ path: 'jumpHeight', message: 'must be 0.2 to 2.5' }]);
       }
       return validationOk({ jumpHeight: (value.jumpHeight as number | undefined) ?? 1.2 });

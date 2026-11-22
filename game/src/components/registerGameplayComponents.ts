@@ -61,19 +61,32 @@ export function validateGameplayLayout(layout: GameplayLayout): ValidationIssue[
   const hazards = [...(layout.hazards?.hazards ?? []), ...(layout.hazards?.telegraphed ?? [])];
   for (const hazard of hazards) {
     if (!checkpointIds.has(hazard.checkpointId)) {
-      issues.push({ path: `hazards.${hazard.id}.checkpointId`, message: `checkpoint "${hazard.checkpointId}" does not exist (every hazard has a checkpoint)` });
+      issues.push({
+        path: `hazards.${hazard.id}.checkpointId`,
+        message: `checkpoint "${hazard.checkpointId}" does not exist (every hazard has a checkpoint)`,
+      });
     }
   }
 
   // Checkpoints sit at ground level, never on a moving, spinning, falling or bouncing platform.
   for (const checkpoint of checkpoints) {
     for (const platform of layout.platforms?.platforms ?? []) {
-      if (platform.route === 'REQUIRED' && !platform.moving && !platform.falling && platform.bounceHeight === undefined && !platform.spinDegreesPerSecond) {
+      if (
+        platform.route === 'REQUIRED' &&
+        !platform.moving &&
+        !platform.falling &&
+        platform.bounceHeight === undefined &&
+        !platform.spinDegreesPerSecond
+      ) {
         continue;
       }
       const points = [{ x: 0, z: 0 }, ...(platform.moving?.path ?? [])];
       const top = platform.position.y + platform.size.y;
-      const unstable = platform.moving || platform.falling || platform.bounceHeight !== undefined || platform.spinDegreesPerSecond;
+      const unstable =
+        platform.moving ||
+        platform.falling ||
+        platform.bounceHeight !== undefined ||
+        platform.spinDegreesPerSecond;
       if (!unstable) {
         continue;
       }
@@ -84,7 +97,10 @@ export function validateGameplayLayout(layout: GameplayLayout): ValidationIssue[
           Math.abs(checkpoint.position.y - top) <= 0.5,
       );
       if (onIt) {
-        issues.push({ path: `checkpoints.${checkpoint.id}`, message: `stands on unstable platform "${platform.id}"; checkpoints must be at ground level` });
+        issues.push({
+          path: `checkpoints.${checkpoint.id}`,
+          message: `stands on unstable platform "${platform.id}"; checkpoints must be at ground level`,
+        });
       }
     }
   }

@@ -1,12 +1,12 @@
 import type { WorldInteraction, WorldRequirement } from '../../worldObjects';
 import type { AgeBandValue } from '../../../child-profile/constants';
 import type { AdventureStepBinding } from './adventureStepBindings';
-import type { MovementSpec } from '../jumpConfiguration';
-import type { PlayerPresentationSpec } from '../playerPresentation';
+import type { MovementSpec } from '@lai/game-engine/movement';
+import type { PlayerPresentationSpec } from '@lai/game-engine/camera';
 
 import type { PlatformingSpec } from '../platforms/platformSpec';
-export type { MovementSpec } from '../jumpConfiguration';
-export type { PlayerPresentationSpec } from '../playerPresentation';
+export type { MovementSpec } from '@lai/game-engine/movement';
+export type { PlayerPresentationSpec } from '@lai/game-engine/camera';
 
 /**
  * The serializable contract a generic Three.js location runtime reads

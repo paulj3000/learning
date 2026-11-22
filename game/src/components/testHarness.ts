@@ -4,13 +4,35 @@
  * no test framework, so the boundary guard treats it as ordinary engine code.
  */
 
-import { createGameplayEventFactory, validateGameplayEvent, type AnyGameplayEvent } from '../contracts/gameplayEvents';
-import { PhysicsProviderService, type ColliderSpec, type PhysicsProvider, type RayHit } from '../contracts/physics';
-import { createPlayerTransform, PLAYER_ENTITY_ID, PlayerTransformComponent, type Vec3Like } from '../contracts/player';
-import { createCapabilityRegistry, type CapabilityRegistry, type CapabilityRequest } from '../core/capabilities';
+import {
+  createGameplayEventFactory,
+  validateGameplayEvent,
+  type AnyGameplayEvent,
+} from '../contracts/gameplayEvents';
+import {
+  PhysicsProviderService,
+  type ColliderSpec,
+  type PhysicsProvider,
+  type RayHit,
+} from '../contracts/physics';
+import {
+  createPlayerTransform,
+  PLAYER_ENTITY_ID,
+  PlayerTransformComponent,
+  type Vec3Like,
+} from '../contracts/player';
+import {
+  createCapabilityRegistry,
+  type CapabilityRegistry,
+  type CapabilityRequest,
+} from '../core/capabilities';
 import type { EventMap } from '../core/eventBus';
 import { createEngineRuntime, type EngineRuntime } from '../core/runtime';
-import { GameplayEventFactoryService, GameplaySettingsService, type GameplaySettings } from './common';
+import {
+  GameplayEventFactoryService,
+  GameplaySettingsService,
+  type GameplaySettings,
+} from './common';
 
 export function createFakePhysics(): PhysicsProvider & { log: string[] } {
   const colliders = new Map<string, ColliderSpec>();
@@ -53,7 +75,15 @@ export function createFakePhysics(): PhysicsProvider & { log: string[] } {
     raycast: (): RayHit | null => null,
     overlaps(min, max) {
       return [...colliders.values()]
-        .filter((c) => c.min.x <= max.x && c.max.x >= min.x && c.min.y <= max.y && c.max.y >= min.y && c.min.z <= max.z && c.max.z >= min.z)
+        .filter(
+          (c) =>
+            c.min.x <= max.x &&
+            c.max.x >= min.x &&
+            c.min.y <= max.y &&
+            c.max.y >= min.y &&
+            c.min.z <= max.z &&
+            c.max.z >= min.z,
+        )
         .map((c) => c.id);
     },
     onChange(listener) {
@@ -86,7 +116,9 @@ export interface Harness {
 
 const STEP = 1 / 60;
 
-export function createHarness(register: (registry: CapabilityRegistry<EngineRuntime<EventMap>>) => void): Harness {
+export function createHarness(
+  register: (registry: CapabilityRegistry<EngineRuntime<EventMap>>) => void,
+): Harness {
   const registry = createCapabilityRegistry<EngineRuntime<EventMap>>();
   register(registry);
   const runtime = createEngineRuntime<EventMap>({ id: 'test.area', capabilities: registry });
@@ -98,12 +130,24 @@ export function createHarness(register: (registry: CapabilityRegistry<EngineRunt
   runtime.services.provide(
     GameplayEventFactoryService,
     createGameplayEventFactory(
-      { realmId: 'realm.test', adventureId: 'adventure.test', areaId: 'area.test', sessionRef: null },
-      { newEventId: () => `evt-${String((counter += 1)).padStart(8, '0')}`, now: () => Date.UTC(2026, 10, 18) },
+      {
+        realmId: 'realm.test',
+        adventureId: 'adventure.test',
+        areaId: 'area.test',
+        sessionRef: null,
+      },
+      {
+        newEventId: () => `evt-${String((counter += 1)).padStart(8, '0')}`,
+        now: () => Date.UTC(2026, 10, 18),
+      },
     ),
   );
   const player = runtime.world.create(PLAYER_ENTITY_ID);
-  runtime.world.add(player, PlayerTransformComponent, createPlayerTransform({ x: 100, y: 0, z: 100 }));
+  runtime.world.add(
+    player,
+    PlayerTransformComponent,
+    createPlayerTransform({ x: 100, y: 0, z: 100 }),
+  );
   const claims: AnyGameplayEvent[] = [];
   const events: { name: string; payload: unknown }[] = [];
   runtime.events.onAny((name, payload) => {

@@ -24,7 +24,12 @@ import {
   type GameplayEventPayloads,
 } from '../contracts/gameplayEvents';
 import type { ServiceRegistry } from '../core/services';
-import { assertValidAdventure, profileFor, type AdventureDefinition, type ValidateAdventureOptions } from './adventure';
+import {
+  assertValidAdventure,
+  profileFor,
+  type AdventureDefinition,
+  type ValidateAdventureOptions,
+} from './adventure';
 import type { ComponentRegistry } from './componentRegistry';
 import type { AgeBand, ResolvedProfile } from './profiles';
 
@@ -67,7 +72,11 @@ export interface AdventureSession {
   readonly currentAreaId: string | null;
   readonly events: GameplayEventFactory;
   /** Emits any gameplay claim through the session's factory (context filled in). */
-  emit<T extends GameplayEventType>(type: T, payload: GameplayEventPayloads[T], areaId?: string | null): AnyGameplayEvent;
+  emit<T extends GameplayEventType>(
+    type: T,
+    payload: GameplayEventPayloads[T],
+    areaId?: string | null,
+  ): AnyGameplayEvent;
   enterArea(areaId: string): void;
   leaveArea(): void;
   /** Emits `adventure.completed` once. Returns false when already completed or not running. */
@@ -94,24 +103,37 @@ export async function loadAdventure(
     componentTypes: options.validation?.componentTypes ?? options.components,
   });
   if (!definition.ageBands.includes(options.ageBand)) {
-    throw new EngineError('INVALID_CONFIG', `Adventure "${definition.id}" does not support age band ${options.ageBand}`, {
-      adventureId: definition.id,
-      ageBand: options.ageBand,
-    });
+    throw new EngineError(
+      'INVALID_CONFIG',
+      `Adventure "${definition.id}" does not support age band ${options.ageBand}`,
+      {
+        adventureId: definition.id,
+        ageBand: options.ageBand,
+      },
+    );
   }
   const provided = new Set(services.ids());
   for (const serviceId of definition.requiredServices) {
     if (!provided.has(serviceId)) {
-      throw new EngineError('MISSING_DEPENDENCY', `Adventure "${definition.id}" needs service "${serviceId}"`, {
-        adventureId: definition.id,
-        service: serviceId,
-      });
+      throw new EngineError(
+        'MISSING_DEPENDENCY',
+        `Adventure "${definition.id}" needs service "${serviceId}"`,
+        {
+          adventureId: definition.id,
+          service: serviceId,
+        },
+      );
     }
   }
 
   const profile = profileFor(definition, options.ageBand);
   const factory = createGameplayEventFactory(
-    { realmId: definition.realmId, adventureId: definition.id, areaId: null, sessionRef: options.sessionRef ?? null },
+    {
+      realmId: definition.realmId,
+      adventureId: definition.id,
+      areaId: null,
+      sessionRef: options.sessionRef ?? null,
+    },
     options.eventFactory,
   );
   const hookSets = new Set<AdventureHooks>();
@@ -121,12 +143,24 @@ export async function loadAdventure(
   let state: AdventureSessionState = 'running';
   let currentAreaId: string | null = null;
 
-  const emit = (type: GameplayEventType, payload: never, areaId?: string | null): AnyGameplayEvent => {
-    const event = factory.create(type, payload, areaId === undefined ? {} : { areaId }) as AnyGameplayEvent;
+  const emit = (
+    type: GameplayEventType,
+    payload: never,
+    areaId?: string | null,
+  ): AnyGameplayEvent => {
+    const event = factory.create(
+      type,
+      payload,
+      areaId === undefined ? {} : { areaId },
+    ) as AnyGameplayEvent;
     runtime.events.emit('gameplay.event', event as never);
     return event;
   };
-  const hookContext = (areaId: string): AreaHookContext => ({ areaId, adventure: definition, runtime });
+  const hookContext = (areaId: string): AreaHookContext => ({
+    areaId,
+    adventure: definition,
+    runtime,
+  });
   const runHooks = (name: keyof AdventureHooks, call: (hooks: AdventureHooks) => void): void => {
     for (const hooks of [...hookSets]) {
       try {
@@ -158,10 +192,18 @@ export async function loadAdventure(
     emit: (type, payload, areaId) => emit(type, payload as never, areaId),
     enterArea(areaId) {
       if (session.state !== 'running' && session.state !== 'completed') {
-        throw new EngineError('INVALID_STATE', `Cannot enter an area while the adventure is ${session.state}`, { areaId });
+        throw new EngineError(
+          'INVALID_STATE',
+          `Cannot enter an area while the adventure is ${session.state}`,
+          { areaId },
+        );
       }
       if (!definition.areas.includes(areaId)) {
-        throw new EngineError('UNKNOWN_ID', `Area "${areaId}" is not part of adventure "${definition.id}"`, { areaId });
+        throw new EngineError(
+          'UNKNOWN_ID',
+          `Area "${areaId}" is not part of adventure "${definition.id}"`,
+          { areaId },
+        );
       }
       if (currentAreaId === areaId) {
         return;

@@ -42,7 +42,10 @@ describe('hallOfHeroes (SC-R07-03)', () => {
       'page-what-was-waiting',
     ]);
     // Keepsakes only (not the Ember scale), in Trophy Room order.
-    expect(hall.artifacts.map((item) => item.itemId)).toEqual(['three-clues-lens', 'secret-door-key']);
+    expect(hall.artifacts.map((item) => item.itemId)).toEqual([
+      'three-clues-lens',
+      'secret-door-key',
+    ]);
     expect(hall.isEmpty).toBe(false);
   });
 

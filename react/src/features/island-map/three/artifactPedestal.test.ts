@@ -54,7 +54,8 @@ describe('nextPedestalState', () => {
   });
 
   it('returns to empty from any state only when ownership goes away', () => {
-    for (const state of STATES) expect(nextPedestalState(state, { type: 'NOT_OWNED' })).toBe('empty');
+    for (const state of STATES)
+      expect(nextPedestalState(state, { type: 'NOT_OWNED' })).toBe('empty');
     for (const state of ['loading', 'occupied', 'failed'] as const) {
       expect(nextPedestalState(state, { type: 'OWNED', hasModel: true })).toBe(state);
     }
@@ -77,7 +78,10 @@ describe('nextPedestalState', () => {
 
 describe('fitToPedestal (scale normalisation)', () => {
   it('fits a wide model to the footprint and stands it centred on the base', () => {
-    const fit = fitToPedestal({ min: { x: 4, y: 2, z: -4 }, max: { x: 6, y: 2.5, z: -2 } }, { baseY: 0 });
+    const fit = fitToPedestal(
+      { min: { x: 4, y: 2, z: -4 }, max: { x: 6, y: 2.5, z: -2 } },
+      { baseY: 0 },
+    );
     expect(fit.scale).toBeCloseTo(PEDESTAL_FOOTPRINT / 2);
     expect(fit.offset.x).toBeCloseTo(-5 * fit.scale);
     expect(fit.offset.z).toBeCloseTo(3 * fit.scale);
@@ -103,7 +107,8 @@ describe('fitToPedestal (scale normalisation)', () => {
 
 describe('pedestalPose', () => {
   it('is static under reduced motion, at any time', () => {
-    for (const t of [0, 1, 7.5, 1000]) expect(pedestalPose(t, true)).toEqual({ rotationY: 0, bob: 0 });
+    for (const t of [0, 1, 7.5, 1000])
+      expect(pedestalPose(t, true)).toEqual({ rotationY: 0, bob: 0 });
   });
 
   it('spins slowly and bobs gently otherwise', () => {
@@ -126,12 +131,19 @@ describe('createArtifactPedestal', () => {
     pedestal.setOwned(true);
     expect(pedestal.state()).toBe('empty');
     expect(names(pedestal)).toContain('artifact-pedestal-p1-plate');
-    expect(names(pedestal).some((n) => n.endsWith('-fallback') || n.endsWith('-model'))).toBe(false);
+    expect(names(pedestal).some((n) => n.endsWith('-fallback') || n.endsWith('-model'))).toBe(
+      false,
+    );
     expect(pedestal.group.position.toArray()).toEqual([AT.x, AT.y, AT.z]);
   });
 
   it('shows the primitive keepsake at once when no model is named', () => {
-    const pedestal = createArtifactPedestal({ id: 'p2', position: AT, itemId: 'x', reducedMotion: true });
+    const pedestal = createArtifactPedestal({
+      id: 'p2',
+      position: AT,
+      itemId: 'x',
+      reducedMotion: true,
+    });
     pedestal.setOwned(true);
     expect(pedestal.state()).toBe('occupied');
     expect(names(pedestal)).toContain('artifact-pedestal-p2-fallback');
@@ -217,14 +229,24 @@ describe('createArtifactPedestal', () => {
   });
 
   it('does not animate under reduced motion, and animates gently otherwise', () => {
-    const still = createArtifactPedestal({ id: 's', position: AT, itemId: 'x', reducedMotion: true });
+    const still = createArtifactPedestal({
+      id: 's',
+      position: AT,
+      itemId: 'x',
+      reducedMotion: true,
+    });
     still.setOwned(true);
     const display = still.group.getObjectByName('artifact-pedestal-s-display')!;
     const before = [display.rotation.y, display.position.y];
     for (const t of [0.5, 3, 9]) still.tick(t);
     expect([display.rotation.y, display.position.y]).toEqual(before);
 
-    const moving = createArtifactPedestal({ id: 'm', position: AT, itemId: 'x', reducedMotion: false });
+    const moving = createArtifactPedestal({
+      id: 'm',
+      position: AT,
+      itemId: 'x',
+      reducedMotion: false,
+    });
     moving.setOwned(true);
     moving.tick(3);
     expect(moving.group.getObjectByName('artifact-pedestal-m-display')!.rotation.y).not.toBe(0);
@@ -232,7 +254,12 @@ describe('createArtifactPedestal', () => {
 
   it('disposes the geometry and materials it built, and leaves the parent', () => {
     const parent = new Group();
-    const pedestal = createArtifactPedestal({ id: 'd', position: AT, itemId: 'x', reducedMotion: true });
+    const pedestal = createArtifactPedestal({
+      id: 'd',
+      position: AT,
+      itemId: 'x',
+      reducedMotion: true,
+    });
     parent.add(pedestal.group);
     pedestal.setOwned(true);
     const meshes: Mesh[] = [];

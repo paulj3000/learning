@@ -10,7 +10,13 @@ import { buildRegionManifest } from '../../../../region-play/regionManifest';
 import { toRegionSceneModel } from '../../../../region-play/sceneModel';
 import { SOURCE_MANIFEST_REGISTRIES } from '../../runtime/sourceManifestRegistries';
 import { validateLocationManifest } from '../../runtime/validateLocationManifest';
-import { mount, named, standingBox, type Drive, type Harness } from '../../runtime/testing/engineHarness';
+import {
+  mount,
+  named,
+  standingBox,
+  type Drive,
+  type Harness,
+} from '../../runtime/testing/engineHarness';
 import type { CameraMode } from '@lai/game-engine/camera';
 import { regionPlaySceneExtension } from './regionPlayScene';
 import {
@@ -39,7 +45,9 @@ async function buildCove(platformTuning?: Record<string, unknown>) {
   return built;
 }
 
-async function cove(options: { cameraMode?: CameraMode; platformTuning?: Record<string, unknown> } = {}) {
+async function cove(
+  options: { cameraMode?: CameraMode; platformTuning?: Record<string, unknown> } = {},
+) {
   const built = await buildCove(options.platformTuning);
   const harness = mount({
     manifest: built.manifest,
@@ -68,8 +76,12 @@ const go =
   };
 // GE-071 (course v4): the course's platforms run in the engine bridge. Its snapshot gives each
 // platform's top centre (position.y is the top, not the base, as the live state was).
-const bridgeApi = (h: Harness) => h.engine.extensionApi(ENGINE_BRIDGE_EXTENSION_ID) as EngineBridgeApi;
-const platform = (h: Harness, id: string) => bridgeApi(h).platforms().find((p) => p.id === id)!;
+const bridgeApi = (h: Harness) =>
+  h.engine.extensionApi(ENGINE_BRIDGE_EXTENSION_ID) as EngineBridgeApi;
+const platform = (h: Harness, id: string) =>
+  bridgeApi(h)
+    .platforms()
+    .find((p) => p.id === id)!;
 const isPresent = (h: Harness, id: string) =>
   bridgeApi(h).runtime!.services.require(PlatformsService).isPresent(id);
 /** The lift is awake when it is moving: its top rises within a second. */
@@ -88,31 +100,69 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
   it('builds a valid manifest with the course, its section zones and the cove intact', async () => {
     const built = await buildCove();
     expect(validateLocationManifest(built.manifest, SOURCE_MANIFEST_REGISTRIES)).toEqual([]);
-    const engineBlock = built.manifest.extensions.find((b) => b.extensionId === ENGINE_BRIDGE_EXTENSION_ID)!;
-    const capabilities = engineBlock.config.capabilities as { id: string; config: { platforms?: unknown[] } }[];
-    expect(capabilities.find((c) => c.id === 'gameplay.platforms')!.config.platforms!.length).toBeGreaterThanOrEqual(15);
+    const engineBlock = built.manifest.extensions.find(
+      (b) => b.extensionId === ENGINE_BRIDGE_EXTENSION_ID,
+    )!;
+    const capabilities = engineBlock.config.capabilities as {
+      id: string;
+      config: { platforms?: unknown[] };
+    }[];
+    expect(
+      capabilities.find((c) => c.id === 'gameplay.platforms')!.config.platforms!.length,
+    ).toBeGreaterThanOrEqual(15);
     expect(built.manifest.platforming?.platforms ?? []).toEqual([]); // nothing runs in both systems
     const zones = built.manifest.zones.map((zone) => zone.rect.id);
-    expect(zones).toEqual(expect.arrayContaining(['cove-zone-landing', 'leap-zone-learn', 'leap-zone-lift', 'leap-zone-nest']));
+    expect(zones).toEqual(
+      expect.arrayContaining([
+        'cove-zone-landing',
+        'leap-zone-learn',
+        'leap-zone-lift',
+        'leap-zone-nest',
+      ]),
+    );
   });
 
   it('runs the whole course in the engine bridge, which accepts every capability (GE-071)', async () => {
     const h = await cove();
     expect(bridgeApi(h).issues).toEqual([]);
-    expect(bridgeApi(h).platforms().map((p) => p.id)).toEqual(
+    expect(
+      bridgeApi(h)
+        .platforms()
+        .map((p) => p.id),
+    ).toEqual(
       expect.arrayContaining(['leap-lift', 'leap-moving-dock', 'leap-stair-14', 'leap-nest']),
     );
-    expect(bridgeApi(h).platforms().find((p) => p.id === 'leap-lift')!.kind).toBe('moving');
+    expect(
+      bridgeApi(h)
+        .platforms()
+        .find((p) => p.id === 'leap-lift')!.kind,
+    ).toBe('moving');
   });
 
   it('Pip narrates each section as the child walks in', async () => {
     const h = await cove();
-    for (const [x, z] of [[-17, -18], [-24, -20.8], [-29, -21.4], [-24, -31.4], [-19, -29]] as const) {
+    for (const [x, z] of [
+      [-17, -18],
+      [-24, -20.8],
+      [-29, -21.4],
+      [-24, -31.4],
+      [-19, -29],
+    ] as const) {
       h.setDrive(place(x, 0, z));
       h.runFrames(1);
     }
-    const entered = named(h.events, 'PlayerEnteredZone').map((d) => (d as { zoneId: string }).zoneId);
-    expect(entered).toEqual(expect.arrayContaining(['leap-zone-learn', 'leap-zone-barrels', 'leap-zone-logs', 'leap-zone-dock', 'leap-zone-lift']));
+    const entered = named(h.events, 'PlayerEnteredZone').map(
+      (d) => (d as { zoneId: string }).zoneId,
+    );
+    expect(entered).toEqual(
+      expect.arrayContaining([
+        'leap-zone-learn',
+        'leap-zone-barrels',
+        'leap-zone-logs',
+        'leap-zone-dock',
+        'leap-zone-lift',
+      ]),
+    );
   });
 
   it('the Pirate Lift: a plate wakes it, the child steps on and rides up to the ledge and the nest', async () => {
@@ -148,8 +198,12 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
     const ids = (name: 'PlatformActivated' | 'PlatformMoving' | 'PlatformStopped') =>
       named(h.events, name).map((d) => (d as { platformId: string }).platformId);
     expect(ids('PlatformActivated')).toContain('leap-lift');
-    expect(ids('PlatformMoving')).toEqual(expect.arrayContaining(['leap-lift', 'leap-moving-dock']));
-    expect(ids('PlatformStopped')).toEqual(expect.arrayContaining(['leap-lift', 'leap-moving-dock']));
+    expect(ids('PlatformMoving')).toEqual(
+      expect.arrayContaining(['leap-lift', 'leap-moving-dock']),
+    );
+    expect(ids('PlatformStopped')).toEqual(
+      expect.arrayContaining(['leap-lift', 'leap-moving-dock']),
+    );
   });
 
   it('the Moving Dock carries the child across the water to the far dock', async () => {
@@ -167,7 +221,10 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
     const h = await cove();
     h.setDrive(place(-15.8, 0, -18));
     h.runFrames(2);
-    expect(named(h.events, 'CourseCheckpointReached')).toContainEqual({ checkpointId: 'leap-cp-yard', label: 'the training yard' });
+    expect(named(h.events, 'CourseCheckpointReached')).toContainEqual({
+      checkpointId: 'leap-cp-yard',
+      label: 'the training yard',
+    });
     h.setDrive(place(-24.4, 0, -20));
     h.runFrames(1);
     h.setDrive(idle);
@@ -217,7 +274,9 @@ describe("Treasure Cove: Pirate's Leap on the engine", () => {
     const slow = await cove({ platformTuning: { 'leap-moving-dock': { speed: 0.4 } } });
     fast.runFrames(60);
     slow.runFrames(60);
-    expect(platform(slow, 'leap-moving-dock').position.x).toBeLessThan(platform(fast, 'leap-moving-dock').position.x);
+    expect(platform(slow, 'leap-moving-dock').position.x).toBeLessThan(
+      platform(fast, 'leap-moving-dock').position.x,
+    );
     fast.engine.dispose();
     slow.engine.dispose();
   });

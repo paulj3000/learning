@@ -23,32 +23,60 @@ function event(type: string, payload: Record<string, unknown>, areaId: string | 
 describe('engine adapter', () => {
   it('maps claims to pending entries with no amount', () => {
     const p = pendingFromEvent(event('exploration.area.entered', { areaId: 'cove-1' }), 1000);
-    expect(p).toMatchObject({ claimType: 'AWARD_CLAIM', hint: { sourceKinds: ['LOCATION_FIRST_VISIT'], sourceRef: 'cove-1' } });
+    expect(p).toMatchObject({
+      claimType: 'AWARD_CLAIM',
+      hint: { sourceKinds: ['LOCATION_FIRST_VISIT'], sourceRef: 'cove-1' },
+    });
     expect(JSON.stringify(p)).not.toMatch(/amount|currency/i);
-    expect(pendingFromEvent(event('puzzle.completed', { puzzleId: 'runes' }))?.hint.sourceRef).toBe('cove-1/runes');
+    expect(pendingFromEvent(event('puzzle.completed', { puzzleId: 'runes' }))?.hint.sourceRef).toBe(
+      'cove-1/runes',
+    );
     expect(pendingFromEvent(event('adventure.completed', {}))?.hint.sourceRef).toBe('adv-1');
-    expect(pendingFromEvent(event('quest.completed', { questId: 'q1' }))?.hint.sourceKinds).toEqual(['QUEST_COMPLETED']);
-    expect(pendingFromEvent(event('exploration.discovery.found', { discoveryId: 'd1' }))?.hint.sourceKinds).toEqual(['SECRET_DISCOVERED']);
-    expect(pendingFromEvent(event('collectible.collected', { collectibleId: 'gem', setId: null }))?.hint.sourceKinds).toEqual(['PICKUP_COLLECTED']);
-    expect(pendingFromEvent(event('realm.milestone.reached', { milestoneId: 'm1' }))?.hint.sourceKinds).toEqual(['REALM_MILESTONE']);
+    expect(pendingFromEvent(event('quest.completed', { questId: 'q1' }))?.hint.sourceKinds).toEqual(
+      ['QUEST_COMPLETED'],
+    );
+    expect(
+      pendingFromEvent(event('exploration.discovery.found', { discoveryId: 'd1' }))?.hint
+        .sourceKinds,
+    ).toEqual(['SECRET_DISCOVERED']);
+    expect(
+      pendingFromEvent(event('collectible.collected', { collectibleId: 'gem', setId: null }))?.hint
+        .sourceKinds,
+    ).toEqual(['PICKUP_COLLECTED']);
+    expect(
+      pendingFromEvent(event('realm.milestone.reached', { milestoneId: 'm1' }))?.hint.sourceKinds,
+    ).toEqual(['REALM_MILESTONE']);
   });
 
   it('shows an answer as checking, with no correctness claim', () => {
     const p = pendingFromEvent(
-      event('learning.answer.submitted', { learningRef: { kind: 'ADVENTURE_STEP', stepId: 's1' }, choiceId: 'c1' }),
+      event('learning.answer.submitted', {
+        learningRef: { kind: 'ADVENTURE_STEP', stepId: 's1' },
+        choiceId: 'c1',
+      }),
     );
     expect(p?.claimType).toBe('ANSWER_CHECK');
     expect(p?.hint.sourceRef).toBe('adv-1/s1');
   });
 
   it('creates nothing for deferred, informational or invalid events', () => {
-    expect(pendingFromEvent(event('jump.challenge.completed', { challengeId: 'j', routeId: 'r' }))).toBeNull();
+    expect(
+      pendingFromEvent(event('jump.challenge.completed', { challengeId: 'j', routeId: 'r' })),
+    ).toBeNull();
     expect(pendingFromEvent(event('course.completed', { courseId: 'c', goalId: 'g' }))).toBeNull();
-    expect(pendingFromEvent(event('jump.alternative.used', { challengeId: 'j', routeId: 'r' }))).toBeNull();
+    expect(
+      pendingFromEvent(event('jump.alternative.used', { challengeId: 'j', routeId: 'r' })),
+    ).toBeNull();
     expect(pendingFromEvent(event('adventure.started', {}))).toBeNull();
-    expect(pendingFromEvent(event('quest.step.completed', { questId: 'q', stepId: 's' }))).toBeNull();
-    expect(pendingFromEvent(event('npc.interaction.completed', { npcId: 'n', interactionId: 'i' }))).toBeNull();
-    expect(pendingFromEvent(event('course.checkpoint.reached', { courseId: 'c', checkpointId: 'k' }))).toBeNull();
+    expect(
+      pendingFromEvent(event('quest.step.completed', { questId: 'q', stepId: 's' })),
+    ).toBeNull();
+    expect(
+      pendingFromEvent(event('npc.interaction.completed', { npcId: 'n', interactionId: 'i' })),
+    ).toBeNull();
+    expect(
+      pendingFromEvent(event('course.checkpoint.reached', { courseId: 'c', checkpointId: 'k' })),
+    ).toBeNull();
     expect(pendingFromEvent(event('exploration.area.entered', { areaId: 'has space' }))).toBeNull();
     expect(pendingFromEvent(event('made.up.type', {}))).toBeNull();
     expect(pendingFromEvent('nope')).toBeNull();
@@ -56,7 +84,10 @@ describe('engine adapter', () => {
 });
 
 describe('pending reconciliation', () => {
-  const pending = pendingFromEvent(event('exploration.area.entered', { areaId: 'treasure-rush-cove' }), 0)!;
+  const pending = pendingFromEvent(
+    event('exploration.area.entered', { areaId: 'treasure-rush-cove' }),
+    0,
+  )!;
 
   it('settles a pending entry with the server amount', () => {
     const r = reconcilePending([pending], [awardEntry()], 100);
@@ -67,7 +98,11 @@ describe('pending reconciliation', () => {
   });
 
   it('settles on every currency from the same source', () => {
-    const r = reconcilePending([pending], [awardEntry(), awardEntry({ id: 'a2', currency: 'COINS', amount: 5 })], 100);
+    const r = reconcilePending(
+      [pending],
+      [awardEntry(), awardEntry({ id: 'a2', currency: 'COINS', amount: 5 })],
+      100,
+    );
     expect(r.pending).toEqual([]);
     expect(r.confirmed).toHaveLength(2);
   });
@@ -88,17 +123,30 @@ describe('pending reconciliation', () => {
   });
 
   it('matches by suffix when only the pickup key is known', () => {
-    const p = pendingFromEvent(event('collectible.collected', { collectibleId: 'gem', setId: null }), 0)!;
+    const p = pendingFromEvent(
+      event('collectible.collected', { collectibleId: 'gem', setId: null }),
+      0,
+    )!;
     const a = awardEntry({ sourceKind: 'PICKUP_COLLECTED', sourceRef: 'treasure-rush-cove/gem' });
     expect(reconcilePending([p], [a], 1).pending).toEqual([]);
   });
 
   it('matches a pickup exactly when the engine sends its pickup key', () => {
-    const payload = { collectibleId: 'cove-leap-shell', setId: null, pickupKey: 'PIRATES_LEAP_SHELL_FOUND' };
+    const payload = {
+      collectibleId: 'cove-leap-shell',
+      setId: null,
+      pickupKey: 'PIRATES_LEAP_SHELL_FOUND',
+    };
     const p = pendingFromEvent(event('collectible.collected', payload, 'cove-1'), 0)!;
     expect(p.hint.sourceRef).toBe('cove-1/PIRATES_LEAP_SHELL_FOUND');
-    const match = awardEntry({ sourceKind: 'PICKUP_COLLECTED', sourceRef: 'cove-1/PIRATES_LEAP_SHELL_FOUND' });
-    const other = awardEntry({ sourceKind: 'PICKUP_COLLECTED', sourceRef: 'cove-1/cove-leap-shell' });
+    const match = awardEntry({
+      sourceKind: 'PICKUP_COLLECTED',
+      sourceRef: 'cove-1/PIRATES_LEAP_SHELL_FOUND',
+    });
+    const other = awardEntry({
+      sourceKind: 'PICKUP_COLLECTED',
+      sourceRef: 'cove-1/cove-leap-shell',
+    });
     expect(reconcilePending([p], [other], 1).pending).toHaveLength(1);
     expect(reconcilePending([p], [match], 1).pending).toEqual([]);
   });

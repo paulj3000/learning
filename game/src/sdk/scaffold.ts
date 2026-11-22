@@ -57,7 +57,11 @@ export function toTitleCase(id: string): string {
     .join(' ');
 }
 
-function definitionSource({ realmId, adventureId, jump }: Required<Pick<ScaffoldInput, 'realmId' | 'adventureId'>> & { jump: boolean }): string {
+function definitionSource({
+  realmId,
+  adventureId,
+  jump,
+}: Required<Pick<ScaffoldInput, 'realmId' | 'adventureId'>> & { jump: boolean }): string {
   const name = toCamelCase(adventureId);
   const area = `${adventureId}-area`;
   const jumpBlocks = jump
@@ -173,7 +177,12 @@ const BUILT_IN_SPEC = `# Adventure Specification: \`<adventure name>\`
 | Realm (Island, \`catalog.World\`) | <realm id> |
 `;
 
-function specSource(input: Required<Pick<ScaffoldInput, 'realmId' | 'adventureId' | 'today'>> & { jump: boolean; specTemplate?: string }): string {
+function specSource(
+  input: Required<Pick<ScaffoldInput, 'realmId' | 'adventureId' | 'today'>> & {
+    jump: boolean;
+    specTemplate?: string;
+  },
+): string {
   let spec = input.specTemplate ?? BUILT_IN_SPEC;
   const title = toTitleCase(input.adventureId);
   spec = spec
@@ -199,12 +208,17 @@ export function scaffoldAdventure(input: ScaffoldInput): ScaffoldResult {
     ['adventureId', input.adventureId],
   ] as const) {
     if (typeof value !== 'string' || !SCAFFOLD_ID.test(value) || value.length > 64) {
-      issues.push({ path: key, message: 'must be lowercase kebab-case (letters, digits, single hyphens), at most 64 characters' });
+      issues.push({
+        path: key,
+        message:
+          'must be lowercase kebab-case (letters, digits, single hyphens), at most 64 characters',
+      });
     }
   }
-  const defaultOutDir = SCAFFOLD_ID.test(String(input.realmId)) && SCAFFOLD_ID.test(String(input.adventureId))
-    ? defaultScaffoldDir(input.realmId, input.adventureId)
-    : '';
+  const defaultOutDir =
+    SCAFFOLD_ID.test(String(input.realmId)) && SCAFFOLD_ID.test(String(input.adventureId))
+      ? defaultScaffoldDir(input.realmId, input.adventureId)
+      : '';
   if (issues.length > 0) {
     return { ok: false, issues, defaultOutDir, files: [] };
   }
@@ -215,9 +229,15 @@ export function scaffoldAdventure(input: ScaffoldInput): ScaffoldResult {
     issues,
     defaultOutDir,
     files: [
-      { path: `${input.adventureId}.definition.ts`, content: definitionSource({ realmId: input.realmId, adventureId: input.adventureId, jump }) },
+      {
+        path: `${input.adventureId}.definition.ts`,
+        content: definitionSource({ realmId: input.realmId, adventureId: input.adventureId, jump }),
+      },
       { path: `${input.adventureId}.spec.md`, content: specSource({ ...input, jump, today }) },
-      { path: `${input.adventureId}.definition.test.ts`, content: testSource({ adventureId: input.adventureId }) },
+      {
+        path: `${input.adventureId}.definition.test.ts`,
+        content: testSource({ adventureId: input.adventureId }),
+      },
     ],
   };
 }

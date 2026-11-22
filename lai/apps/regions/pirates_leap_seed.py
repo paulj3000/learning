@@ -37,7 +37,9 @@ from .models import PlacementKind, TreasureChest, WorldObjectPlacement, WorldReg
 from .platforming import layout_problems
 from .treasure_cove_layout import BOUNDS
 
-LEAP_VERSION = 4  # GE-071: bridge (2), stairs to the ledge (3), platforms and plate on the engine (4)
+LEAP_VERSION = (
+    4  # GE-071: bridge (2), stairs to the ledge (3), platforms and plate on the engine (4)
+)
 LEAP_COURSE_ID = "pirates-leap"
 LEAP_QUEST_ID = "pirates-leap"
 LEAP_CHEST_ID = "cove-leap-chest"
@@ -149,7 +151,11 @@ def _authored_course() -> dict:
             0.2,
             1.0,
             color=0xF2C94C,
-            activation={"trigger": "SIGNAL", "source": f"world:{LEAP_RIDDLE_KEY}", "hiddenUntilActive": True},
+            activation={
+                "trigger": "SIGNAL",
+                "source": f"world:{LEAP_RIDDLE_KEY}",
+                "hiddenUntilActive": True,
+            },
         ),
         # 3. Fallen Log Trail: logs with 1.0 and 1.2 m gaps (a walking jump clears 2.5 m).
         _box("leap-log-1", -29.0, -22.8, 1.0, 0.5, 2.0, color=0x7B5235),
@@ -164,7 +170,12 @@ def _authored_course() -> dict:
             0.5,
             1.2,
             color=0xA78BFA,
-            vanish={"mode": "STAND", "visibleSeconds": 3, "hiddenSeconds": 2.5, "warningSeconds": 1},
+            vanish={
+                "mode": "STAND",
+                "visibleSeconds": 3,
+                "hiddenSeconds": 2.5,
+                "warningSeconds": 1,
+            },
         ),
         # 4. The Moving Dock: top at 0.2 m, so a child steps on without jumping; it waits 3 s.
         _box(
@@ -197,31 +208,102 @@ def _authored_course() -> dict:
         # 6. The Secret Treasure: a crow's nest one small step up from the ledge.
         _box("leap-nest", -18.0, -23.0, 2.4, NEST_TOP - LEDGE_TOP, 2.0, y=LEDGE_TOP, color=WOOD),
         # A bounce drum beside the ledge: an optional shortcut straight up.
-        _box("leap-bounce-drum", -15.6, -25.4, 1.6, 0.3, 1.6, color=0xF26B8A, bounce={"height": 3.8}),
+        _box(
+            "leap-bounce-drum", -15.6, -25.4, 1.6, 0.3, 1.6, color=0xF26B8A, bounce={"height": 3.8}
+        ),
     ]
     return {
         "platforms": platforms,
-        "pressurePlates": [{"id": "leap-lift-plate", "position": {"x": -20.6, "z": -30.0}, "latch": True}],
+        "pressurePlates": [
+            {"id": "leap-lift-plate", "position": {"x": -20.6, "z": -30.0}, "latch": True}
+        ],
         "checkpoints": [
-            {"id": "leap-cp-yard", "x": -15.8, "z": -18.0, "yaw": 1.57, "label": "the training yard"},
-            {"id": "leap-cp-barrels", "x": -28.6, "z": -19.0, "yaw": 3.14, "label": "the barrel bank"},
-            {"id": "leap-cp-logs", "x": -28.8, "z": -32.6, "yaw": -1.57, "label": "the log landing"},
+            {
+                "id": "leap-cp-yard",
+                "x": -15.8,
+                "z": -18.0,
+                "yaw": 1.57,
+                "label": "the training yard",
+            },
+            {
+                "id": "leap-cp-barrels",
+                "x": -28.6,
+                "z": -19.0,
+                "yaw": 3.14,
+                "label": "the barrel bank",
+            },
+            {
+                "id": "leap-cp-logs",
+                "x": -28.8,
+                "z": -32.6,
+                "yaw": -1.57,
+                "label": "the log landing",
+            },
             {"id": "leap-cp-dock", "x": -19.8, "z": -33.0, "yaw": 0.0, "label": "the far dock"},
         ],
         "hazards": [
-            {"id": "leap-pool-barrels", "rect": _rect("leap-pool-barrels", -27.4, -21.6, -20.2, -17.4)},
+            {
+                "id": "leap-pool-barrels",
+                "rect": _rect("leap-pool-barrels", -27.4, -21.6, -20.2, -17.4),
+            },
             {"id": "leap-pool-logs", "rect": _rect("leap-pool-logs", -31.8, -27.2, -30.4, -21.6)},
             {"id": "leap-pool-dock", "rect": _rect("leap-pool-dock", -27.6, -21.2, -34.6, -31.6)},
         ],
-        "goals": [{"id": "leap-goal-nest", "rect": _rect("leap-goal-nest", -19.2, -16.8, -24.0, -22.0)}],
+        "goals": [
+            {"id": "leap-goal-nest", "rect": _rect("leap-goal-nest", -19.2, -16.8, -24.0, -22.0)}
+        ],
         # Section narration in Pip's voice (zones; the client merges them into the manifest).
         "zones": [
-            _zone("leap-zone-learn", -21.2, -14.6, -21.6, -16.6, "Pip: Welcome to Pirate's Leap! Walk onto the first step, then press Jump to hop up the others."),
-            _zone("leap-zone-barrels", -27.6, -21.4, -21.0, -16.8, "Pip: Barrel Crossing! Jump from barrel to barrel. You can walk round the pool too."),
-            _zone("leap-zone-logs", -32.2, -27.0, -31.0, -21.2, "Pip: The Fallen Log Trail. Run before you jump to go further!"),
-            _zone("leap-zone-dock", -27.8, -21.0, -35.0, -31.2, "Pip: The Moving Dock. Wait for it to stop, then step on and ride across."),
-            _zone("leap-zone-lift", -21.4, -16.4, -30.8, -26.8, "Pip: Step on the gold plate to wake the Pirate Lift, then ride it up!"),
-            _zone("leap-zone-nest", -19.6, -16.4, -24.2, -21.6, "Pip: You found my secret treasure! Open the chest."),
+            _zone(
+                "leap-zone-learn",
+                -21.2,
+                -14.6,
+                -21.6,
+                -16.6,
+                "Pip: Welcome to Pirate's Leap! Walk onto the first step, then press Jump to hop "
+                "up the others.",
+            ),
+            _zone(
+                "leap-zone-barrels",
+                -27.6,
+                -21.4,
+                -21.0,
+                -16.8,
+                "Pip: Barrel Crossing! Jump from barrel to barrel. "
+                "You can walk round the pool too.",
+            ),
+            _zone(
+                "leap-zone-logs",
+                -32.2,
+                -27.0,
+                -31.0,
+                -21.2,
+                "Pip: The Fallen Log Trail. Run before you jump to go further!",
+            ),
+            _zone(
+                "leap-zone-dock",
+                -27.8,
+                -21.0,
+                -35.0,
+                -31.2,
+                "Pip: The Moving Dock. Wait for it to stop, then step on and ride across.",
+            ),
+            _zone(
+                "leap-zone-lift",
+                -21.4,
+                -16.4,
+                -30.8,
+                -26.8,
+                "Pip: Step on the gold plate to wake the Pirate Lift, then ride it up!",
+            ),
+            _zone(
+                "leap-zone-nest",
+                -19.6,
+                -16.4,
+                -24.2,
+                -21.6,
+                "Pip: You found my secret treasure! Open the chest.",
+            ),
         ],
     }
 
@@ -248,7 +330,8 @@ LIVE_PLATE_HALF_SIZE = 0.6  # the live platform system's default plate size
 
 
 def _engine_platform(p: dict, plates: set[str]) -> dict:
-    """One authored platform as an engine `gameplay.platforms` spec (same place, size and timing)."""
+    """One authored platform as an engine `gameplay.platforms` spec (same place, size and
+    timing)."""
     spec = {
         "id": p["id"],
         "position": dict(p["position"]),
@@ -269,7 +352,8 @@ def _engine_platform(p: dict, plates: set[str]) -> dict:
             "pauseSeconds": motion.get("pauseSeconds", 1),
         }
         if activation.get("trigger") == "PLATE":
-            assert activation["source"] in plates, activation
+            if activation["source"] not in plates:
+                raise AssertionError(activation)
             spec["moving"]["activeSignalId"] = activation["source"]
     if activation.get("trigger") == "SIGNAL":
         spec["appearSignalId"] = activation["source"]
@@ -570,8 +654,24 @@ def seed_pirates_leap(region: WorldRegion, get_or_create) -> list[str]:
         },
     )
     for entity_id, label, x, z, elevation, key, rule_id in (
-        (LEAP_SHELL_ID, "Sparkly shell", -24.4, -19.0, 1.3, LEAP_SHELL_KEY, "reward-pirates-leap-shell"),
-        (LEAP_FEATHER_ID, "Parrot feather", -29.0, -29.0, 0.9, LEAP_FEATHER_KEY, "reward-pirates-leap-feather"),
+        (
+            LEAP_SHELL_ID,
+            "Sparkly shell",
+            -24.4,
+            -19.0,
+            1.3,
+            LEAP_SHELL_KEY,
+            "reward-pirates-leap-shell",
+        ),
+        (
+            LEAP_FEATHER_ID,
+            "Parrot feather",
+            -29.0,
+            -29.0,
+            0.9,
+            LEAP_FEATHER_KEY,
+            "reward-pirates-leap-feather",
+        ),
     ):
         get_or_create(
             WorldObjectPlacement,
@@ -625,7 +725,9 @@ def seed_pirates_leap(region: WorldRegion, get_or_create) -> list[str]:
             "sort_order": 11,
             "reward_rule": rules["reward-pirates-leap-chest"],
             "world_change_key": LEAP_CHEST_KEY,
-            "clue": "My secret treasure is up in the crow's nest. Ride the Pirate Lift to reach it!",
+            "clue": (
+                "My secret treasure is up in the crow's nest. Ride the Pirate Lift to reach it!"
+            ),
             **_specs("chest", get_or_create),
         },
     )
@@ -652,7 +754,9 @@ def leap_rows(region: WorldRegion) -> dict:
     """What a region has of Pirate's Leap (tests and the QA report)."""
     return {
         "chests": list(
-            TreasureChest.objects.filter(region=region, entity_id__in=[LEAP_CHEST_ID, LEAP_RIDDLE_ID])
+            TreasureChest.objects.filter(
+                region=region, entity_id__in=[LEAP_CHEST_ID, LEAP_RIDDLE_ID]
+            )
             .order_by("entity_id")
             .values_list("entity_id", flat=True)
         ),

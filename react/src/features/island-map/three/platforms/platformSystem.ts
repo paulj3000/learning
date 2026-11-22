@@ -152,7 +152,11 @@ export class PlatformSystem {
     const factor = options.reducedMotion ? REDUCED_MOTION_FACTOR : 1;
     this.runtimes = applyTuning(spec).map((platform) => {
       const motion = platform.motion
-        ? createPathMotion(platform.motion.path, platform.motion.mode ?? 'PING_PONG', platform.motion.pauseSeconds ?? 0)
+        ? createPathMotion(
+            platform.motion.path,
+            platform.motion.mode ?? 'PING_PONG',
+            platform.motion.pauseSeconds ?? 0,
+          )
         : null;
       const runtime: Runtime = {
         spec: platform,
@@ -174,7 +178,13 @@ export class PlatformSystem {
         vanishClock: platform.vanish?.offsetSeconds ?? 0,
         hiddenLeft: 0,
         standClock: 0,
-        unsafe: Boolean(platform.motion || platform.spin || platform.vanish || platform.bounce || platform.activation?.hiddenUntilActive),
+        unsafe: Boolean(
+          platform.motion ||
+          platform.spin ||
+          platform.vanish ||
+          platform.bounce ||
+          platform.activation?.hiddenUntilActive,
+        ),
       };
       runtime.present = !platform.activation?.hiddenUntilActive;
       this.writeBox(runtime);
@@ -218,7 +228,9 @@ export class PlatformSystem {
   /** The most recent course checkpoint reached this visit, for the controller's recovery. */
   recoveryPoint(): { x: number; z: number; yaw?: number } | null {
     const point = this.latestCheckpoint;
-    return point ? { x: point.x, z: point.z, ...(point.yaw !== undefined ? { yaw: point.yaw } : {}) } : null;
+    return point
+      ? { x: point.x, z: point.z, ...(point.yaw !== undefined ? { yaw: point.yaw } : {}) }
+      : null;
   }
 
   /** The id of the latest course checkpoint reached, or null. */
@@ -231,7 +243,13 @@ export class PlatformSystem {
     for (const runtime of this.runtimes) {
       if (!runtime.unsafe || !runtime.present) continue;
       const box = runtime.box;
-      if (x >= box.min.x && x <= box.max.x && z >= box.min.z && z <= box.max.z && Math.abs(box.max.y - y) < 0.06) {
+      if (
+        x >= box.min.x &&
+        x <= box.max.x &&
+        z >= box.min.z &&
+        z <= box.max.z &&
+        Math.abs(box.max.y - y) < 0.06
+      ) {
         return false;
       }
     }
@@ -281,7 +299,11 @@ export class PlatformSystem {
         this.events.push(
           moved
             ? { type: 'MOVING', platformId: runtime.spec.id, ...cue(runtime.spec.sounds?.moving) }
-            : { type: 'STOPPED', platformId: runtime.spec.id, ...cue(runtime.spec.sounds?.stopped) },
+            : {
+                type: 'STOPPED',
+                platformId: runtime.spec.id,
+                ...cue(runtime.spec.sounds?.stopped),
+              },
         );
       }
       if (rider === runtime && runtime.present) {
@@ -299,7 +321,8 @@ export class PlatformSystem {
           sx = rx * cos - rz * sin - rx;
           sz = rx * sin + rz * cos - rz;
         }
-        if (dx !== 0 || dy !== 0 || dz !== 0 || sx !== 0 || sz !== 0) player.carry(dx + sx, dy, dz + sz);
+        if (dx !== 0 || dy !== 0 || dz !== 0 || sx !== 0 || sz !== 0)
+          player.carry(dx + sx, dy, dz + sz);
         this.lastRider = runtime;
         this.riderVelocityX = dt > 0 ? dx / dt : 0;
         this.riderVelocityZ = dt > 0 ? dz / dt : 0;
@@ -309,7 +332,11 @@ export class PlatformSystem {
     // A bounce pad throws whoever is standing on it, however they got there.
     if (rider && rider.present && rider.spec.bounce && player.grounded) {
       player.launch(rider.spec.bounce.height);
-      this.events.push({ type: 'BOUNCED', platformId: rider.spec.id, ...cue(rider.spec.sounds?.bounce) });
+      this.events.push({
+        type: 'BOUNCED',
+        platformId: rider.spec.id,
+        ...cue(rider.spec.sounds?.bounce),
+      });
     }
 
     this.updateCourse(player);
@@ -361,27 +388,43 @@ export class PlatformSystem {
       if (!runtime.active) {
         // Woken at its start: it waits one pause first, so a child who pressed the plate has
         // time to step on.
-        const woken = runtime.spec.activation !== undefined && runtime.spec.activation.trigger !== 'ALWAYS';
+        const woken =
+          runtime.spec.activation !== undefined && runtime.spec.activation.trigger !== 'ALWAYS';
         if (woken && runtime.motion && runtime.state.from === 0 && runtime.state.along <= 1e-9) {
           runtime.state.pauseLeft = runtime.motion.pauseSeconds;
         }
         runtime.active = true;
         runtime.returning = false;
         runtime.everActivated = true;
-        this.events.push({ type: 'ACTIVATED', platformId: runtime.spec.id, ...cue(runtime.spec.sounds?.activated) });
-        if (runtime.spec.activation?.hiddenUntilActive && !runtime.present) this.tryAppear(runtime, player);
+        this.events.push({
+          type: 'ACTIVATED',
+          platformId: runtime.spec.id,
+          ...cue(runtime.spec.sounds?.activated),
+        });
+        if (runtime.spec.activation?.hiddenUntilActive && !runtime.present)
+          this.tryAppear(runtime, player);
       }
     } else if (runtime.active) {
       runtime.active = false;
       runtime.returning = runtime.spec.activation?.reset === 'RETURN';
     }
     // A bridge revealed while the child stood where it appears comes as soon as they move away.
-    if (runtime.spec.activation?.hiddenUntilActive && runtime.everActivated && !runtime.present && !runtime.spec.vanish) {
+    if (
+      runtime.spec.activation?.hiddenUntilActive &&
+      runtime.everActivated &&
+      !runtime.present &&
+      !runtime.spec.vanish
+    ) {
       this.tryAppear(runtime, player);
     }
   }
 
-  private updateVanish(runtime: Runtime, dt: number, riding: boolean, player: PlatformPlayer): void {
+  private updateVanish(
+    runtime: Runtime,
+    dt: number,
+    riding: boolean,
+    player: PlatformPlayer,
+  ): void {
     const vanish = runtime.spec.vanish;
     if (!vanish || (runtime.spec.activation?.hiddenUntilActive && !runtime.everActivated)) return;
     const warning = vanish.warningSeconds ?? 1;
@@ -398,7 +441,8 @@ export class PlatformSystem {
     // STAND: counts while the child stands on it, then rests hidden and comes back.
     if (runtime.present) {
       if (riding) runtime.standClock += dt;
-      runtime.warning = runtime.standClock > vanish.visibleSeconds - warning && runtime.standClock > 0;
+      runtime.warning =
+        runtime.standClock > vanish.visibleSeconds - warning && runtime.standClock > 0;
       if (runtime.standClock >= vanish.visibleSeconds) {
         this.hide(runtime);
         runtime.hiddenLeft = vanish.hiddenSeconds;
@@ -436,12 +480,19 @@ export class PlatformSystem {
   }
 
   /** Advances along the path unless that would move into the child; returns whether it moved. */
-  private updateMotion(runtime: Runtime, dt: number, player: PlatformPlayer, riding: boolean): boolean {
+  private updateMotion(
+    runtime: Runtime,
+    dt: number,
+    player: PlatformPlayer,
+    riding: boolean,
+  ): boolean {
     const motion = runtime.motion;
-    if (!motion || !runtime.present || (!runtime.active && !runtime.returning) || dt === 0) return false;
+    if (!motion || !runtime.present || (!runtime.active && !runtime.returning) || dt === 0)
+      return false;
     copyMotionState(runtime.state, runtime.saved);
     const moved = advanceMotion(motion, runtime.state, dt, runtime.speed, runtime.returning);
-    if (runtime.returning && runtime.state.from === 0 && runtime.state.along <= 1e-9) runtime.returning = false;
+    if (runtime.returning && runtime.state.from === 0 && runtime.state.along <= 1e-9)
+      runtime.returning = false;
     if (!moved) return false;
     motionOffset(motion, runtime.state, this.offset);
     const target = this.target.set(
@@ -450,7 +501,9 @@ export class PlatformSystem {
       runtime.spec.position.z + this.offset.z,
     );
     this.boxAt(runtime, target, this.candidate);
-    const blocked = riding ? this.riderHeadBlocked(runtime, player, target.y - runtime.position.y) : this.overlapsBody(this.candidate, player);
+    const blocked = riding
+      ? this.riderHeadBlocked(runtime, player, target.y - runtime.position.y)
+      : this.overlapsBody(this.candidate, player);
     if (blocked) {
       // Wait for the child: no move this frame.
       copyMotionState(runtime.saved, runtime.state);
@@ -522,14 +575,21 @@ export class PlatformSystem {
           this.latestCheckpoint = checkpoint;
           if (!this.reachedCheckpoints.has(checkpoint.id)) {
             this.reachedCheckpoints.add(checkpoint.id);
-            this.events.push({ type: 'CHECKPOINT', checkpointId: checkpoint.id, label: checkpoint.label });
+            this.events.push({
+              type: 'CHECKPOINT',
+              checkpointId: checkpoint.id,
+              label: checkpoint.label,
+            });
           }
         }
       }
       for (const hazard of this.spec.hazards ?? []) {
         if (inRect(hazard.rect, x, z) && y <= (hazard.belowY ?? 0.05) && !player.supportingBox()) {
           player.recover('HAZARD');
-          this.events.push({ type: 'RECOVERED_TO', checkpointId: this.latestCheckpoint?.id ?? null });
+          this.events.push({
+            type: 'RECOVERED_TO',
+            checkpointId: this.latestCheckpoint?.id ?? null,
+          });
           return;
         }
       }

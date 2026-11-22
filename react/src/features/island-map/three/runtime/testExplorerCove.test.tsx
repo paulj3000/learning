@@ -193,7 +193,10 @@ describe('Test Explorer Cove: played through the generic view (engine Phase 17)'
     renderCove();
     await screen.findByText(/Explore the cove/);
     // The engine bridge reports reaching a checkpoint (gameplay.checkpoints on scene.engineBridge).
-    await emit('CourseCheckpointReached', { checkpointId: 'test-explorer-cove:landing', label: 'the landing' });
+    await emit('CourseCheckpointReached', {
+      checkpointId: 'test-explorer-cove:landing',
+      label: 'the landing',
+    });
     expect(saveCheckpoint).toHaveBeenCalledWith('child-1', 'test-explorer-cove:landing');
     expect(await screen.findByText('You found the landing.')).toBeInTheDocument();
   });

@@ -51,12 +51,24 @@ export const FIREPEAK_HEART_JUMP_ROUTES = [
   // The landing log, beside the open path to the Emberwood gate.
   { id: 'fh-jump-landing-log', jumpRouteId: 'fh-jump-log', accessibleRouteId: 'fh-zone-landing' },
   // Emberwood logs, beside the forest path.
-  { id: 'fh-jump-forest-logs', jumpRouteId: 'fh-forest-log-1', accessibleRouteId: 'fh-zone-emberwood' },
+  {
+    id: 'fh-jump-forest-logs',
+    jumpRouteId: 'fh-forest-log-1',
+    accessibleRouteId: 'fh-zone-emberwood',
+  },
   // Summit hops; the stairs (0.2 m rises) reach the same plateau.
-  { id: 'fh-jump-summit-hops', jumpRouteId: 'fh-summit-hop-1', accessibleRouteId: 'fh-summit-up-1' },
+  {
+    id: 'fh-jump-summit-hops',
+    jumpRouteId: 'fh-summit-hop-1',
+    accessibleRouteId: 'fh-summit-up-1',
+  },
   // Lava stepping stones to the optional Lava Jumper shard: jump-only.
   { id: 'fh-jump-lava-stones', jumpRouteId: 'fh-stone-1', accessibleRouteId: null },
-] as const satisfies readonly { id: string; jumpRouteId: string; accessibleRouteId: string | null }[];
+] as const satisfies readonly {
+  id: string;
+  jumpRouteId: string;
+  accessibleRouteId: string | null;
+}[];
 
 export const FIREPEAK_HEART_ADVENTURE: Readonly<AdventureDefinition> = defineAdventure({
   id: HEART_QUEST_ID,

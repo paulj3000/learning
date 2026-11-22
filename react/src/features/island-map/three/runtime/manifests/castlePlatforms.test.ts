@@ -5,7 +5,11 @@ import { Box3, Vector3 } from 'three';
 import { ADVENTURE_TEMPLATES } from '../../../../adventures/content';
 import { STORYBOOK_PAGES } from '../../../../great-storybook/pages';
 import { STORYKEEPER_CASTLE_CHECKPOINTS } from '../../../../discovery/checkpoints';
-import { FirstPersonController, resolveJumpConfiguration, type MoveInput } from '@lai/game-engine/movement';
+import {
+  FirstPersonController,
+  resolveJumpConfiguration,
+  type MoveInput,
+} from '@lai/game-engine/movement';
 import { CASTLE_DOORS, CASTLE_ROOMS, DOOR_ENTRY_OFFSET_METERS } from '../../castleLayout';
 import { CASTLE_CHOICE_BINDINGS } from '../../castleChoiceBindings';
 import { WALL_HEIGHT } from '../../sceneKit';
@@ -56,7 +60,10 @@ const CEILING_BOTTOM = WALL_HEIGHT + 0.1;
 const EYE = 1.6;
 
 const overlaps = (a: RectZone, b: RectZone, margin = 0): boolean =>
-  a.minX < b.maxX + margin && b.minX < a.maxX + margin && a.minZ < b.maxZ + margin && b.minZ < a.maxZ + margin;
+  a.minX < b.maxX + margin &&
+  b.minX < a.maxX + margin &&
+  a.minZ < b.maxZ + margin &&
+  b.minZ < a.maxZ + margin;
 
 const grow = (rect: RectZone, by: number): RectZone => ({
   ...rect,
@@ -78,20 +85,35 @@ const LIVE_ZONE_IDS = new Set<string>([
   ...MANIFEST.interactions
     .filter((interaction) => interaction.trigger === 'APPROACH')
     .map((interaction) => interaction.zoneId ?? interaction.id),
-  ...CASTLE_CHOICE_BINDINGS.flatMap((binding) => [binding.entityId, `${binding.entityId}:approach`]),
+  ...CASTLE_CHOICE_BINDINGS.flatMap((binding) => [
+    binding.entityId,
+    `${binding.entityId}:approach`,
+  ]),
 ]);
 
 const SAFE_SPOTS = [
   ...CASTLE_ROOMS.map((room) => room.safeSpot),
-  ...STORYKEEPER_CASTLE_CHECKPOINTS.filter((cp) => cp.regionId === MANIFEST.regionId).map((cp) => ({ x: cp.x, z: cp.z })),
+  ...STORYKEEPER_CASTLE_CHECKPOINTS.filter((cp) => cp.regionId === MANIFEST.regionId).map((cp) => ({
+    x: cp.x,
+    z: cp.z,
+  })),
   // Where a child lands on coming through each door (GE-072): the tower's first stone stood there.
-  ...CASTLE_DOORS.flatMap((door) => Object.values(door.arrival).map((arrival) => ({ x: arrival.x, z: arrival.z }))),
+  ...CASTLE_DOORS.flatMap((door) =>
+    Object.values(door.arrival).map((arrival) => ({ x: arrival.x, z: arrival.z })),
+  ),
 ];
 
-const box3 = (minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number): Box3 =>
-  new Box3(new Vector3(minX, minY, minZ), new Vector3(maxX, maxY, maxZ));
+const box3 = (
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+): Box3 => new Box3(new Vector3(minX, minY, minZ), new Vector3(maxX, maxY, maxZ));
 
-const platformOf = (id: string): PlatformSpec => CASTLE_PLATFORMING.platforms.find((platform) => platform.id === id)!;
+const platformOf = (id: string): PlatformSpec =>
+  CASTLE_PLATFORMING.platforms.find((platform) => platform.id === id)!;
 
 describe('castle platform groups: geometry', () => {
   it('puts every pad inside its own room, clear of every wall', () => {
@@ -103,7 +125,10 @@ describe('castle platform groups: geometry', () => {
       expect(footprint.minZ, label).toBeGreaterThanOrEqual(floor.minZ);
       expect(footprint.maxZ, label).toBeLessThanOrEqual(floor.maxZ);
       for (const wall of WALL_SEGMENTS) {
-        expect(overlaps(grow(footprint, WALL_GAP), wall), `${label} is too close to ${wall.id}`).toBe(false);
+        expect(
+          overlaps(grow(footprint, WALL_GAP), wall),
+          `${label} is too close to ${wall.id}`,
+        ).toBe(false);
       }
     }
   });
@@ -113,9 +138,20 @@ describe('castle platform groups: geometry', () => {
       for (const door of CASTLE_DOORS) {
         const vertical = door.gap.maxX - door.gap.minX < door.gap.maxZ - door.gap.minZ;
         const approach: RectZone = vertical
-          ? { ...door.gap, minX: door.centre.x - DOOR_ENTRY_OFFSET_METERS, maxX: door.centre.x + DOOR_ENTRY_OFFSET_METERS }
-          : { ...door.gap, minZ: door.centre.z - DOOR_ENTRY_OFFSET_METERS, maxZ: door.centre.z + DOOR_ENTRY_OFFSET_METERS };
-        expect(overlaps(grow(footprint, DOOR_GAP), approach), `${group.id}/${pad.key} blocks ${door.id}`).toBe(false);
+          ? {
+              ...door.gap,
+              minX: door.centre.x - DOOR_ENTRY_OFFSET_METERS,
+              maxX: door.centre.x + DOOR_ENTRY_OFFSET_METERS,
+            }
+          : {
+              ...door.gap,
+              minZ: door.centre.z - DOOR_ENTRY_OFFSET_METERS,
+              maxZ: door.centre.z + DOOR_ENTRY_OFFSET_METERS,
+            };
+        expect(
+          overlaps(grow(footprint, DOOR_GAP), approach),
+          `${group.id}/${pad.key} blocks ${door.id}`,
+        ).toBe(false);
       }
     }
   });
@@ -128,7 +164,9 @@ describe('castle platform groups: geometry', () => {
           spot.x < footprint.maxX + SAFE_SPOT_RADIUS &&
           spot.z > footprint.minZ - SAFE_SPOT_RADIUS &&
           spot.z < footprint.maxZ + SAFE_SPOT_RADIUS;
-        expect(inside, `${group.id}/${pad.key} is on the safe spot at ${spot.x}, ${spot.z}`).toBe(false);
+        expect(inside, `${group.id}/${pad.key} is on the safe spot at ${spot.x}, ${spot.z}`).toBe(
+          false,
+        );
       }
     }
   });
@@ -137,15 +175,35 @@ describe('castle platform groups: geometry', () => {
     for (const { group, pad, footprint } of PADS) {
       const label = `${group.id}/${pad.key}`;
       for (const collider of MANIFEST.colliders) {
-        expect(overlaps(grow(footprint, COLLIDER_GAP), collider.rect), `${label} touches ${collider.rect.id}`).toBe(false);
+        expect(
+          overlaps(grow(footprint, COLLIDER_GAP), collider.rect),
+          `${label} touches ${collider.rect.id}`,
+        ).toBe(false);
       }
       for (const prop of MANIFEST.props) {
-        const at = { id: prop.entityId, minX: prop.position.x, maxX: prop.position.x, minZ: prop.position.z, maxZ: prop.position.z };
-        expect(overlaps(grow(footprint, PROP_RADIUS), at), `${label} covers prop ${prop.entityId}`).toBe(false);
+        const at = {
+          id: prop.entityId,
+          minX: prop.position.x,
+          maxX: prop.position.x,
+          minZ: prop.position.z,
+          maxZ: prop.position.z,
+        };
+        expect(
+          overlaps(grow(footprint, PROP_RADIUS), at),
+          `${label} covers prop ${prop.entityId}`,
+        ).toBe(false);
       }
       for (const npc of MANIFEST.npcs) {
-        const at = { id: npc.entityId, minX: npc.position.x, maxX: npc.position.x, minZ: npc.position.z, maxZ: npc.position.z };
-        expect(overlaps(grow(footprint, PROP_RADIUS), at), `${label} covers ${npc.entityId}`).toBe(false);
+        const at = {
+          id: npc.entityId,
+          minX: npc.position.x,
+          maxX: npc.position.x,
+          minZ: npc.position.z,
+          maxZ: npc.position.z,
+        };
+        expect(overlaps(grow(footprint, PROP_RADIUS), at), `${label} covers ${npc.entityId}`).toBe(
+          false,
+        );
       }
     }
   });
@@ -157,7 +215,10 @@ describe('castle platform groups: geometry', () => {
         if (zone.rect.id === ownZone(group.id, pad.key)) continue;
         const live = LIVE_ZONE_IDS.has(zone.rect.id) || isPadZoneId(zone.rect.id);
         if (!live) continue;
-        expect(overlaps(footprint, zone.rect), `${group.id}/${pad.key} overlaps zone ${zone.rect.id}`).toBe(false);
+        expect(
+          overlaps(footprint, zone.rect),
+          `${group.id}/${pad.key} overlaps zone ${zone.rect.id}`,
+        ).toBe(false);
       }
     }
   });
@@ -165,7 +226,10 @@ describe('castle platform groups: geometry', () => {
   it('keeps pads off each other, so no two answer zones touch', () => {
     for (let a = 0; a < PADS.length; a += 1) {
       for (let b = a + 1; b < PADS.length; b += 1) {
-        expect(overlaps(PADS[a].footprint, PADS[b].footprint), `${PADS[a].footprint.id} and ${PADS[b].footprint.id}`).toBe(false);
+        expect(
+          overlaps(PADS[a].footprint, PADS[b].footprint),
+          `${PADS[a].footprint.id} and ${PADS[b].footprint.id}`,
+        ).toBe(false);
       }
     }
   });
@@ -180,7 +244,9 @@ describe('castle platform presets: height and kind', () => {
     for (const platform of all) {
       expect(platform.size.width, platform.id).toBeGreaterThanOrEqual(CASTLE_MIN_FOOTPRINT);
       expect(platform.size.depth, platform.id).toBeGreaterThanOrEqual(CASTLE_MIN_FOOTPRINT);
-      expect(platform.position.y + platform.size.height, platform.id).toBeLessThanOrEqual(CASTLE_MAX_PLATFORM_TOP);
+      expect(platform.position.y + platform.size.height, platform.id).toBeLessThanOrEqual(
+        CASTLE_MAX_PLATFORM_TOP,
+      );
     }
   });
 
@@ -192,7 +258,10 @@ describe('castle platform presets: height and kind', () => {
       expect(platform.spin, platform.id).toBeUndefined();
       // The only thing a castle platform may wait for is a recorded page (the pathway).
       if (platform.activation) {
-        expect(platform.id.startsWith(padPlatformId(STORYBOOK_PATHWAY_GROUP.id, '')), platform.id).toBe(true);
+        expect(
+          platform.id.startsWith(padPlatformId(STORYBOOK_PATHWAY_GROUP.id, '')),
+          platform.id,
+        ).toBe(true);
       }
     }
   });
@@ -209,8 +278,19 @@ describe('castle platform presets: height and kind', () => {
     const jump = resolveJumpConfiguration(MANIFEST.movement?.jump);
     const tall = platformOf('castle-pad:library-measure:brass');
     const top = tall.position.y + tall.size.height;
-    const platform = box3(tall.position.x - 0.4, 0, tall.position.z - 0.4, tall.position.x + 0.4, top, tall.position.z + 0.4);
-    const controller = new FirstPersonController({ colliders: [platform], jumpableColliders: new Set([platform]), jump: jump });
+    const platform = box3(
+      tall.position.x - 0.4,
+      0,
+      tall.position.z - 0.4,
+      tall.position.x + 0.4,
+      top,
+      tall.position.z + 0.4,
+    );
+    const controller = new FirstPersonController({
+      colliders: [platform],
+      jumpableColliders: new Set([platform]),
+      jump: jump,
+    });
     controller.position.set(tall.position.x, top, tall.position.z);
     controller.update(1 / 60, { forward: 0, strafe: 0 });
     controller.pressJump();
@@ -228,7 +308,9 @@ describe('castle platform presets: height and kind', () => {
       expect(collider.jumpable, collider.rect.id).not.toBe(true);
     }
     const jump = resolveJumpConfiguration(MANIFEST.movement?.jump);
-    for (const wall of MANIFEST.colliders.filter((collider) => collider.rect.id.startsWith('wall:'))) {
+    for (const wall of MANIFEST.colliders.filter((collider) =>
+      collider.rect.id.startsWith('wall:'),
+    )) {
       expect(wall.maxY ?? WALL_HEIGHT).toBeGreaterThanOrEqual(WALL_HEIGHT);
       // Even from the top of the highest pad, a jump cannot clear a wall.
       expect(CASTLE_MAX_PLATFORM_TOP + jump.jumpHeight).toBeLessThan(wall.maxY ?? WALL_HEIGHT);
@@ -245,11 +327,20 @@ describe('castle platforming in the manifest', () => {
   it('adds only `pad:*` zones, one for each pad that answers a step, each exactly the pad', () => {
     const padZones = MANIFEST.zones.filter((zone) => isPadZoneId(zone.rect.id));
     expect(padZones).toEqual(CASTLE_PAD_ZONES);
-    const answering = CASTLE_PLATFORM_GROUPS.filter((group) => group.answers).flatMap((group) => group.pads.map((pad) => padZoneId(group.id, pad.key)));
+    const answering = CASTLE_PLATFORM_GROUPS.filter((group) => group.answers).flatMap((group) =>
+      group.pads.map((pad) => padZoneId(group.id, pad.key)),
+    );
     expect(padZones.map((zone) => zone.rect.id)).toEqual(answering);
     for (const zone of padZones) {
-      const entry = PADS.find((candidate) => padZoneId(candidate.group.id, candidate.pad.key) === zone.rect.id)!;
-      expect(zone.rect).toMatchObject({ minX: entry.footprint.minX, maxX: entry.footprint.maxX, minZ: entry.footprint.minZ, maxZ: entry.footprint.maxZ });
+      const entry = PADS.find(
+        (candidate) => padZoneId(candidate.group.id, candidate.pad.key) === zone.rect.id,
+      )!;
+      expect(zone.rect).toMatchObject({
+        minX: entry.footprint.minX,
+        maxX: entry.footprint.maxX,
+        minZ: entry.footprint.minZ,
+        maxZ: entry.footprint.maxZ,
+      });
     }
   });
 
@@ -283,7 +374,10 @@ describe('castle platforming in the manifest', () => {
     const broken = {
       ...MANIFEST,
       platformingByBand: {
-        SPROUT: { platforms: [], pressurePlates: [{ id: 'bad-marker', position: { x: 500, z: 500 } }] },
+        SPROUT: {
+          platforms: [],
+          pressurePlates: [{ id: 'bad-marker', position: { x: 500, z: 500 } }],
+        },
       },
     };
     const issues = validateLocationManifest(broken, SOURCE_MANIFEST_REGISTRIES);
@@ -298,7 +392,9 @@ describe('castle platforming in the manifest', () => {
 
 describe('the Observatory star stones', () => {
   it('has stones where the tower has room (at most one per gold star on the chart), and answers nothing', () => {
-    const group = CASTLE_PLATFORM_GROUPS.find((candidate) => candidate.id === 'observatory') as CastlePlatformGroup;
+    const group = CASTLE_PLATFORM_GROUPS.find(
+      (candidate) => candidate.id === 'observatory',
+    ) as CastlePlatformGroup;
     expect(group.pads.length).toBeGreaterThanOrEqual(1);
     expect(group.pads.length).toBeLessThanOrEqual(OBSERVATORY_CHART_STAR_COUNT);
     expect(group.answers).toBe(false);
@@ -324,7 +420,11 @@ describe('the Great Storybook pathway follows the restored pages', () => {
       zones: new Map(),
     });
     system.update(1 / 60, fakePlayer);
-    return STORYBOOK_PATHWAY_GROUP.pads.map((pad) => system.platforms.find((p) => p.spec.id === padPlatformId(STORYBOOK_PATHWAY_GROUP.id, pad.key))!);
+    return STORYBOOK_PATHWAY_GROUP.pads.map((pad) =>
+      system.platforms.find(
+        (p) => p.spec.id === padPlatformId(STORYBOOK_PATHWAY_GROUP.id, pad.key),
+      )!,
+    );
   }
 
   it('has one pad for each page, in page order, and no more', () => {
@@ -360,7 +460,9 @@ describe('the Great Storybook pathway follows the restored pages', () => {
       zones: new Map(),
     });
     system.update(1 / 60, fakePlayer);
-    const first = system.platforms.find((p) => p.spec.id === padPlatformId(STORYBOOK_PATHWAY_GROUP.id, 'p1'))!;
+    const first = system.platforms.find(
+      (p) => p.spec.id === padPlatformId(STORYBOOK_PATHWAY_GROUP.id, 'p1'),
+    )!;
     expect(first.present).toBe(false);
     system.signal(worldSignal('FIRST_STORY_TOLD'));
     system.update(1 / 60, fakePlayer);
@@ -381,7 +483,14 @@ describe('jumping near an edge', () => {
 
   function castleController() {
     const colliders = MANIFEST.colliders.map((collider) =>
-      box3(collider.rect.minX, collider.minY ?? 0, collider.rect.minZ, collider.rect.maxX, collider.maxY ?? WALL_HEIGHT, collider.rect.maxZ),
+      box3(
+        collider.rect.minX,
+        collider.minY ?? 0,
+        collider.rect.minZ,
+        collider.rect.maxX,
+        collider.maxY ?? WALL_HEIGHT,
+        collider.rect.maxZ,
+      ),
     );
     const jumpable = new Set<Box3>();
     const system = new PlatformSystem(CASTLE_PLATFORMING, {
@@ -404,7 +513,9 @@ describe('jumping near an edge', () => {
     for (const roomId of new Set(CASTLE_PLATFORM_GROUPS.map((group) => group.roomId))) {
       const floor = roomFloor(roomId);
       // A few starting rows where the east wall is solid (not a doorway) and the start is clear.
-      const rows = [-0.75, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, -2.5, -4.5, -5.5, -6.5, -7.5, -8.5]
+      const rows = [
+        -0.75, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, -2.5, -4.5, -5.5, -6.5, -7.5, -8.5,
+      ]
         .filter((z) => z > floor.minZ + 0.6 && z < floor.maxZ - 0.6)
         .filter((z) => isBlocked(floor.maxX, z) && isWalkable(floor.maxX - 1.2, z))
         .slice(0, 3);
@@ -419,7 +530,10 @@ describe('jumping near an edge', () => {
           controller.update(1 / 60, { forward: 1, strafe: 0 });
         }
         expect(controller.position.x, `${roomId} z ${startZ}`).toBeLessThan(floor.maxX);
-        expect(isWalkable(controller.position.x, controller.position.z), `${roomId} z ${startZ}`).toBe(true);
+        expect(
+          isWalkable(controller.position.x, controller.position.z),
+          `${roomId} z ${startZ}`,
+        ).toBe(true);
       }
     }
   });
@@ -434,7 +548,9 @@ describe('jumping near an edge', () => {
     controller.update(1 / 60, STILL);
     expect(Number.isFinite(controller.position.y)).toBe(true);
     expect(controller.position.y).toBeGreaterThanOrEqual(0);
-    expect(Math.hypot(controller.position.x - before.x, controller.position.z - before.z)).toBeLessThan(2);
+    expect(
+      Math.hypot(controller.position.x - before.x, controller.position.z - before.z),
+    ).toBeLessThan(2);
   });
 });
 
@@ -450,7 +566,9 @@ describe('every castle adventure has a platform configuration', () => {
     [...INVENTORY.matchAll(/^OWNER-APPROVED EXCEPTION: ([a-z0-9-]+)/gm)].map((match) => match[1]),
   );
 
-  const castleAdventures = ADVENTURE_TEMPLATES.filter((template) => CASTLE_LOCATIONS.has(template.locationSlug));
+  const castleAdventures = ADVENTURE_TEMPLATES.filter((template) =>
+    CASTLE_LOCATIONS.has(template.locationSlug),
+  );
 
   it('finds the castle adventures the inventory lists', () => {
     const slugs = castleAdventures.map((adventure) => adventure.slug).sort();
@@ -472,17 +590,26 @@ describe('every castle adventure has a platform configuration', () => {
       const groups = platformGroupsForAdventure(adventure.slug);
       expect(groups.length, `${adventure.slug} has no platform configuration`).toBeGreaterThan(0);
       for (const id of groups) {
-        expect(CASTLE_PLATFORM_GROUPS.some((group) => group.id === id), `${adventure.slug}: unknown group ${id}`).toBe(true);
+        expect(
+          CASTLE_PLATFORM_GROUPS.some((group) => group.id === id),
+          `${adventure.slug}: unknown group ${id}`,
+        ).toBe(true);
       }
     }
   });
 
   it('registers only adventures that exist, and every inventory exception names a real adventure', () => {
     for (const entry of CASTLE_PLATFORM_REGISTRY) {
-      expect(castleAdventures.some((adventure) => adventure.slug === entry.adventureSlug), entry.adventureSlug).toBe(true);
+      expect(
+        castleAdventures.some((adventure) => adventure.slug === entry.adventureSlug),
+        entry.adventureSlug,
+      ).toBe(true);
     }
     for (const slug of EXCEPTIONS) {
-      expect(castleAdventures.some((adventure) => adventure.slug === slug), slug).toBe(true);
+      expect(
+        castleAdventures.some((adventure) => adventure.slug === slug),
+        slug,
+      ).toBe(true);
     }
   });
 

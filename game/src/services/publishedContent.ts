@@ -22,11 +22,16 @@ export interface PublishedContentPort {
 
 export const PUBLISHED_CONTENT = defineService<PublishedContentPort>('lai.publishedContent');
 
-export function createFakePublishedContent(content: {
-  areas?: Record<string, unknown>;
-  adventures?: Record<string, unknown>;
-} = {}): PublishedContentPort {
-  const lookup = (table: Record<string, unknown> | undefined, ref: PublishedContentRef): unknown | null => {
+export function createFakePublishedContent(
+  content: {
+    areas?: Record<string, unknown>;
+    adventures?: Record<string, unknown>;
+  } = {},
+): PublishedContentPort {
+  const lookup = (
+    table: Record<string, unknown> | undefined,
+    ref: PublishedContentRef,
+  ): unknown | null => {
     const exact = ref.version === undefined ? undefined : table?.[`${ref.id}@${ref.version}`];
     return exact ?? table?.[ref.id] ?? null;
   };

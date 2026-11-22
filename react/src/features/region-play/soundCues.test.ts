@@ -47,14 +47,20 @@ describe('puzzleSolveCues', () => {
   it('adds questComplete when the solve finished the quest (the Ignis return)', () => {
     const done = { ...first, questUpdates: [{ justCompleted: true }] };
     expect(puzzleSolveCues('RETURN_TO_NPC', done)).toEqual(['puzzleComplete', 'questComplete']);
-    expect(puzzleSolveCues('RETURN_TO_NPC', { ...first, questUpdates: [{ justCompleted: false }] })).toEqual([
-      'puzzleComplete',
-    ]);
+    expect(
+      puzzleSolveCues('RETURN_TO_NPC', { ...first, questUpdates: [{ justCompleted: false }] }),
+    ).toEqual(['puzzleComplete']);
   });
   it('is silent for wrong, practice, already solved or no outcome', () => {
-    expect(puzzleSolveCues('CHOOSE_ANSWER', { ...first, correct: false, solvedNow: false })).toEqual([]);
-    expect(puzzleSolveCues('CHOOSE_ANSWER', { ...first, solvedNow: false, practice: true })).toEqual([]);
-    expect(puzzleSolveCues('COLLECT_OBJECT', { ...first, solvedNow: false, alreadySolved: true })).toEqual([]);
+    expect(
+      puzzleSolveCues('CHOOSE_ANSWER', { ...first, correct: false, solvedNow: false }),
+    ).toEqual([]);
+    expect(
+      puzzleSolveCues('CHOOSE_ANSWER', { ...first, solvedNow: false, practice: true }),
+    ).toEqual([]);
+    expect(
+      puzzleSolveCues('COLLECT_OBJECT', { ...first, solvedNow: false, alreadySolved: true }),
+    ).toEqual([]);
     expect(puzzleSolveCues('COLLECT_OBJECT', undefined)).toEqual([]);
   });
 });

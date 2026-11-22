@@ -45,5 +45,6 @@ CASTLE_DIRECTOR_PERSONA = Persona(
     "lai/apps/ai/prompts/castle.py",
 )
 PERSONAS = {
-    persona.key: persona for persona in (COMPANION_PERSONA, TUTOR_PERSONA, NPC_HINT_PERSONA, CASTLE_DIRECTOR_PERSONA)
+    persona.key: persona
+    for persona in (COMPANION_PERSONA, TUTOR_PERSONA, NPC_HINT_PERSONA, CASTLE_DIRECTOR_PERSONA)
 }

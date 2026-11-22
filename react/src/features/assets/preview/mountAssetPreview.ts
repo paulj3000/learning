@@ -30,7 +30,10 @@ export interface PreviewCollision {
 
 const KINDS = new Map(ASSET_MANIFEST.map((entry) => [entry.id, entry.kind] as const));
 
-export function previewCollision(rawJson: string | undefined, assetId: string | undefined): PreviewCollision {
+export function previewCollision(
+  rawJson: string | undefined,
+  assetId: string | undefined,
+): PreviewCollision {
   let raw: unknown = null;
   try {
     raw = rawJson ? JSON.parse(rawJson) : null;
@@ -51,7 +54,11 @@ export function previewCollision(rawJson: string | undefined, assetId: string | 
   }
   const footprint = assetId ? footprintFor(assetId, KINDS) : undefined;
   if (!footprint) {
-    return { boxes: [], kind: 'solid', summary: 'No collision profile and no built-in default: never blocks.' };
+    return {
+      boxes: [],
+      kind: 'solid',
+      summary: 'No collision profile and no built-in default: never blocks.',
+    };
   }
   const box = footprintBox(footprint);
   return {

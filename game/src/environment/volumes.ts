@@ -23,7 +23,9 @@ export interface BoxSpec {
 // clamped anyway, so it is rejected at authoring time instead.
 import { MIN_SURFACE_FRICTION } from '../movement/firstPersonController';
 
-export const SURFACE_PRESETS: Readonly<Record<string, Pick<SurfaceProfile, 'friction' | 'speedMultiplier' | 'footstepCue'>>> = Object.freeze({
+export const SURFACE_PRESETS: Readonly<
+  Record<string, Pick<SurfaceProfile, 'friction' | 'speedMultiplier' | 'footstepCue'>>
+> = Object.freeze({
   ground: { friction: 1, speedMultiplier: 1, footstepCue: 'groundStep' },
   ice: { friction: 0.15, speedMultiplier: 1, footstepCue: 'iceStep' },
   snow: { friction: 0.7, speedMultiplier: 0.85, footstepCue: 'snowStep' },
@@ -91,7 +93,13 @@ export interface EnvironmentVolumesConfig {
 }
 
 export const FORCE_KINDS: readonly ExternalForceKind[] = ['WIND', 'CURRENT', 'CONVEYOR', 'UPDRAFT'];
-export const FORCE_LIMITS = { maxStrength: 20, maxAcceleration: 12, maxRamp: 5, maxRunOut: 20, reducedMotionScale: 0.5 } as const;
+export const FORCE_LIMITS = {
+  maxStrength: 20,
+  maxAcceleration: 12,
+  maxRamp: 5,
+  maxRunOut: 20,
+  reducedMotionScale: 0.5,
+} as const;
 
 function readBox(value: unknown, path: string, issues: Issues): BoxSpec {
   if (!isRecord(value)) {
@@ -109,9 +117,16 @@ function readBox(value: unknown, path: string, issues: Issues): BoxSpec {
 function readSurface(item: Json, path: string, issues: Issues): SurfaceVolumeSpec {
   const id = issues.id(item.id, `${path}.id`);
   const surfaceId = issues.id(item.surfaceId, `${path}.surfaceId`);
-  const preset = SURFACE_PRESETS[surfaceId] ?? { friction: 1, speedMultiplier: 1, footstepCue: undefined };
+  const preset = SURFACE_PRESETS[surfaceId] ?? {
+    friction: 1,
+    speedMultiplier: 1,
+    footstepCue: undefined,
+  };
   const cue = item.footstepCue;
-  if (cue !== undefined && (typeof cue !== 'string' || !/^[A-Za-z][A-Za-z0-9_.]{0,63}$/.test(cue))) {
+  if (
+    cue !== undefined &&
+    (typeof cue !== 'string' || !/^[A-Za-z][A-Za-z0-9_.]{0,63}$/.test(cue))
+  ) {
     issues.add(`${path}.footstepCue`, 'must be a cue id');
   }
   return {
@@ -120,8 +135,20 @@ function readSurface(item: Json, path: string, issues: Issues): SurfaceVolumeSpe
     priority: issues.num(item.priority, `${path}.priority`, 0, 100, 0),
     profile: {
       id: surfaceId,
-      friction: issues.num(item.friction, `${path}.friction`, MIN_SURFACE_FRICTION, 1, preset.friction),
-      speedMultiplier: issues.num(item.speedMultiplier, `${path}.speedMultiplier`, 0.5, 1.5, preset.speedMultiplier),
+      friction: issues.num(
+        item.friction,
+        `${path}.friction`,
+        MIN_SURFACE_FRICTION,
+        1,
+        preset.friction,
+      ),
+      speedMultiplier: issues.num(
+        item.speedMultiplier,
+        `${path}.speedMultiplier`,
+        0.5,
+        1.5,
+        preset.speedMultiplier,
+      ),
       footstepCue: typeof cue === 'string' ? cue : preset.footstepCue,
     },
   };
@@ -134,9 +161,15 @@ function readForce(item: Json, path: string, issues: Issues): ForceVolumeSpec {
   }
   const kind = issues.oneOf<ExternalForceKind>(item.kind, `${path}.kind`, FORCE_KINDS);
   const signalId = issues.optionalId(item.signalId, `${path}.signalId`);
-  const inactiveWhenSignalId = issues.optionalId(item.inactiveWhenSignalId, `${path}.inactiveWhenSignalId`);
+  const inactiveWhenSignalId = issues.optionalId(
+    item.inactiveWhenSignalId,
+    `${path}.inactiveWhenSignalId`,
+  );
   if (signalId !== undefined && signalId === inactiveWhenSignalId) {
-    issues.add(`${path}.inactiveWhenSignalId`, 'must differ from signalId (a volume cannot be both on and off for one signal)');
+    issues.add(
+      `${path}.inactiveWhenSignalId`,
+      'must differ from signalId (a volume cannot be both on and off for one signal)',
+    );
   }
   const strength = issues.num(item.strength, `${path}.strength`, 0, FORCE_LIMITS.maxStrength);
   return {
@@ -145,8 +178,20 @@ function readForce(item: Json, path: string, issues: Issues): ForceVolumeSpec {
     box: readBox(item.box, `${path}.box`, issues),
     direction,
     strength,
-    maxAcceleration: issues.num(item.maxAcceleration, `${path}.maxAcceleration`, 0.1, FORCE_LIMITS.maxAcceleration, Math.min(strength || 0.1, 6)),
-    rampInSeconds: issues.num(item.rampInSeconds, `${path}.rampInSeconds`, 0, FORCE_LIMITS.maxRamp, 0.5),
+    maxAcceleration: issues.num(
+      item.maxAcceleration,
+      `${path}.maxAcceleration`,
+      0.1,
+      FORCE_LIMITS.maxAcceleration,
+      Math.min(strength || 0.1, 6),
+    ),
+    rampInSeconds: issues.num(
+      item.rampInSeconds,
+      `${path}.rampInSeconds`,
+      0,
+      FORCE_LIMITS.maxRamp,
+      0.5,
+    ),
     signalId,
     inactiveWhenSignalId,
     affectsGrounded: issues.bool(item.affectsGrounded, `${path}.affectsGrounded`, true),
@@ -157,7 +202,11 @@ function readForce(item: Json, path: string, issues: Issues): ForceVolumeSpec {
 }
 
 /** Forces whose push direction, over the volume's extent and run-out, reaches a hazard. */
-export function forceHazardIssues(forces: readonly ForceVolumeSpec[], hazards: readonly Rect[], margin = 0.25): { path: string; message: string }[] {
+export function forceHazardIssues(
+  forces: readonly ForceVolumeSpec[],
+  hazards: readonly Rect[],
+  margin = 0.25,
+): { path: string; message: string }[] {
   const out: { path: string; message: string }[] = [];
   forces.forEach((force, index) => {
     if (!force.neverPushIntoHazard) {
@@ -168,7 +217,12 @@ export function forceHazardIssues(forces: readonly ForceVolumeSpec[], hazards: r
     if (Math.hypot(dx, dz) < 1e-9) {
       return;
     }
-    const box: Rect = { minX: force.box.min.x, maxX: force.box.max.x, minZ: force.box.min.z, maxZ: force.box.max.z };
+    const box: Rect = {
+      minX: force.box.min.x,
+      maxX: force.box.max.x,
+      minZ: force.box.min.z,
+      maxZ: force.box.max.z,
+    };
     hazards.forEach((hazard, hazardIndex) => {
       if (sweptRectHitsRect(box, dx, dz, force.runOut, inflateRect(hazard, margin))) {
         out.push({
@@ -187,12 +241,27 @@ export function validateEnvironmentVolumesConfig(input: unknown) {
   if (input !== undefined && !isRecord(input)) {
     issues.add('', 'must be an object');
   }
-  const surfaces = issues.records(root.surfaces, 'surfaces', (item, path) => readSurface(item, path, issues), (s) => s.id, 128);
-  const forces = issues.records(root.forces, 'forces', (item, path) => readForce(item, path, issues), (f) => f.id, 64);
+  const surfaces = issues.records(
+    root.surfaces,
+    'surfaces',
+    (item, path) => readSurface(item, path, issues),
+    (s) => s.id,
+    128,
+  );
+  const forces = issues.records(
+    root.forces,
+    'forces',
+    (item, path) => readForce(item, path, issues),
+    (f) => f.id,
+    64,
+  );
   const waters = issues.records(
     root.waters,
     'waters',
-    (item, path): WaterVolumeSpec => ({ id: issues.id(item.id, `${path}.id`), box: readBox(item.box, `${path}.box`, issues) }),
+    (item, path): WaterVolumeSpec => ({
+      id: issues.id(item.id, `${path}.id`),
+      box: readBox(item.box, `${path}.box`, issues),
+    }),
     (w) => w.id,
     32,
   );
@@ -220,10 +289,17 @@ export function validateEnvironmentVolumesConfig(input: unknown) {
     (l) => l.id,
     32,
   );
-  const hazardRects = Array.isArray(root.hazardRects) ? root.hazardRects.map((r, i) => issues.rect(r, `hazardRects[${i}]`)) : [];
+  const hazardRects = Array.isArray(root.hazardRects)
+    ? root.hazardRects.map((r, i) => issues.rect(r, `hazardRects[${i}]`))
+    : [];
   for (const problem of forceHazardIssues(forces, hazardRects)) {
     issues.add(problem.path, problem.message);
   }
-  return issues.result<EnvironmentVolumesConfig>({ surfaces, forces, waters, ladders, hazardRects });
+  return issues.result<EnvironmentVolumesConfig>({
+    surfaces,
+    forces,
+    waters,
+    ladders,
+    hazardRects,
+  });
 }
-

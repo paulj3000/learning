@@ -99,17 +99,29 @@ def test_owning_every_set_member_grants_the_completion_item_once(treasure, chest
 
     release = chest_rule.last_seen_release
     badge = ItemDefinition.objects.create(
-        item_id="set-test-badge", display_name="Badge", category="KEEPSAKE", rarity="COMMON",
-        source={}, last_seen_release=release,
+        item_id="set-test-badge",
+        display_name="Badge",
+        category="KEEPSAKE",
+        rarity="COMMON",
+        source={},
+        last_seen_release=release,
     )
     collectible_set = CollectibleSet.objects.create(
-        set_id="set-test", display_name="Set", completion_item=badge, source={},
+        set_id="set-test",
+        display_name="Set",
+        completion_item=badge,
+        source={},
         last_seen_release=release,
     )
     members = [
         ItemDefinition.objects.create(
-            item_id=f"set-test-{n}", display_name=f"Member {n}", category="COLLECTIBLE",
-            rarity="COMMON", collectible_set=collectible_set, source={}, last_seen_release=release,
+            item_id=f"set-test-{n}",
+            display_name=f"Member {n}",
+            category="COLLECTIBLE",
+            rarity="COMMON",
+            collectible_set=collectible_set,
+            source={},
+            last_seen_release=release,
         )
         for n in (1, 2)
     ]

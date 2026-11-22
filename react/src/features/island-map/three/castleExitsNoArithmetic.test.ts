@@ -18,8 +18,12 @@ const EMPTY: WorldInteractionContext = { worldChangeKeys: [] };
 describe('castle exits and routes carry no arithmetic gate (SC-R11)', () => {
   it('always includes the harbor exit, whatever the world state', () => {
     expect(openExits(EMPTY).map((exit) => exit.id)).toContain('harbor');
-    expect(openExits({ worldChangeKeys: [], ownedItemIds: [], discoveryIds: [] })[0]?.id).toBe('harbor');
-    expect(openExits({ worldChangeKeys: ['SOMETHING_ELSE'] }).map((exit) => exit.id)).toContain('harbor');
+    expect(openExits({ worldChangeKeys: [], ownedItemIds: [], discoveryIds: [] })[0]?.id).toBe(
+      'harbor',
+    );
+    expect(openExits({ worldChangeKeys: ['SOMETHING_ELSE'] }).map((exit) => exit.id)).toContain(
+      'harbor',
+    );
   });
 
   it('makes the harbor exit a plain, ungated navigation, not an adventure step', () => {
@@ -71,17 +75,27 @@ describe('castle exits and routes carry no arithmetic gate (SC-R11)', () => {
 
   it('never makes the write-your-story activity a way in or a way out', () => {
     // The activity is reached by an optional tap on the desk's book and is never required.
-    const write = CASTLE_WRITING_ROOM_3D_INTERACTIONS.find((i) => i.id === 'writing-room-write-story')!;
+    const write = CASTLE_WRITING_ROOM_3D_INTERACTIONS.find(
+      (i) => i.id === 'writing-room-write-story',
+    )!;
     expect(write.requirements).toEqual([{ type: 'ALWAYS' }]);
     expect(write.action.kind).toBe('NAVIGATE');
     // The manifest holds no adventure step: the exit zone and the way back never depend on it.
-    expect(CASTLE_WRITING_ROOM_MANIFEST.interactions.some((i) => i.action.kind === 'START_ADVENTURE')).toBe(false);
-    expect(CASTLE_WRITING_ROOM_MANIFEST.interactions.some((i) => i.action.kind === 'START_STORY')).toBe(false);
+    expect(
+      CASTLE_WRITING_ROOM_MANIFEST.interactions.some((i) => i.action.kind === 'START_ADVENTURE'),
+    ).toBe(false);
+    expect(
+      CASTLE_WRITING_ROOM_MANIFEST.interactions.some((i) => i.action.kind === 'START_STORY'),
+    ).toBe(false);
   });
 
   it('keeps arithmetic out of every Writing Room story, for every band', () => {
     const stories = getAdventureTemplatesForLocation('castle-writing-room');
-    expect(stories.map((story) => story.ageBands[0]).sort()).toEqual(['EXPLORER', 'PATHFINDER', 'SPROUT']);
+    expect(stories.map((story) => story.ageBands[0]).sort()).toEqual([
+      'EXPLORER',
+      'PATHFINDER',
+      'SPROUT',
+    ]);
     for (const story of stories) {
       for (const step of story.steps) {
         expect(['NUMBER_INPUT', 'CHOICE', 'ORDERING', 'MATCHING']).not.toContain(step.type);
@@ -89,6 +103,8 @@ describe('castle exits and routes carry no arithmetic gate (SC-R11)', () => {
       }
     }
     // And no template anywhere is reachable only through arithmetic from the Writing Room.
-    expect(ADVENTURE_TEMPLATES.filter((t) => t.locationSlug === 'castle-writing-room')).toHaveLength(3);
+    expect(
+      ADVENTURE_TEMPLATES.filter((t) => t.locationSlug === 'castle-writing-room'),
+    ).toHaveLength(3);
   });
 });

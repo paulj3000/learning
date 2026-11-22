@@ -21,7 +21,9 @@ describe('component registry', () => {
   it('rejects duplicates, malformed ids and unknown types', () => {
     const registry = createComponentRegistry();
     registry.register('gameplay.chest', () => 1 as never);
-    expect(() => registry.register('gameplay.chest', () => 1 as never)).toThrow(/already registered/);
+    expect(() => registry.register('gameplay.chest', () => 1 as never)).toThrow(
+      /already registered/,
+    );
     try {
       registry.register('gameplay.chest', () => 1 as never);
     } catch (error) {
@@ -29,6 +31,8 @@ describe('component registry', () => {
     }
     expect(() => registry.register('Chest', () => 1 as never)).toThrow();
     const runtime = createEngineRuntime<EventMap>({ id: 'r' });
-    expect(() => registry.create(runtime, { id: 'z', type: 'gameplay.nope', areaId: 'x' })).toThrow(/not registered/);
+    expect(() => registry.create(runtime, { id: 'z', type: 'gameplay.nope', areaId: 'x' })).toThrow(
+      /not registered/,
+    );
   });
 });

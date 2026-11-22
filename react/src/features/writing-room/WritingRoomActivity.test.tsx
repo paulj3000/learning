@@ -27,7 +27,10 @@ vi.mock('../../audio/speech/useSpeech', () => ({
   }),
 }));
 
-function artifactFor(scenes: { stepId: string; text: string }[], title = 'My Story'): StoryArtifact {
+function artifactFor(
+  scenes: { stepId: string; text: string }[],
+  title = 'My Story',
+): StoryArtifact {
   return {
     id: 'artifact-1',
     childProfileId: 'child-1',
@@ -83,8 +86,14 @@ describe('Sprouts: tap a picture, a character and a word', () => {
     ]);
     expect(await screen.findByText(/What a lovely story/)).toBeInTheDocument();
     expect(screen.getByText('Saved by the server.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to the Writing Room' })).toHaveAttribute('href', '/room');
-    expect(screen.getByRole('link', { name: 'See my adventure log' })).toHaveAttribute('href', '/log');
+    expect(screen.getByRole('link', { name: 'Back to the Writing Room' })).toHaveAttribute(
+      'href',
+      '/room',
+    );
+    expect(screen.getByRole('link', { name: 'See my adventure log' })).toHaveAttribute(
+      'href',
+      '/log',
+    );
   });
 
   it('offers large targets, a way to hear each prompt and an authored idea, with no wrong answer', async () => {
@@ -111,11 +120,15 @@ describe('Pathfinders: build sentences from word tiles', () => {
     await user.click(screen.getByRole('button', { name: 'the little fox' }));
     expect(screen.queryByRole('button', { name: 'Next sentence' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'lived' }));
-    expect(screen.getByLabelText('Your sentence so far')).toHaveTextContent('The little fox lived.');
+    expect(screen.getByLabelText('Your sentence so far')).toHaveTextContent(
+      'The little fox lived.',
+    );
     // Take a tile back, then put it back: the order is the child's own.
     await user.click(screen.getByRole('button', { name: 'Take back a tile' }));
     await user.click(screen.getByRole('button', { name: 'by the sea' }));
-    expect(screen.getByLabelText('Your sentence so far')).toHaveTextContent('The little fox by the sea.');
+    expect(screen.getByLabelText('Your sentence so far')).toHaveTextContent(
+      'The little fox by the sea.',
+    );
     await user.click(screen.getByRole('button', { name: 'Next sentence' }));
 
     await user.click(screen.getByRole('button', { name: 'Then' }));

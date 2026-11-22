@@ -38,12 +38,19 @@ describe('GameEnginePlayground', () => {
     expect(screen.getByRole('checkbox', { name: /Demo scene/ })).toBeChecked();
     expect(screen.getByRole('combobox', { name: 'Age band' })).toHaveValue('PATHFINDER');
     expect(screen.getByRole('complementary', { name: 'Engine diagnostics' })).toBeInTheDocument();
-    expect(await screen.findByText(/Colliders: SOLID 1, JUMPABLE 5, TRIGGER 1, gate 1/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Colliders: SOLID 1, JUMPABLE 5, TRIGGER 1, gate 1/),
+    ).toBeInTheDocument();
   });
 
   it('emits sample claims into the event log and shows an invalid claim as dropped', async () => {
     render(<GameEnginePlayground rendererFactory={rendererFactory} />);
-    await waitFor(() => expect(screen.getByRole('region', { name: 'Game engine test scene' })).toHaveAttribute('data-status', 'ready'));
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Game engine test scene' })).toHaveAttribute(
+        'data-status',
+        'ready',
+      ),
+    );
     const log = screen.getByRole('region', { name: 'Event log' });
     await userEvent.click(screen.getByRole('button', { name: 'Collect coin' }));
     expect(within(log).getByText('collectible.collected')).toBeInTheDocument();
@@ -55,14 +62,26 @@ describe('GameEnginePlayground', () => {
 
   it('restarts the engine when the age band changes and can hide the overlay', async () => {
     render(<GameEnginePlayground rendererFactory={rendererFactory} />);
-    await waitFor(() => expect(screen.getByRole('region', { name: 'Game engine test scene' })).toHaveAttribute('data-status', 'ready'));
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Game engine test scene' })).toHaveAttribute(
+        'data-status',
+        'ready',
+      ),
+    );
     const before = renderers.length;
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Age band' }), 'SPROUT');
     await waitFor(() => expect(renderers.length).toBeGreaterThan(before));
     expect(renderers[before - 1]!.dispose).toHaveBeenCalled();
-    await waitFor(() => expect(screen.getByRole('region', { name: 'Game engine test scene' })).toHaveAttribute('data-status', 'ready'));
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Game engine test scene' })).toHaveAttribute(
+        'data-status',
+        'ready',
+      ),
+    );
     await userEvent.click(screen.getByRole('checkbox', { name: 'Debug overlay' }));
-    expect(screen.queryByRole('complementary', { name: 'Engine diagnostics' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('complementary', { name: 'Engine diagnostics' }),
+    ).not.toBeInTheDocument();
   });
 
   it('exposes the capability list for later wiring', () => {
@@ -88,8 +107,22 @@ describe('playground scene', () => {
     const requests = PLAYGROUND_CAPABILITIES.map((c) => c.toRequest('SPROUT'));
     await runtime.start(requests);
     const provider = runtime.services.require(PhysicsProviderService);
-    expect(provider.colliders().map((c) => c.id).sort()).toEqual(
-      ['crate.jumpable.1', 'ferry', 'gate.1', 'ramp.jumpable.1', 'step.jumpable.1', 'step.jumpable.2', 'wall.solid.1', 'zone.trigger.1'].sort(),
+    expect(
+      provider
+        .colliders()
+        .map((c) => c.id)
+        .sort(),
+    ).toEqual(
+      [
+        'crate.jumpable.1',
+        'ferry',
+        'gate.1',
+        'ramp.jumpable.1',
+        'step.jumpable.1',
+        'step.jumpable.2',
+        'wall.solid.1',
+        'zone.trigger.1',
+      ].sort(),
     );
     expect(provider.getCollider('step.jumpable.1')?.max.y).toBe(0.4);
     expect(provider.getCollider('gate.1')?.gate).toBe(true);
@@ -114,7 +147,14 @@ describe('playground scene', () => {
     const view = makeView();
     runtime.services.provide(HostViewService, view);
     await runtime.start([{ id: 'playground.demoScene' }]);
-    expect(wirePlayground(runtime, services, { poll: () => ({ move: { forward: 0, strafe: 0 } }) }, view)).toBeNull();
+    expect(
+      wirePlayground(
+        runtime,
+        services,
+        { poll: () => ({ move: { forward: 0, strafe: 0 } }) },
+        view,
+      ),
+    ).toBeNull();
     runtime.dispose();
   });
 
@@ -131,7 +171,10 @@ describe('playground scene', () => {
     key('keydown', 'KeyW');
     key('keydown', 'Space');
     key('keydown', 'Space', true);
-    expect(keyboard.poll()).toMatchObject({ move: { forward: 1, strafe: 0, sprint: false }, jumpPressed: true });
+    expect(keyboard.poll()).toMatchObject({
+      move: { forward: 1, strafe: 0, sprint: false },
+      jumpPressed: true,
+    });
     expect(keyboard.poll().jumpPressed).toBe(false);
     key('keydown', 'ArrowLeft');
     expect(keyboard.poll().move.strafe).toBe(-1);

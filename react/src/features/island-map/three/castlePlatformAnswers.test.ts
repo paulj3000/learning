@@ -50,15 +50,20 @@ describe('static pad bindings', () => {
   });
 
   it('only ever points at pad zones', () => {
-    for (const binding of CASTLE_PAD_BINDINGS) expect(isPadZoneId(binding.entityId), binding.entityId).toBe(true);
+    for (const binding of CASTLE_PAD_BINDINGS)
+      expect(isPadZoneId(binding.entityId), binding.entityId).toBe(true);
   });
 
   it('puts the story stones in the plates’ own order, not the story’s (neither route starts at the answer)', () => {
-    const tale = CASTLE_PAD_BINDINGS.filter((binding) => binding.stepId === 'order-the-story').map((b) => b.optionId);
+    const tale = CASTLE_PAD_BINDINGS.filter((binding) => binding.stepId === 'order-the-story').map(
+      (b) => b.optionId,
+    );
     const step = stepOf(adventure('the-storykeepers-tale'), 'order-the-story');
     if (step.presentation.kind !== 'ordering') throw new Error('not an ordering');
     expect(tale).not.toEqual(step.presentation.correctOrder);
-    const clues = CASTLE_PAD_BINDINGS.filter((binding) => binding.stepId === 'order-the-clues').map((b) => b.optionId);
+    const clues = CASTLE_PAD_BINDINGS.filter((binding) => binding.stepId === 'order-the-clues').map(
+      (b) => b.optionId,
+    );
     const clueStep = stepOf(adventure('secret-door-chapter-1-three-clues'), 'order-the-clues');
     if (clueStep.presentation.kind !== 'ordering') throw new Error('not an ordering');
     expect(clues).not.toEqual(clueStep.presentation.correctOrder);
@@ -69,7 +74,9 @@ describe('a pad answer is the ground answer', () => {
   const HUD = (optionId: string) => ({ kind: 'choice', optionId }) as const;
 
   it('gives the same decision as the HUD card for every single-pad step, right and wrong', () => {
-    const cases: [slug: string, stepId: string][] = [['secret-door-chapter-2-pattern-lock', 'continue-the-pattern']];
+    const cases: [slug: string, stepId: string][] = [
+      ['secret-door-chapter-2-pattern-lock', 'continue-the-pattern'],
+    ];
     for (const [slug, stepId] of cases) {
       const definition = adventure(slug);
       const step = stepOf(definition, stepId);
@@ -96,8 +103,14 @@ describe('a pad answer is the ground answer', () => {
         return [zoneId, decideSubmission(step, resolved.answer, 0)];
       }),
     );
-    expect(decisions[padZoneId('library-pattern', 'moon')]).toMatchObject({ correctness: 'correct', action: 'ADVANCE' });
-    expect(decisions[padZoneId('library-pattern', 'star')]).toMatchObject({ correctness: 'incorrect', action: 'RETRY' });
+    expect(decisions[padZoneId('library-pattern', 'moon')]).toMatchObject({
+      correctness: 'correct',
+      action: 'ADVANCE',
+    });
+    expect(decisions[padZoneId('library-pattern', 'star')]).toMatchObject({
+      correctness: 'incorrect',
+      action: 'RETRY',
+    });
     expect(decisions[padZoneId('library-pattern', 'star')].nextStepId).toBeUndefined();
     expect(decisions[padZoneId('library-pattern', 'sun')]).toMatchObject({ action: 'RETRY' });
   });
@@ -159,7 +172,9 @@ describe('a pad answer is the ground answer', () => {
     const stone = padZoneId('story-hall', 'choice');
     expect(resolvePadAnswer(stone, tale, stepOf(tale, 'choose-hero'))).toBeNull();
     expect(resolvePadAnswer(stone, tale, null)).toBeNull();
-    expect(resolvePadAnswer(padZoneId('library-books', 'diary'), tale, stepOf(tale, 'order-the-story'))).toBeNull();
+    expect(
+      resolvePadAnswer(padZoneId('library-books', 'diary'), tale, stepOf(tale, 'order-the-story')),
+    ).toBeNull();
     expect(resolvePadAnswer('tower-window-cave', tale, stepOf(tale, 'order-the-story'))).toBeNull();
   });
 });
@@ -181,7 +196,11 @@ describe('repeated pad signals never repeat anything', () => {
     expect(collector.step('beat-problem', items)).toBeNull();
     expect(collector.stepped).toEqual(['beat-problem']);
     expect(collector.step('beat-choice', items)).toBeNull();
-    expect(collector.step('beat-ending', items)).toEqual(['beat-problem', 'beat-choice', 'beat-ending']);
+    expect(collector.step('beat-ending', items)).toEqual([
+      'beat-problem',
+      'beat-choice',
+      'beat-ending',
+    ]);
     expect(collector.stepped).toEqual([]);
     // A stone that is not one of the step's items is ignored.
     expect(collector.step('beat-unknown', items)).toBeNull();
@@ -206,7 +225,10 @@ describe('the Painted Words pads', () => {
         const slots = paintedWordsPadSlots(step);
         expect(slots, `${definition.slug}/${step.id}`).not.toBeNull();
         for (const slot of slots!) {
-          expect(PAINTED_WORD_BANK[slot.word], `${slot.word} is not in the approved bank`).toBeDefined();
+          expect(
+            PAINTED_WORD_BANK[slot.word],
+            `${slot.word} is not in the approved bank`,
+          ).toBeDefined();
           expect(slot.pictureId).toBe(PAINTED_WORD_BANK[slot.word].pictureId);
         }
       }
@@ -219,13 +241,18 @@ describe('the Painted Words pads', () => {
         const slots = paintedWordsPadSlots(step)!;
         expect(slots.length, step.id).toBeLessThanOrEqual(PAINTED_WORDS_PAD_KEYS.length);
         expect(slots.length, step.id).toBeGreaterThanOrEqual(2);
-        expect(slots.filter((slot) => slot.correct), step.id).toHaveLength(1);
+        expect(
+          slots.filter((slot) => slot.correct),
+          step.id,
+        ).toHaveLength(1);
         expect(new Set(slots.map((slot) => slot.padKey)).size).toBe(slots.length);
         expect(new Set(slots.map((slot) => slot.word)).size).toBe(slots.length);
         // Each pad is the option the card shows, so the HUD equivalent says the same words.
         if (step.presentation.kind !== 'choice') throw new Error('not a choice');
         for (const slot of slots) {
-          expect(step.presentation.options.find((option) => option.id === slot.optionId)?.label).toBe(slot.word);
+          expect(
+            step.presentation.options.find((option) => option.id === slot.optionId)?.label,
+          ).toBe(slot.word);
         }
       }
     }
@@ -235,20 +262,36 @@ describe('the Painted Words pads', () => {
     expect(selectPaintedWordsSlug([])).toBe(THE_PAINTED_WORDS.slug);
     expect(selectPaintedWordsSlug([PAINTED_WORDS_CHANGE_KEY])).toBe(THE_PAINTED_WORDS_AGAIN.slug);
     const wordsOf = (definition: AdventureDefinition) =>
-      new Set(choiceSteps(definition).flatMap((step) => paintedWordsPadSlots(step)!.map((slot) => slot.word)));
+      new Set(
+        choiceSteps(definition).flatMap((step) =>
+          paintedWordsPadSlots(step)!.map((slot) => slot.word),
+        ),
+      );
     const [setA, setB] = PAINTED_WORDS_SETS;
-    const aWords = new Set([...setA.rhymes, ...setA.beginnings].flatMap((q) => [q.target, q.answer, ...q.distractors]));
+    const aWords = new Set(
+      [...setA.rhymes, ...setA.beginnings].flatMap((q) => [q.target, q.answer, ...q.distractors]),
+    );
     for (const word of wordsOf(THE_PAINTED_WORDS)) {
-      const inA = aWords.has(word) || setA.oddOneOut.rhyming.includes(word as never) || setA.oddOneOut.odd === word;
+      const inA =
+        aWords.has(word) ||
+        setA.oddOneOut.rhyming.includes(word as never) ||
+        setA.oddOneOut.odd === word;
       expect(inA, `set A pad word ${word}`).toBe(true);
     }
-    const bWords = new Set([...setB.rhymes, ...setB.beginnings].flatMap((q) => [q.target, q.answer, ...q.distractors]));
+    const bWords = new Set(
+      [...setB.rhymes, ...setB.beginnings].flatMap((q) => [q.target, q.answer, ...q.distractors]),
+    );
     for (const word of wordsOf(THE_PAINTED_WORDS_AGAIN)) {
-      const inB = bWords.has(word) || setB.oddOneOut.rhyming.includes(word as never) || setB.oddOneOut.odd === word;
+      const inB =
+        bWords.has(word) ||
+        setB.oddOneOut.rhyming.includes(word as never) ||
+        setB.oddOneOut.odd === word;
       expect(inB, `set B pad word ${word}`).toBe(true);
     }
     // The two plays show different words.
-    expect([...wordsOf(THE_PAINTED_WORDS)].sort()).not.toEqual([...wordsOf(THE_PAINTED_WORDS_AGAIN)].sort());
+    expect([...wordsOf(THE_PAINTED_WORDS)].sort()).not.toEqual(
+      [...wordsOf(THE_PAINTED_WORDS_AGAIN)].sort(),
+    );
   });
 
   it('keeps the odd one out and two rhyming words on the pads when the step has four words', () => {
@@ -277,7 +320,13 @@ describe('the Painted Words pads', () => {
   });
 
   it('means nothing on a step that is not a choice, and says the colours aloud', () => {
-    expect(resolvePadAnswer(padZoneId('studio', 'red'), THE_PAINTED_WORDS, stepOf(THE_PAINTED_WORDS, 'clap-apple'))).toBeNull();
+    expect(
+      resolvePadAnswer(
+        padZoneId('studio', 'red'),
+        THE_PAINTED_WORDS,
+        stepOf(THE_PAINTED_WORDS, 'clap-apple'),
+      ),
+    ).toBeNull();
     const guide = paintedWordsPadGuide(stepOf(THE_PAINTED_WORDS, 'rhyme-cat'))!;
     expect(guide).toContain('The red pad says');
     expect(guide).toContain('hat');

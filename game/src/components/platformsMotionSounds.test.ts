@@ -19,7 +19,13 @@ const lift = {
   position: { x: 0, y: 0, z: 0 },
   size,
   route: 'OPTIONAL',
-  moving: { path: [{ x: 0, y: 3, z: 0 }], mode: 'ONCE', speed: 1, pauseSeconds: 0, activeSignalId: 'plate.lift' },
+  moving: {
+    path: [{ x: 0, y: 3, z: 0 }],
+    mode: 'ONCE',
+    speed: 1,
+    pauseSeconds: 0,
+    activeSignalId: 'plate.lift',
+  },
   sounds: { activated: 'sfx.lift.clunk', moving: 'sfx.lift.creak', stopped: 'sfx.lift.thud' },
 };
 
@@ -82,7 +88,12 @@ describe('engine moving platform sound events', () => {
 
   it('a static platform is silent', async () => {
     const h = harness();
-    await h.start([{ id: 'gameplay.platforms', config: { platforms: [{ id: 'step', position: { x: 0, y: 0, z: 0 }, size }] } }]);
+    await h.start([
+      {
+        id: 'gameplay.platforms',
+        config: { platforms: [{ id: 'step', position: { x: 0, y: 0, z: 0 }, size }] },
+      },
+    ]);
     h.advance(2);
     expect(soundEvents(h)).toEqual([]);
     h.dispose();
@@ -90,7 +101,11 @@ describe('engine moving platform sound events', () => {
 
   it('validates sound cues as semantic ids', () => {
     expect(validatePlatformsConfig({ platforms: [lift] }).ok).toBe(true);
-    expect(validatePlatformsConfig({ platforms: [{ ...lift, sounds: { moving: 'has spaces' } }] }).ok).toBe(false);
-    expect(validatePlatformsConfig({ platforms: [{ ...lift, sounds: 'sfx.lift' }] }).ok).toBe(false);
+    expect(
+      validatePlatformsConfig({ platforms: [{ ...lift, sounds: { moving: 'has spaces' } }] }).ok,
+    ).toBe(false);
+    expect(validatePlatformsConfig({ platforms: [{ ...lift, sounds: 'sfx.lift' }] }).ok).toBe(
+      false,
+    );
   });
 });

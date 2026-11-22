@@ -23,9 +23,7 @@ import {
 const EM_DASH = '—';
 
 function groups(set: PaintedWordsSet) {
-  return [
-    ...set.rhymes.map((q) => ({ target: q.target, answer: q.answer, other: q.distractors })),
-  ];
+  return [...set.rhymes.map((q) => ({ target: q.target, answer: q.answer, other: q.distractors }))];
 }
 
 describe('the approved word bank is phonologically correct', () => {

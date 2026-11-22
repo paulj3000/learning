@@ -30,4 +30,6 @@ def test_concurrent_backfills_grant_the_key_once(families):
     assert all(not isinstance(r, Exception) for r in results), results
     assert sum(r.rules["reward-secret-door-key"].granted for r in results) == 1
     assert InventoryItem.objects.filter(child=child, item__item_id="secret-door-key").count() == 1
-    assert GrantedRule.objects.filter(child=child, rule__rule_id="reward-secret-door-key").count() == 1
+    assert (
+        GrantedRule.objects.filter(child=child, rule__rule_id="reward-secret-door-key").count() == 1
+    )

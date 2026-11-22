@@ -5,30 +5,82 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('catalog', '0010_merge_npc_manager'),
-        ('regions', '0008_castle_director'),
+        ("catalog", "0010_merge_npc_manager"),
+        ("regions", "0008_castle_director"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CastleEvent',
+            name="CastleEvent",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('authority', models.CharField(choices=[('EXPORT', 'Export-owned'), ('DJANGO', 'Django-owned (edited in Admin)')], default='EXPORT', editable=False, max_length=8)),
-                ('event_id', models.SlugField(help_text='Stable id. Never renamed; the display counter uses it.', max_length=100, unique=True)),
-                ('room', models.SlugField(help_text='A castle room id, or ANY. Copied from the published content.', max_length=64)),
-                ('active', models.BooleanField(default=True, help_text='Untick to retire the event. A retired event is never eligible.')),
-                ('source', models.JSONField(blank=True, default=dict, editable=False, help_text='The published content. Change it through a new version, never directly.')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('published_revision', models.ForeignKey(blank=True, editable=False, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='+', to='catalog.contentrevision')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "authority",
+                    models.CharField(
+                        choices=[
+                            ("EXPORT", "Export-owned"),
+                            ("DJANGO", "Django-owned (edited in Admin)"),
+                        ],
+                        default="EXPORT",
+                        editable=False,
+                        max_length=8,
+                    ),
+                ),
+                (
+                    "event_id",
+                    models.SlugField(
+                        help_text="Stable id. Never renamed; the display counter uses it.",
+                        max_length=100,
+                        unique=True,
+                    ),
+                ),
+                (
+                    "room",
+                    models.SlugField(
+                        help_text="A castle room id, or ANY. Copied from the published content.",
+                        max_length=64,
+                    ),
+                ),
+                (
+                    "active",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Untick to retire the event. A retired event is never eligible.",
+                    ),
+                ),
+                (
+                    "source",
+                    models.JSONField(
+                        blank=True,
+                        default=dict,
+                        editable=False,
+                        help_text="The published content. Change it through a new version, never directly.",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "published_revision",
+                    models.ForeignKey(
+                        blank=True,
+                        editable=False,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="+",
+                        to="catalog.contentrevision",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Castle Director event',
-                'verbose_name_plural': 'Castle Director events',
-                'ordering': ['event_id'],
+                "verbose_name": "Castle Director event",
+                "verbose_name_plural": "Castle Director events",
+                "ordering": ["event_id"],
             },
         ),
     ]

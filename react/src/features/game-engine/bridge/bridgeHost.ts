@@ -35,7 +35,10 @@ export interface LocationBridgeHost {
    * live. `gate: true` is never jumpable and blocks the camera like a wall. Today's host returns
    * nothing.
    */
-  addCollider(box: Box3, options?: { jumpable?: boolean; id?: string; gate?: boolean }): string | void;
+  addCollider(
+    box: Box3,
+    options?: { jumpable?: boolean; id?: string; gate?: boolean },
+  ): string | void;
   removeCollider(id: string): boolean;
   /** Ground-plane position; the fallback when `playerState` is missing. */
   playerPosition(): { x: number; z: number };
@@ -106,7 +109,9 @@ export function hostSupport(host: LocationBridgeHost): BridgeHostSupport {
 }
 
 /** GE-L14: the engine particle tier for a device render quality (LOW draws no weather or particles). */
-export function deviceParticleTier(quality: 'LOW' | 'MEDIUM' | 'HIGH' | undefined): 'OFF' | 'MEDIUM' | 'HIGH' | undefined {
+export function deviceParticleTier(
+  quality: 'LOW' | 'MEDIUM' | 'HIGH' | undefined,
+): 'OFF' | 'MEDIUM' | 'HIGH' | undefined {
   if (quality === undefined) return undefined;
   return quality === 'LOW' ? 'OFF' : quality;
 }

@@ -23,7 +23,8 @@ describe('the castle offline default lines', () => {
   it('has a line for every castle room and age band, and no other room', () => {
     expect(Object.keys(CASTLE_DEFAULT_LINES).sort()).toEqual([...CASTLE_ROOM_IDS].sort());
     for (const room of CASTLE_ROOM_IDS) {
-      for (const band of BANDS) expect(castleDefaultLine(room, band), `${room} ${band}`).toBeTruthy();
+      for (const band of BANDS)
+        expect(castleDefaultLine(room, band), `${room} ${band}`).toBeTruthy();
     }
     expect(castleDefaultLine('no-such-room', 'SPROUT')).toBeUndefined();
   });
@@ -35,7 +36,9 @@ describe('the castle offline default lines', () => {
         expect(line.length).toBeLessThanOrEqual(MAX_SPOKEN_LENGTH_BY_AGE_BAND[band]);
         expect(line).not.toMatch(/[–—]/);
         expect(line).not.toMatch(/https?:|www\./i);
-        expect(line).not.toMatch(/tomorrow|come back|streak|countdown|hurry|miss(ed)? you|reward|unlock/i);
+        expect(line).not.toMatch(
+          /tomorrow|come back|streak|countdown|hurry|miss(ed)? you|reward|unlock/i,
+        );
       }
     }
   });

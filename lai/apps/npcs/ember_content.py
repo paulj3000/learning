@@ -9,7 +9,8 @@ What this adds is a castle visit:
 
 - **One placement, Place-level, gated.** `castle-ember` stands her beside the Story Hall hearth
   (the castle has no 3D Area in Django, so `region` is null). Her `spawn_conditions` read only
-  authoritative progress: the Ember Mountain story is finished (`DRAGON_OF_EMBER_MOUNTAIN_COMPLETE`),
+  authoritative progress: the Ember Mountain story is finished
+(`DRAGON_OF_EMBER_MOUNTAIN_COMPLETE`),
   the Great Storybook is whole (`GREAT_STORYBOOK_RESTORED`, written by every band's Storybook
   quest), and the child has met her before (`RETURN_VISIT`: an `NpcRelationship` with Ember, which
   her sanctuary conversation records). A child who has not done all three never sees her here.

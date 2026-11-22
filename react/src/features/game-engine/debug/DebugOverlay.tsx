@@ -10,13 +10,19 @@ export interface DebugOverlayProps {
   onCollisionVisibleChange(visible: boolean): void;
 }
 
-const fixed = (value: number | undefined, digits = 1) => (value === undefined ? '-' : value.toFixed(digits));
+const fixed = (value: number | undefined, digits = 1) =>
+  value === undefined ? '-' : value.toFixed(digits);
 
 /**
  * DEV ONLY (imported by the Playground only; never by a production route). Shows engine
  * diagnostics read from `runtime.diagnostics.snapshot()` on an interval.
  */
-export function DebugOverlay({ runtime, intervalMs = 500, collisionVisible, onCollisionVisibleChange }: DebugOverlayProps) {
+export function DebugOverlay({
+  runtime,
+  intervalMs = 500,
+  collisionVisible,
+  onCollisionVisibleChange,
+}: DebugOverlayProps) {
   const [snapshot, setSnapshot] = useState<DiagnosticsSnapshot | null>(null);
 
   useEffect(() => {
@@ -37,7 +43,11 @@ export function DebugOverlay({ runtime, intervalMs = 500, collisionVisible, onCo
   return (
     <aside className={styles.overlay} aria-label="Engine diagnostics">
       <label className={styles.toggle}>
-        <input type="checkbox" checked={collisionVisible} onChange={(e) => onCollisionVisibleChange(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={collisionVisible}
+          onChange={(e) => onCollisionVisibleChange(e.target.checked)}
+        />
         Show collision
       </label>
       <dl className={styles.stats}>

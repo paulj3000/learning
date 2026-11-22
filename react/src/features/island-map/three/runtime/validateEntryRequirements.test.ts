@@ -29,7 +29,9 @@ describe('entryRequirements validation', () => {
   it('accepts the always-true and world-change requirements', () => {
     expect(issuesAt(withGate([{ type: 'ALWAYS' }]))).toEqual([]);
     expect(
-      issuesAt(withGate([{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' }])),
+      issuesAt(
+        withGate([{ type: 'WORLD_CHANGE_PRESENT', changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' }]),
+      ),
     ).toEqual([]);
   });
 

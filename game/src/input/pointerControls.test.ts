@@ -341,7 +341,12 @@ describe('attachPointerControls running & sprinting', () => {
 describe('touchDrag as a pure clamp (SC-R11)', () => {
   it('is still at zero and never exceeds unit length, however far the drag goes', () => {
     expect(touchDrag(0, 0)).toEqual({ x: 0, y: 0, sprint: false });
-    for (const [dx, dy] of [[500, 0], [0, -900], [300, 400], [-1e6, 1e6]] as const) {
+    for (const [dx, dy] of [
+      [500, 0],
+      [0, -900],
+      [300, 400],
+      [-1e6, 1e6],
+    ] as const) {
       const { x, y } = touchDrag(dx, dy);
       expect(Math.hypot(x, y)).toBeLessThanOrEqual(1 + 1e-9);
     }
