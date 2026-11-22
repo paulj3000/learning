@@ -130,6 +130,32 @@ def test_an_embedded_png_texture_passes():
     assert check(glb_bytes(document, binary)).passed
 
 
+def test_an_embedded_webp_texture_is_refused():
+    # Owner 2026-11-22 (LAI-07): embedded WebP stays unsupported until end-to-end compatibility
+    # is demonstrated, as a data URI, a buffer view, or through EXT_texture_webp.
+    import base64
+
+    from apps.assets.tests.media_files import webp_bytes
+
+    uri = "data:image/webp;base64," + base64.b64encode(webp_bytes()).decode()
+    document, binary = gltf_document(extra={"images": [{"uri": uri}]})
+    assert not check(glb_bytes(document, binary)).passed
+
+    document, binary = gltf_document()
+    image = webp_bytes()
+    document["bufferViews"].append(
+        {"buffer": 0, "byteOffset": len(binary), "byteLength": len(image)}
+    )
+    binary += image
+    document["buffers"][0]["byteLength"] = len(binary)
+    document["images"] = [
+        {"mimeType": "image/webp", "bufferView": len(document["bufferViews"]) - 1}
+    ]
+    document["extensionsUsed"] = ["EXT_texture_webp"]
+    result = check(glb_bytes(document, binary))
+    assert "image_type" in codes(result) and not result.passed
+
+
 @pytest.mark.parametrize("extension", ["KHR_draco_mesh_compression", "EXT_meshopt_compression"])
 def test_compression_that_needs_a_decoder_is_rejected(extension):
     document, binary = gltf_document(

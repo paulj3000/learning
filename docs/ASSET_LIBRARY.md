@@ -98,9 +98,11 @@ executes anything, never follows a URI. Each finding is `{code, severity, messag
 any `error` means `REJECTED`. Checks: identity (id pattern, definition active), format by
 signature, size (`LAI_ASSET_MAX_UPLOAD_BYTES`, default 50 MB; JSON chunk 16 MB), GLB header,
 length and chunk layout, glTF `asset.version == "2.0"`, buffer, buffer-view and accessor
-bounds, embedded-only resources with allowed image types, supported extensions only, mesh,
-node and accessor count limits, a default scene with geometry, animation names (unique, from
-the clip vocabulary, and every clip the definition already declares must still be present),
+bounds, embedded-only resources with allowed image types (PNG or JPEG; embedded WebP is refused
+until end-to-end compatibility is demonstrated, owner 2026-11-22), supported extensions only, mesh,
+node and accessor count limits, a default scene with geometry, animation names (unique; a name
+outside the clip vocabulary is an `unknown_clip` warning, not a refusal (owner, 2026-11-22); every
+clip the definition already declares must still be present),
 bounding box from `POSITION` min and max through the node transforms, and kind and category
 compatibility. SHA-256 is computed from the stored bytes and re-verified before publishing.
 
@@ -553,7 +555,7 @@ administrative actions.
 | `[assets] the asset library request failed (unauthenticated 401)` or `(not_found 404)` | Not a publishing problem. 401: Cognito settings or an expired sign-in. 404: the child does not exist in Django or belongs to another family (TREASURE_RUSH_LOCAL_DEV step 7) |
 | `(network)` or `(unavailable 503)` | Django is down or `/api/*` does not reach it. Models fall back to the bundle; check the routing |
 | A published version does not appear | It is published but not the default (19.2, step 4), or the child is still in the same visit: leave the cove and come back |
-| The upload form refuses the file | The findings say why: external `uri`s, Draco/meshopt, an unknown clip name, a dropped clip, or over the size limit (sections 4 and 5) |
+| The upload form refuses the file | The findings say why: external `uri`s, Draco/meshopt, an embedded WebP texture, a duplicate or dropped clip, or over the size limit (an unknown clip name is only a warning) (sections 4 and 5) |
 | `asset file unavailable` in the Django log, 503 to the browser | The object is missing or unreadable in the bucket: check the role policy is attached, and run `manage.py asset_storage_audit` |
 | Django refuses to start: `LAI_ASSET_STORAGE must be s3 in production` or `LAI_ASSET_BUCKET must be set` | Step 2's variables are missing |
 
