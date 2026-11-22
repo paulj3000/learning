@@ -13,7 +13,8 @@ import type { PlayerGait } from './player';
 /** How a platform or hazard warns the child: a blink, or a steady dim under reduced motion. */
 export type SteadyOrBlink = 'BLINK' | 'STEADY_DIM';
 
-export type RecoveryReason = 'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION' | 'HAZARD';
+export type RecoveryReason =
+  'FELL_OUT_OF_WORLD' | 'LEFT_PLAYABLE_AREA' | 'INVALID_POSITION' | 'HAZARD';
 
 export type EnginePresentationEventMap = {
   PlayerJumped: { airJump: boolean };
@@ -21,7 +22,11 @@ export type EnginePresentationEventMap = {
   PlayerGaitChanged: { gait: PlayerGait };
   PlayerFootstep: { gait: Exclude<PlayerGait, 'idle'> };
   /** `hazardId` names the hazard that sent the child back (Firepeak requirement 7), when one did. */
-  PlayerRecovered: { reason: RecoveryReason; checkpointId?: string | null; hazardId?: string | null };
+  PlayerRecovered: {
+    reason: RecoveryReason;
+    checkpointId?: string | null;
+    hazardId?: string | null;
+  };
   PlayerEnteredZone: { zoneId: string };
   PlayerLeftZone: { zoneId: string };
   CourseCheckpointReached: { checkpointId: string; label: string };
@@ -30,7 +35,12 @@ export type EnginePresentationEventMap = {
   PressurePlatePressed: { plateId: string };
   PressurePlateReleased: { plateId: string };
   /** GE-066: a telegraphed hazard changed phase. `steadyWarning` is true under reduced motion. */
-  HazardTelegraph: { hazardId: string; phase: 'WARN' | 'ACTIVE' | 'REST'; secondsToImpact: number; steadyWarning: boolean };
+  HazardTelegraph: {
+    hazardId: string;
+    phase: 'WARN' | 'ACTIVE' | 'REST';
+    secondsToImpact: number;
+    steadyWarning: boolean;
+  };
   /** GE-066: an engine platform changed phase (crumble, blink, gone, back). */
   PlatformPhaseChanged: { platformId: string; phase: string; warning: SteadyOrBlink | null };
   /**

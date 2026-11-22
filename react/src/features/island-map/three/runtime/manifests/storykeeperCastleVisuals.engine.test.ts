@@ -208,7 +208,8 @@ describe('the Trophy Room shows what the child owns (SC-R03-03)', () => {
 
   it('builds no separate plate mesh: a pedestal top is the empty state (draw-call budget)', () => {
     const harness = owning();
-    for (const n of [1, 2, 3, 4, 5, 6]) expect(has(harness, `castle-trophy-plate-${n}`)).toBe(false);
+    for (const n of [1, 2, 3, 4, 5, 6])
+      expect(has(harness, `castle-trophy-plate-${n}`)).toBe(false);
   });
 });
 

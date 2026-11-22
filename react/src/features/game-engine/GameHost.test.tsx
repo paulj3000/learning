@@ -49,7 +49,14 @@ describe('GameHost', () => {
 
   it('shows loading, then ready; ticks and renders each frame; names the region', async () => {
     const h = harness();
-    render(<GameHost runtimeId="t" label="Island scene" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+    render(
+      <GameHost
+        runtimeId="t"
+        label="Island scene"
+        createRuntime={h.createRuntime}
+        rendererFactory={h.rendererFactory}
+      />,
+    );
     expect(screen.getByRole('region', { name: 'Island scene' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
     expect(h.runtimes[0]!.state).toBe('running');
@@ -58,13 +65,22 @@ describe('GameHost', () => {
     expect(h.runtimes[0]!.tick).toHaveBeenCalledTimes(2);
     expect(h.renderers[0]!.render).toHaveBeenCalledTimes(2);
     expect(h.runtimes[0]!.diagnostics.snapshot().gauges['renderer.drawCalls']).toBe(3);
-    expect(screen.getByTestId('game-host-canvas').querySelector('canvas')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('game-host-canvas').querySelector('canvas')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
   });
 
   it('provides the view and preferences services, honouring reduced motion', async () => {
     const h = harness();
     render(
-      <GameHost runtimeId="t" label="x" reducedMotion createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />,
+      <GameHost
+        runtimeId="t"
+        label="x"
+        reducedMotion
+        createRuntime={h.createRuntime}
+        rendererFactory={h.rendererFactory}
+      />,
     );
     await waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
     const runtime = h.runtimes[0]!;
@@ -74,7 +90,14 @@ describe('GameHost', () => {
 
   it('pauses on hidden, clears input, stops the loop, and resumes on visible', async () => {
     const h = harness();
-    render(<GameHost runtimeId="t" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+    render(
+      <GameHost
+        runtimeId="t"
+        label="x"
+        createRuntime={h.createRuntime}
+        rendererFactory={h.rendererFactory}
+      />,
+    );
     await waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
     const runtime = h.runtimes[0]!;
     const inputReset = vi.fn();
@@ -92,7 +115,14 @@ describe('GameHost', () => {
 
   it('pauses on window blur and resumes on focus', async () => {
     const h = harness();
-    render(<GameHost runtimeId="t" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+    render(
+      <GameHost
+        runtimeId="t"
+        label="x"
+        createRuntime={h.createRuntime}
+        rendererFactory={h.rendererFactory}
+      />,
+    );
     await waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
     act(() => {
       window.dispatchEvent(new Event('blur'));
@@ -107,7 +137,12 @@ describe('GameHost', () => {
   it('disposes the runtime and renderer and cancels the frame on unmount', async () => {
     const h = harness();
     const { unmount } = render(
-      <GameHost runtimeId="t" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />,
+      <GameHost
+        runtimeId="t"
+        label="x"
+        createRuntime={h.createRuntime}
+        rendererFactory={h.rendererFactory}
+      />,
     );
     await waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
     unmount();
@@ -122,7 +157,12 @@ describe('GameHost', () => {
     const h = harness();
     render(
       <StrictMode>
-        <GameHost runtimeId="t" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />
+        <GameHost
+          runtimeId="t"
+          label="x"
+          createRuntime={h.createRuntime}
+          rendererFactory={h.rendererFactory}
+        />
       </StrictMode>,
     );
     await waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
@@ -194,13 +234,20 @@ describe('GameHost', () => {
     );
     await waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
     const runtime = h.runtimes[0]!;
-    const factory = createGameplayEventFactory({ realmId: 'realm.test', adventureId: 'adv.test', areaId: null, sessionRef: null });
+    const factory = createGameplayEventFactory({
+      realmId: 'realm.test',
+      adventureId: 'adv.test',
+      areaId: null,
+      sessionRef: null,
+    });
     const valid = factory.create('collectible.collected', { collectibleId: 'coin.1', setId: null });
     runtime.events.emit('gameplay.event' as never, valid as never);
     expect(onGameplayEvent).toHaveBeenCalledTimes(1);
     expect(onGameplayEvent.mock.calls[0]![0].type).toBe('collectible.collected');
 
-    expect(() => runtime.events.emit('gameplay.event' as never, { type: 'nope', child: 'Ada' } as never)).not.toThrow();
+    expect(() =>
+      runtime.events.emit('gameplay.event' as never, { type: 'nope', child: 'Ada' } as never),
+    ).not.toThrow();
     expect(onGameplayEvent).toHaveBeenCalledTimes(1);
     expect(runtime.diagnostics.snapshot().counters[HOST_COUNTERS.invalidClaims]).toBe(1);
 
@@ -224,7 +271,11 @@ describe('GameHost', () => {
     );
     await waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
     const runtime = h.runtimes[0]!;
-    expect(() => runtime.events.emit('PlayerLanded' as never, { impactSpeed: 1 } as never)).not.toThrow();
-    expect(runtime.diagnostics.snapshot().counters[HOST_COUNTERS.callbackErrors]).toBeGreaterThanOrEqual(1);
+    expect(() =>
+      runtime.events.emit('PlayerLanded' as never, { impactSpeed: 1 } as never),
+    ).not.toThrow();
+    expect(
+      runtime.diagnostics.snapshot().counters[HOST_COUNTERS.callbackErrors],
+    ).toBeGreaterThanOrEqual(1);
   });
 });

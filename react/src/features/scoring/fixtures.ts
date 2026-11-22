@@ -1,6 +1,8 @@
 import type { AwardEntry, ScoringEnabledSummary } from './types';
 
-export function enabledSummary(overrides: Partial<ScoringEnabledSummary> = {}): ScoringEnabledSummary {
+export function enabledSummary(
+  overrides: Partial<ScoringEnabledSummary> = {},
+): ScoringEnabledSummary {
   return {
     enabled: true,
     contractVersion: 1,

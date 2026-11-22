@@ -15,7 +15,11 @@ export interface LightingView {
   update(): void;
 }
 
-export function createLightingView(scene: Scene, scope: ResourceScope, lighting: LightingApi): LightingView {
+export function createLightingView(
+  scene: Scene,
+  scope: ResourceScope,
+  lighting: LightingApi,
+): LightingView {
   const ambient = new AmbientLight();
   const sun = new DirectionalLight();
   sun.name = 'engine.sun';
@@ -38,7 +42,13 @@ export function createLightingView(scene: Scene, scope: ResourceScope, lighting:
       sun.intensity = v.sunIntensity;
       const elevation = MathUtils.degToRad(v.sunElevation);
       const azimuth = MathUtils.degToRad(v.sunAzimuth);
-      sun.position.set(Math.sin(azimuth) * Math.cos(elevation), Math.sin(elevation), -Math.cos(azimuth) * Math.cos(elevation)).multiplyScalar(50);
+      sun.position
+        .set(
+          Math.sin(azimuth) * Math.cos(elevation),
+          Math.sin(elevation),
+          -Math.cos(azimuth) * Math.cos(elevation),
+        )
+        .multiplyScalar(50);
       scene.background = new Color(v.skyColor);
     },
   };

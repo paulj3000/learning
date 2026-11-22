@@ -63,7 +63,10 @@ function readReducedMotion(override: boolean | undefined): boolean {
     return override;
   }
   try {
-    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return (
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
   } catch {
     return false;
   }
@@ -149,7 +152,9 @@ export function useEngineRuntime(options: UseEngineRuntimeOptions): EngineRuntim
     canvas.setAttribute('aria-hidden', 'true');
     canvas.style.touchAction = 'none';
     container.appendChild(canvas);
-    renderer.setPixelRatio(Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2));
+    renderer.setPixelRatio(
+      Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2),
+    );
 
     const scene = new Scene();
     const view: HostView = {
@@ -232,7 +237,8 @@ export function useEngineRuntime(options: UseEngineRuntimeOptions): EngineRuntim
 
     const frame = (now: number) => {
       rafId = window.requestAnimationFrame(frame);
-      const dt = lastTime === null ? 0 : Math.min(Math.max((now - lastTime) / 1000, 0), MAX_FRAME_SECONDS);
+      const dt =
+        lastTime === null ? 0 : Math.min(Math.max((now - lastTime) / 1000, 0), MAX_FRAME_SECONDS);
       lastTime = now;
       engine.tick(dt);
       renderer?.render(scene, view.camera);

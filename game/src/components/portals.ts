@@ -10,7 +10,13 @@
 import { defineComponent } from '../core/entities';
 import type { CapabilityDefinition } from '../core/capabilities';
 import type { Vec3Like } from '../contracts/player';
-import { emitPresentation, entityKey, playerPosition, requirementMet, type GameplayRuntime } from './common';
+import {
+  emitPresentation,
+  entityKey,
+  playerPosition,
+  requirementMet,
+  type GameplayRuntime,
+} from './common';
 import { configRoot, Issues } from './validate';
 
 export interface PortalSpec {
@@ -61,7 +67,10 @@ export const portalsCapability: CapabilityDefinition<PortalsConfig, GameplayRunt
   install(runtime, config) {
     const { world } = runtime;
     for (const spec of config.portals) {
-      world.add(world.create(entityKey('portal', spec.id)), PortalComponent, { spec, inside: false });
+      world.add(world.create(entityKey('portal', spec.id)), PortalComponent, {
+        spec,
+        inside: false,
+      });
     }
     runtime.systems.add({
       id: 'gameplay.portals',
@@ -71,10 +80,16 @@ export const portalsCapability: CapabilityDefinition<PortalsConfig, GameplayRunt
         for (const entity of world.query(PortalComponent)) {
           const state = world.get(entity, PortalComponent)!;
           const { spec } = state;
-          const inside = player !== undefined && Math.hypot(player.x - spec.position.x, player.z - spec.position.z) <= spec.radius && Math.abs(player.y - spec.position.y) <= 3;
+          const inside =
+            player !== undefined &&
+            Math.hypot(player.x - spec.position.x, player.z - spec.position.z) <= spec.radius &&
+            Math.abs(player.y - spec.position.y) <= 3;
           if (inside && !state.inside) {
             if (requirementMet(runtime, spec.requirementId)) {
-              emitPresentation(runtime, 'PortalRequested', { portalId: spec.id, targetAreaId: spec.targetAreaId });
+              emitPresentation(runtime, 'PortalRequested', {
+                portalId: spec.id,
+                targetAreaId: spec.targetAreaId,
+              });
             } else {
               emitPresentation(runtime, 'PortalBlocked', { portalId: spec.id });
             }

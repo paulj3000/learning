@@ -47,7 +47,11 @@ function finish<T>(issues: ValidationIssue[], value: () => T): ValidationResult<
 }
 
 /** Rejects unknown keys and non-objects; returns the record or issues. */
-function recordOf(input: unknown, allowed: readonly string[], issues: ValidationIssue[]): Record<string, unknown> {
+function recordOf(
+  input: unknown,
+  allowed: readonly string[],
+  issues: ValidationIssue[],
+): Record<string, unknown> {
   if (input === undefined) {
     return {};
   }
@@ -83,9 +87,17 @@ function numberIn(
 }
 
 /** Re-roots issues reported by the existing validators under `prefix` into capability-relative paths. */
-function relative(prefix: string, issues: readonly { path: string; message: string }[]): ValidationIssue[] {
+function relative(
+  prefix: string,
+  issues: readonly { path: string; message: string }[],
+): ValidationIssue[] {
   return issues.map((issue) => ({
-    path: issue.path === prefix ? '' : issue.path.startsWith(`${prefix}.`) ? issue.path.slice(prefix.length + 1) : issue.path,
+    path:
+      issue.path === prefix
+        ? ''
+        : issue.path.startsWith(`${prefix}.`)
+          ? issue.path.slice(prefix.length + 1)
+          : issue.path,
     message: issue.message,
   }));
 }
@@ -99,7 +111,9 @@ export const locomotionCapability: CapabilityDefinition<LocomotionConfiguration>
   defaults: { ...DEFAULT_LOCOMOTION },
   validate(input) {
     const issues = relative('locomotion', validateLocomotion(input ?? undefined, 'locomotion'));
-    return finish(issues, () => resolveLocomotion(isRecord(input) ? (input as Partial<LocomotionConfiguration>) : undefined));
+    return finish(issues, () =>
+      resolveLocomotion(isRecord(input) ? (input as Partial<LocomotionConfiguration>) : undefined),
+    );
   },
 };
 
@@ -108,12 +122,15 @@ export const locomotionCapability: CapabilityDefinition<LocomotionConfiguration>
 export const jumpCapability: CapabilityDefinition<JumpConfiguration> = {
   id: MOVEMENT_JUMP,
   version: '1.0.0',
-  description: 'Jumping within the jumping standard limits. `enabled: false` is valid; no double jump unless allowed.',
+  description:
+    'Jumping within the jumping standard limits. `enabled: false` is valid; no double jump unless allowed.',
   requires: [MOVEMENT_LOCOMOTION],
   defaults: { ...DEFAULT_JUMP_CONFIGURATION },
   validate(input) {
     const issues = relative('movement.jump', validateMovementSpec({ jump: input ?? undefined }));
-    return finish(issues, () => resolveJumpConfiguration(isRecord(input) ? (input as Partial<JumpConfiguration>) : undefined));
+    return finish(issues, () =>
+      resolveJumpConfiguration(isRecord(input) ? (input as Partial<JumpConfiguration>) : undefined),
+    );
   },
 };
 
@@ -136,7 +153,8 @@ export interface SurfacesConfig {
 export const surfacesCapability: CapabilityDefinition<SurfacesConfig> = {
   id: MOVEMENT_SURFACES,
   version: '1.0.0',
-  description: 'Surface friction (ice), surface speed and a walkable slope limit. Friction changes acceleration only, never top speed.',
+  description:
+    'Surface friction (ice), surface speed and a walkable slope limit. Friction changes acceleration only, never top speed.',
   requires: [MOVEMENT_LOCOMOTION],
   defaults: { profiles: [], maxWalkableSlope: null },
   validate(input) {
@@ -152,7 +170,11 @@ export const surfacesCapability: CapabilityDefinition<SurfacesConfig> = {
         rawProfiles.forEach((raw, index) => {
           const at = `profiles[${index}]`;
           const profileIssues: ValidationIssue[] = [];
-          const p = recordOf(raw, ['id', 'friction', 'speedMultiplier', 'footstepCue'], profileIssues);
+          const p = recordOf(
+            raw,
+            ['id', 'friction', 'speedMultiplier', 'footstepCue'],
+            profileIssues,
+          );
           for (const issue of profileIssues) {
             issues.push({ path: issue.path ? `${at}.${issue.path}` : at, message: issue.message });
           }

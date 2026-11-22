@@ -1,4 +1,5 @@
-"""The Storykeeper Castle seed command (SC-R06-01): idempotent, never publishes, never substitutes."""
+"""The Storykeeper Castle seed command (SC-R06-01): idempotent, never publishes, never
+substitutes."""
 
 import re
 from io import StringIO

@@ -24,10 +24,18 @@ export interface EventBusOptions {
 
 export interface TypedEventBus<Events extends EventMap> {
   emit<Name extends keyof Events & string>(name: Name, payload: Events[Name]): void;
-  on<Name extends keyof Events & string>(name: Name, listener: EventListener<Events[Name]>): () => void;
-  once<Name extends keyof Events & string>(name: Name, listener: EventListener<Events[Name]>): () => void;
+  on<Name extends keyof Events & string>(
+    name: Name,
+    listener: EventListener<Events[Name]>,
+  ): () => void;
+  once<Name extends keyof Events & string>(
+    name: Name,
+    listener: EventListener<Events[Name]>,
+  ): () => void;
   /** Receives every event, after the named listeners. For diagnostics and contract adapters. */
-  onAny(listener: <Name extends keyof Events & string>(name: Name, payload: Events[Name]) => void): () => void;
+  onAny(
+    listener: <Name extends keyof Events & string>(name: Name, payload: Events[Name]) => void,
+  ): () => void;
   listenerCount(name?: keyof Events & string): number;
   clear(): void;
 }
@@ -38,7 +46,9 @@ function defaultListenerError(error: unknown): void {
   });
 }
 
-export function createEventBus<Events extends EventMap>(options: EventBusOptions = {}): TypedEventBus<Events> {
+export function createEventBus<Events extends EventMap>(
+  options: EventBusOptions = {},
+): TypedEventBus<Events> {
   type AnyListener = (payload: unknown) => void;
   type WildcardListener = (name: string, payload: unknown) => void;
   const listeners = new Map<string, Set<AnyListener>>();

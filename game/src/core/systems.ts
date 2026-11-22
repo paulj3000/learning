@@ -12,7 +12,11 @@ import { EngineError } from './errors';
 export type SimulationPhase = 'input' | 'simulation' | 'postSimulation';
 export type SystemPhase = SimulationPhase | 'presentation';
 
-export const SIMULATION_PHASES: readonly SimulationPhase[] = ['input', 'simulation', 'postSimulation'];
+export const SIMULATION_PHASES: readonly SimulationPhase[] = [
+  'input',
+  'simulation',
+  'postSimulation',
+];
 
 export interface StepContext {
   /** Fixed step length, seconds. */
@@ -81,7 +85,9 @@ export function createSystemScheduler(): SystemScheduler {
   const scheduler: SystemScheduler = {
     add(system) {
       if (systems.some((s) => s.system.id === system.id)) {
-        throw new EngineError('DUPLICATE_ID', `System "${system.id}" is already registered`, { system: system.id });
+        throw new EngineError('DUPLICATE_ID', `System "${system.id}" is already registered`, {
+          system: system.id,
+        });
       }
       systems.push({ system, seq: seq++ });
       return () => {

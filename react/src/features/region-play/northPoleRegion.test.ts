@@ -2,9 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { read } from '../../api/parse';
 import * as parse from '../../api/play/parse';
 import { publishRegionCheckpoints, unpublishRegionCheckpoints } from '../discovery/checkpoints';
-import {
-  gateOpen,
-} from '../island-map/three/extensions/regionPlay/areaEffectsScene';
+import { gateOpen } from '../island-map/three/extensions/regionPlay/areaEffectsScene';
 import { validatePlatforming } from '../island-map/three/platforms/platformSpec';
 import { SOURCE_MANIFEST_REGISTRIES } from '../island-map/three/runtime/sourceManifestRegistries';
 import { validateLocationManifest } from '../island-map/three/runtime/validateLocationManifest';
@@ -16,7 +14,13 @@ import {
   type NorthPoleBand,
 } from '../../test/northPoleFixtures';
 import { NORTH_POLE_KEYS } from '../content-export/northPoleContent';
-import { currentPuzzle, placeStone, puzzleForEntity, fittingSlots, solvedPlacements } from './areaPuzzleUi';
+import {
+  currentPuzzle,
+  placeStone,
+  puzzleForEntity,
+  fittingSlots,
+  solvedPlacements,
+} from './areaPuzzleUi';
 import {
   chooseAnswerCorrect,
   firstVariantIndex,
@@ -131,7 +135,9 @@ describe('the North Pole manifest', () => {
 
   it('gives every gate collider an opening that a world change key unlocks', () => {
     const { manifest, config } = configOf();
-    const gates = manifest.colliders.map((c) => c.rect.id).filter((id) => id.startsWith('np-gate-'));
+    const gates = manifest.colliders
+      .map((c) => c.rect.id)
+      .filter((id) => id.startsWith('np-gate-'));
     expect(gates.length).toBeGreaterThan(0);
     const opened = new Set(config.effects.openings.map((o) => o.colliderId));
     for (const gate of gates) expect(opened.has(gate), gate).toBe(true);
@@ -146,15 +152,21 @@ describe('the North Pole manifest', () => {
     expect(furthest()).toBeUndefined(); // a first visit starts at the spawn (Santa's Landing)
     expect(furthest(K.welcomeLooked)).toBe('np-cp-workshop');
     // The lake open and its bridge built: the zone checkpoint, not a bank.
-    expect(furthest(K.welcomeLooked, K.workshopRestored, K.forestDone, K.lakeBridge)).toBe('np-cp-lake');
-    expect(furthest(K.welcomeLooked, K.workshopRestored, K.forestDone, K.lakeDone)).toBe('np-cp-stables');
+    expect(furthest(K.welcomeLooked, K.workshopRestored, K.forestDone, K.lakeBridge)).toBe(
+      'np-cp-lake',
+    );
+    expect(furthest(K.welcomeLooked, K.workshopRestored, K.forestDone, K.lakeDone)).toBe(
+      'np-cp-stables',
+    );
   });
 
   it('shows the star light and stand-in only after the star is restored', () => {
     const { config } = configOf();
     const star = config.drawn.find((d) => d.entityId === 'np-christmas-star')!;
     expect(star.shownWhenChangeKey).toBe(K.starRestored);
-    const light = config.effects.lightGates?.find((gate) => gate.shownWhenChangeKey === K.starRestored);
+    const light = config.effects.lightGates?.find(
+      (gate) => gate.shownWhenChangeKey === K.starRestored,
+    );
     expect(light?.id).toBe('np-light-star');
     expect(gateOpen(star, new Set())).toBe(false);
     expect(gateOpen(light!, new Set())).toBe(false);
@@ -236,12 +248,16 @@ describe('North Pole puzzles', () => {
   });
 
   it('grades an order variant and maps star fragments to their sockets', () => {
-    const puzzle = bootstrap({ band: 'EXPLORER' }).puzzles.find((p) => p.puzzleId === 'np-obs-fragments')!;
+    const puzzle = bootstrap({ band: 'EXPLORER' }).puzzles.find(
+      (p) => p.puzzleId === 'np-obs-fragments',
+    )!;
     const params = parsePuzzleParams(puzzle.kind, puzzle.parameters) as OrderSequenceParams;
     const variant = params.variants[0];
     expect(orderSequenceCorrect(variant, variant.answer)).toBe(true);
     expect(orderSequenceCorrect(variant, [...variant.answer].reverse())).toBe(false);
-    expect(Object.values(params.itemEntities).every((id) => id.startsWith('np-socket-'))).toBe(true);
+    expect(Object.values(params.itemEntities).every((id) => id.startsWith('np-socket-'))).toBe(
+      true,
+    );
   });
 
   it('fits the gingerbread wall stones to their gaps', () => {

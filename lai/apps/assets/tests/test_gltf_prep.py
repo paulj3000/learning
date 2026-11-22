@@ -154,7 +154,12 @@ def test_refuses_an_image_that_is_not_embedded():
 
 def _png_with_filter(kind: int, width: int = 4, height: int = 3) -> tuple[bytes, bytes]:
     """A raw RGB PNG whose every row uses filter `kind`, and its decoded pixels."""
-    pixels = bytes((x * 20 + y * 7 + c * 3) % 256 for y in range(height) for x in range(width) for c in range(3))
+    pixels = bytes(
+        (x * 20 + y * 7 + c * 3) % 256
+        for y in range(height)
+        for x in range(width)
+        for c in range(3)
+    )
     stride, bpp = width * 3, 3
     raw = bytearray()
     previous = bytes(stride)

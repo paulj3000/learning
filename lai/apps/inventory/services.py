@@ -37,9 +37,7 @@ def grant_reward_rule(child, rule, *, source_session=None) -> RewardGrant:
             )
             if created:
                 new_items.append(item.item_id)
-        new_items.extend(
-            _complete_sets(child, rule, new_items, source_session=source_session)
-        )
+        new_items.extend(_complete_sets(child, rule, new_items, source_session=source_session))
         return RewardGrant(granted=True, new_item_ids=tuple(new_items))
 
 
@@ -88,7 +86,8 @@ def owned_item_ids(child) -> set[str]:
 def grant_world_change_rewards(
     child, *, location_slug: str, change_key: str, source_session=None
 ) -> tuple[tuple[object, RewardGrant], ...]:
-    """Fire the `WORLD_CHANGE` reward rules for a change a server path has just recorded (SC-R07-01).
+    """Fire the `WORLD_CHANGE` reward rules for a change a server path has just recorded
+    (SC-R07-01).
 
     Called only by Django paths that decided the change themselves (an adventure's graded
     WORLD_CHANGE step, a story's completion), never by the generic client POST. A rule pays only

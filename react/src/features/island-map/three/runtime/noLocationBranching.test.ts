@@ -59,7 +59,9 @@ const ENGINE_FIXTURES = new Set(['contracts/gameplayEventVectors.ts']);
 
 describe('Game Engine Core (game/src)', () => {
   const engineFiles = () =>
-    sourceFiles(ENGINE_DIR).filter((path) => !ENGINE_FIXTURES.has(relative(ENGINE_DIR, path).split('\\').join('/')));
+    sourceFiles(ENGINE_DIR).filter(
+      (path) => !ENGINE_FIXTURES.has(relative(ENGINE_DIR, path).split('\\').join('/')),
+    );
 
   it('scans a non-empty set of engine files', () => {
     expect(engineFiles().length).toBeGreaterThan(3);

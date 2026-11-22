@@ -15,7 +15,10 @@ from apps.audio.treasure_rush_cues import CueSpec
 
 #: The castle's room beds: (name, rooms it plays in).
 _BEDS = (
-    ("hall", "The Entry Hall, the Story Hall and the East Corridor: a warm stone hall, a soft fire."),
+    (
+        "hall",
+        "The Entry Hall, the Story Hall and the East Corridor: a warm stone hall, a soft fire.",
+    ),
     ("gallery", "The Character Gallery: a quiet gallery, a faint hum of portraits."),
     ("costume", "The Costume Room: soft fabric rustles."),
     ("tower", "The Setting Tower and observatory: high wind, a gentle shimmer."),

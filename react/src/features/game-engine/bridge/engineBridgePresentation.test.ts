@@ -5,13 +5,22 @@ import type { BridgePlayerState, LocationBridgeHost } from './bridgeHost';
 import { mountEngineBridge } from './engineBridge';
 
 /** GE-066: scene presentation, live carry and launch, against a fake host (no WebGL). */
-function fakeHost(config: { [key: string]: JsonValue }, extras: Partial<LocationBridgeHost> & { reducedMotion?: boolean } = {}) {
+function fakeHost(
+  config: { [key: string]: JsonValue },
+  extras: Partial<LocationBridgeHost> & { reducedMotion?: boolean } = {},
+) {
   const bus = new WorldEngineEventBus();
   const frames = new Set<(dt: number) => void>();
   const colliders = new Map<string, Box3>();
   const carries: [number, number, number][] = [];
   const launches: number[] = [];
-  const player: BridgePlayerState = { position: { x: 0, y: 1.4, z: 0 }, yaw: 0, velocity: { x: 0, y: 0, z: 0 }, grounded: true, supportId: null };
+  const player: BridgePlayerState = {
+    position: { x: 0, y: 1.4, z: 0 },
+    yaw: 0,
+    velocity: { x: 0, y: 0, z: 0 },
+    grounded: true,
+    supportId: null,
+  };
   const host: LocationBridgeHost = {
     bus,
     config,
@@ -36,9 +45,13 @@ function fakeHost(config: { [key: string]: JsonValue }, extras: Partial<Location
     player,
     carries,
     launches,
-    carryMembers: { carryPlayer: (dx: number, dy: number, dz: number) => void carries.push([dx, dy, dz]), launchPlayer: (h: number) => void launches.push(h) },
+    carryMembers: {
+      carryPlayer: (dx: number, dy: number, dz: number) => void carries.push([dx, dy, dz]),
+      launchPlayer: (h: number) => void launches.push(h),
+    },
     advance(seconds: number) {
-      for (let t = 0; t < seconds - 1e-9; t += 1 / 60) for (const frame of [...frames]) frame(1 / 60);
+      for (let t = 0; t < seconds - 1e-9; t += 1 / 60)
+        for (const frame of [...frames]) frame(1 / 60);
     },
   };
 }
@@ -72,9 +85,22 @@ const crumble = {
   route: 'OPTIONAL',
   falling: { mode: 'TIMED', visibleSeconds: 3, hiddenSeconds: 2, warningSeconds: 1 },
 };
-const bounce = { id: 'pad', position: { x: 20, y: 1, z: 0 }, size: { x: 3, y: 0.4, z: 3 }, bounceHeight: 2 };
-const platformsCap = (...platforms: JsonValue[]): JsonValue => ({ id: 'gameplay.platforms', config: { platforms } });
-const checkpoints = { id: 'gameplay.checkpoints', config: { checkpoints: [{ id: 'cp', courseId: 'c', position: { x: 5, y: 0, z: 0 }, label: 'here' }] } };
+const bounce = {
+  id: 'pad',
+  position: { x: 20, y: 1, z: 0 },
+  size: { x: 3, y: 0.4, z: 3 },
+  bounceHeight: 2,
+};
+const platformsCap = (...platforms: JsonValue[]): JsonValue => ({
+  id: 'gameplay.platforms',
+  config: { platforms },
+});
+const checkpoints = {
+  id: 'gameplay.checkpoints',
+  config: {
+    checkpoints: [{ id: 'cp', courseId: 'c', position: { x: 5, y: 0, z: 0 }, label: 'here' }],
+  },
+};
 const rock = {
   id: 'rock',
   kind: 'FALLING_ROCK',
@@ -100,7 +126,10 @@ describe('bridge scene presentation', () => {
 
   it('draws a platform that follows its collider, and removes it on dispose', () => {
     const scene = new Scene();
-    const fake = fakeHost({ allowEnginePlatforms: true, capabilities: [platformsCap(lift)] }, { scene });
+    const fake = fakeHost(
+      { allowEnginePlatforms: true, capabilities: [platformsCap(lift)] },
+      { scene },
+    );
     const mount = mountEngineBridge(fake.host);
     fake.advance(0.1);
     const [mesh] = named(scene, 'engine.platform.lift');
@@ -116,9 +145,15 @@ describe('bridge scene presentation', () => {
   it('blinks the crumble warning, holds it steady dim under reduced motion, and hides the platform while gone', () => {
     const run = (reducedMotion: boolean) => {
       const scene = new Scene();
-      const fake = fakeHost({ allowEnginePlatforms: true, capabilities: [platformsCap(crumble)] }, { scene, reducedMotion });
+      const fake = fakeHost(
+        { allowEnginePlatforms: true, capabilities: [platformsCap(crumble)] },
+        { scene, reducedMotion },
+      );
       const mount = mountEngineBridge(fake.host);
-      const mesh = named(scene, 'engine.platform.crumble')[0] as unknown as { visible: boolean; material: { opacity: number } };
+      const mesh = named(scene, 'engine.platform.crumble')[0] as unknown as {
+        visible: boolean;
+        material: { opacity: number };
+      };
       const opacities = new Set<number>();
       let sawHidden = false;
       for (let i = 0; i < 6 * 60; i += 1) {
@@ -140,7 +175,12 @@ describe('bridge scene presentation', () => {
   it('draws a telegraph that fills over the warning, shows the object while ACTIVE, and is steady under reduced motion', () => {
     const run = (reducedMotion: boolean) => {
       const scene = new Scene();
-      const fake = fakeHost({ capabilities: [checkpoints, { id: 'gameplay.hazards', config: { telegraphed: [rock] } }] }, { scene, reducedMotion });
+      const fake = fakeHost(
+        {
+          capabilities: [checkpoints, { id: 'gameplay.hazards', config: { telegraphed: [rock] } }],
+        },
+        { scene, reducedMotion },
+      );
       fake.player.position = { x: 30, y: 0, z: 30 };
       const mount = mountEngineBridge(fake.host);
       const fill = named(scene, 'engine.hazard.rock.fill')[0]!;
@@ -176,7 +216,23 @@ describe('bridge scene presentation', () => {
             id: 'environment.particles',
             config: {
               tier: 'LOW',
-              emitters: [{ id: 'embers', motion: 'RISE', maxParticles: 50, ratePerSecond: 20, lifetime: 2, speed: 1, size: 0.1, color: 0xff6600, origin: { x: 0, y: 0, z: 0 }, halfX: 1, halfZ: 1, height: 2, stillWhenReduced: false }],
+              emitters: [
+                {
+                  id: 'embers',
+                  motion: 'RISE',
+                  maxParticles: 50,
+                  ratePerSecond: 20,
+                  lifetime: 2,
+                  speed: 1,
+                  size: 0.1,
+                  color: 0xff6600,
+                  origin: { x: 0, y: 0, z: 0 },
+                  halfX: 1,
+                  halfZ: 1,
+                  height: 2,
+                  stillWhenReduced: false,
+                },
+              ],
             },
           },
         ],
@@ -227,10 +283,15 @@ describe('bridge live carry and launch', () => {
   });
 
   it('warns HOST_CARRY_UNSUPPORTED without the members, and still never throws', () => {
-    const fake = fakeHost({ allowEnginePlatforms: true, capabilities: [platformsCap(lift, bounce)] });
+    const fake = fakeHost({
+      allowEnginePlatforms: true,
+      capabilities: [platformsCap(lift, bounce)],
+    });
     const mount = mountEngineBridge(fake.host);
     expect(mount.api.support.carryLaunch).toBe(false);
-    expect(mount.api.runtime!.diagnostics.snapshot().warnings.map((w) => w.code)).toContain('HOST_CARRY_UNSUPPORTED');
+    expect(mount.api.runtime!.diagnostics.snapshot().warnings.map((w) => w.code)).toContain(
+      'HOST_CARRY_UNSUPPORTED',
+    );
     fake.player.supportId = 'engine:lift';
     expect(() => fake.advance(0.5)).not.toThrow();
     mount.dispose();
@@ -238,12 +299,21 @@ describe('bridge live carry and launch', () => {
 });
 
 describe('bridge weather area (GE-L14, North Pole snow parity)', () => {
-  const snow = (area?: JsonValue): JsonValue => ({ id: 'environment.weather', config: { initial: 'SNOW', ...(area ? { area } : {}) } });
+  const snow = (area?: JsonValue): JsonValue => ({
+    id: 'environment.weather',
+    config: { initial: 'SNOW', ...(area ? { area } : {}) },
+  });
   const worldExtentZ = (scene: Scene) => {
     let min = Infinity;
     let max = -Infinity;
     for (const object of named(scene, 'engine.weather.')) {
-      const points = object as unknown as { position: { z: number }; geometry: { drawRange: { count: number }; getAttribute(name: string): { getZ(i: number): number } } };
+      const points = object as unknown as {
+        position: { z: number };
+        geometry: {
+          drawRange: { count: number };
+          getAttribute(name: string): { getZ(i: number): number };
+        };
+      };
       const attr = points.geometry.getAttribute('position');
       for (let i = 0; i < points.geometry.drawRange.count; i += 1) {
         const z = attr.getZ(i) + points.position.z;
@@ -257,7 +327,10 @@ describe('bridge weather area (GE-L14, North Pole snow parity)', () => {
 
   it('FOLLOW_PLAYER keeps the snow round the child across a large Area', () => {
     const scene = new Scene();
-    const fake = fakeHost({ capabilities: [snow({ mode: 'FOLLOW_PLAYER', halfX: 20, halfZ: 20, height: 12 })] }, { scene });
+    const fake = fakeHost(
+      { capabilities: [snow({ mode: 'FOLLOW_PLAYER', halfX: 20, halfZ: 20, height: 12 })] },
+      { scene },
+    );
     const mount = mountEngineBridge(fake.host);
     expect(mount.api.issues).toEqual([]);
     fake.advance(1);
@@ -293,19 +366,43 @@ describe('bridge weather area (GE-L14, North Pole snow parity)', () => {
 
 describe('bridge weather and particles follow the device render quality (GE-L14)', () => {
   // Heavy snow, so the tier budget (not the spawn rate) limits the flake count.
-  const heavySnow = { id: 'SNOW', precipitation: { motion: 'FALL', ratePerSecond: 2000, fallSpeed: 0.5, size: 0.08 } };
+  const heavySnow = {
+    id: 'SNOW',
+    precipitation: { motion: 'FALL', ratePerSecond: 2000, fallSpeed: 0.5, size: 0.08 },
+  };
   const caps = (particleTier?: string): JsonValue[] => [
     { id: 'environment.weather', config: { initial: 'SNOW', kinds: [heavySnow] } },
     {
       id: 'environment.particles',
       config: {
         ...(particleTier ? { tier: particleTier } : {}),
-        emitters: [{ id: 'embers', motion: 'RISE', maxParticles: 400, ratePerSecond: 200, lifetime: 2, speed: 1, size: 0.1, color: 0xff6600, origin: { x: 0, y: 0, z: 0 }, halfX: 1, halfZ: 1, height: 2, stillWhenReduced: false }],
+        emitters: [
+          {
+            id: 'embers',
+            motion: 'RISE',
+            maxParticles: 400,
+            ratePerSecond: 200,
+            lifetime: 2,
+            speed: 1,
+            size: 0.1,
+            color: 0xff6600,
+            origin: { x: 0, y: 0, z: 0 },
+            halfX: 1,
+            halfZ: 1,
+            height: 2,
+            stillWhenReduced: false,
+          },
+        ],
       },
     },
   ];
   const drawn = (scene: Scene, prefix: string) =>
-    named(scene, prefix).reduce((sum, o) => sum + (o as unknown as { geometry: { drawRange: { count: number } } }).geometry.drawRange.count, 0);
+    named(scene, prefix).reduce(
+      (sum, o) =>
+        sum +
+        (o as unknown as { geometry: { drawRange: { count: number } } }).geometry.drawRange.count,
+      0,
+    );
 
   it('LOW quality draws no snow and no particles, as the Area atmosphere draws none', () => {
     const scene = new Scene();
@@ -335,7 +432,11 @@ describe('bridge weather and particles follow the device render quality (GE-L14)
   it('caps the particle tier in the capability request, and leaves it alone without a device quality', async () => {
     const { bridgeCapabilityRequests } = await import('./engineBridge');
     const tierOf = (deviceTier?: 'OFF' | 'MEDIUM' | 'HIGH', seed?: string) =>
-      (bridgeCapabilityRequests({ capabilities: caps(seed) }, false, deviceTier).requests.find((r) => r.id === 'environment.particles')!.config as { tier?: string }).tier;
+      (
+        bridgeCapabilityRequests({ capabilities: caps(seed) }, false, deviceTier).requests.find(
+          (r) => r.id === 'environment.particles',
+        )!.config as { tier?: string }
+      ).tier;
     expect(tierOf('OFF', 'HIGH')).toBe('OFF');
     expect(tierOf('MEDIUM', 'HIGH')).toBe('MEDIUM');
     expect(tierOf('HIGH', 'LOW')).toBe('LOW');
@@ -352,16 +453,35 @@ describe('GE-L14 hazard telegraphs on sloped and uneven ground', () => {
 
   /** World-space y of every vertex of a telegraph mesh, with its world x and z. */
   const vertices = (mesh: Object3D) => {
-    const m = mesh as unknown as { geometry: { getAttribute(n: string): { count: number; getX(i: number): number; getY(i: number): number; getZ(i: number): number } }; position: { x: number; y: number; z: number }; scale: { x: number; z: number } };
+    const m = mesh as unknown as {
+      geometry: {
+        getAttribute(n: string): {
+          count: number;
+          getX(i: number): number;
+          getY(i: number): number;
+          getZ(i: number): number;
+        };
+      };
+      position: { x: number; y: number; z: number };
+      scale: { x: number; z: number };
+    };
     const p = m.geometry.getAttribute('position');
     const out: { x: number; y: number; z: number }[] = [];
-    for (let i = 0; i < p.count; i += 1) out.push({ x: m.position.x + p.getX(i) * m.scale.x, y: m.position.y + p.getY(i), z: m.position.z + p.getZ(i) * m.scale.z });
+    for (let i = 0; i < p.count; i += 1)
+      out.push({
+        x: m.position.x + p.getX(i) * m.scale.x,
+        y: m.position.y + p.getY(i),
+        z: m.position.z + p.getZ(i) * m.scale.z,
+      });
     return out;
   };
 
   function run(groundHeightAt?: (x: number, z: number) => number | null) {
     const scene = new Scene();
-    const fake = fakeHost({ capabilities: [checkpoints, hazardsCap] }, { scene, ...(groundHeightAt ? { groundHeightAt } : {}) });
+    const fake = fakeHost(
+      { capabilities: [checkpoints, hazardsCap] },
+      { scene, ...(groundHeightAt ? { groundHeightAt } : {}) },
+    );
     fake.player.position = { x: 30, y: 0, z: 30 };
     const mount = mountEngineBridge(fake.host);
     const outline = named(scene, 'engine.hazard.rock.outline')[0]!;

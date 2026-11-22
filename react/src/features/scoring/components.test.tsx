@@ -14,10 +14,13 @@ import { XpLevelIndicator } from './XpLevelIndicator';
 import { DISABLED_SUMMARY } from './types';
 import type { PendingEntry } from './pendingAwards';
 
-const FORBIDDEN = /-\d|leaderboard|rank|vs\.|time left|countdown|seconds|buy|shop|purchase|spend|lost|failed|you have none/i;
+const FORBIDDEN =
+  /-\d|leaderboard|rank|vs\.|time left|countdown|seconds|buy|shop|purchase|spend|lost|failed|you have none/i;
 
 function mockMotion(reduce: boolean) {
-  window.matchMedia = vi.fn().mockReturnValue({ matches: reduce }) as unknown as typeof window.matchMedia;
+  window.matchMedia = vi
+    .fn()
+    .mockReturnValue({ matches: reduce }) as unknown as typeof window.matchMedia;
 }
 afterEach(() => vi.restoreAllMocks());
 
@@ -49,7 +52,9 @@ describe('scoring components', () => {
   it('shows the top level without a bar', () => {
     render(
       <XpLevelIndicator
-        summary={enabledSummary({ level: { level: 10, xp: 9000, levelFloorXp: 9000, nextLevelXp: null } })}
+        summary={enabledSummary({
+          level: { level: 10, xp: 9000, levelFloorXp: 9000, nextLevelXp: null },
+        })}
       />,
     );
     expect(screen.getByText('Top level reached')).toBeInTheDocument();
@@ -87,7 +92,9 @@ describe('scoring components', () => {
 
   it('lists achievements and trophies', () => {
     const s = enabledSummary({
-      achievements: [{ itemId: 'i', displayName: 'Lava Jumper', description: 'Bold.', acquiredAt: 'x' }],
+      achievements: [
+        { itemId: 'i', displayName: 'Lava Jumper', description: 'Bold.', acquiredAt: 'x' },
+      ],
       trophies: [{ setId: 's', displayName: 'Crystal Collector', itemId: 'i2', acquiredAt: 'x' }],
     });
     render(

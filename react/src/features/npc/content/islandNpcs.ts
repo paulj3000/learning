@@ -214,7 +214,8 @@ export const ISLAND_NPCS: NpcDefinition[] = [
       // new page. A child who finished the whole current book has the flag and is not.
       {
         questId: 'restore-the-great-storybook-pathfinders-more',
-        summary: 'A new page of the Great Storybook has been found. Help Keeper Quill bring it back.',
+        summary:
+          'A new page of the Great Storybook has been found. Help Keeper Quill bring it back.',
         conditions: [
           { type: 'QUEST_COMPLETED' as const, questId: 'restore-the-great-storybook-pathfinders' },
           { type: 'MEMORY_FLAG' as const, flag: 'restoredTheStorybookMore', equals: false },

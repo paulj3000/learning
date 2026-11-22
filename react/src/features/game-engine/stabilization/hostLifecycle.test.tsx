@@ -3,7 +3,11 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createEngineRuntime, type EngineRuntime } from '@lai/game-engine/core';
-import { createGameplayEventFactory, GAMEPLAY_EVENT_TYPES, validateGameplayEvent } from '@lai/game-engine/contracts';
+import {
+  createGameplayEventFactory,
+  GAMEPLAY_EVENT_TYPES,
+  validateGameplayEvent,
+} from '@lai/game-engine/contracts';
 import { GameHost } from '../GameHost';
 import { HOST_COUNTERS } from '../useEngineRuntime';
 import { HOST_EVENTS, HostPreferencesService } from '../hostTypes';
@@ -44,14 +48,18 @@ function harness() {
   };
 }
 
-const ready = () => waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
+const ready = () =>
+  waitFor(() => expect(screen.getByRole('region')).toHaveAttribute('data-status', 'ready'));
 
 describe('GameHost stabilization', () => {
   let frames: ReturnType<typeof installFakeAnimationFrames>;
 
   beforeEach(() => {
     frames = installFakeAnimationFrames();
-    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'visible',
+    });
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -60,7 +68,11 @@ describe('GameHost stabilization', () => {
   describe('scene transitions', () => {
     it('a runtimeId change disposes the old runtime once, starts the new one once, and keeps one canvas', async () => {
       const h = harness();
-      const props = { label: 'Island', createRuntime: h.createRuntime, rendererFactory: h.rendererFactory };
+      const props = {
+        label: 'Island',
+        createRuntime: h.createRuntime,
+        rendererFactory: h.rendererFactory,
+      };
       const { rerender } = render(<GameHost runtimeId="cove" {...props} />);
       await ready();
       rerender(<GameHost runtimeId="forest" {...props} />);
@@ -80,7 +92,11 @@ describe('GameHost stabilization', () => {
 
     it('after a runtimeId change only the new runtime ticks, once per frame (no double tick)', async () => {
       const h = harness();
-      const props = { label: 'Island', createRuntime: h.createRuntime, rendererFactory: h.rendererFactory };
+      const props = {
+        label: 'Island',
+        createRuntime: h.createRuntime,
+        rendererFactory: h.rendererFactory,
+      };
       const { rerender } = render(<GameHost runtimeId="cove" {...props} />);
       await ready();
       act(() => frames.step());
@@ -98,13 +114,18 @@ describe('GameHost stabilization', () => {
 
     it('rapid runtimeId changes (5 scenes) leave exactly one live runtime, renderer, canvas and frame loop', async () => {
       const h = harness();
-      const props = { label: 'Island', createRuntime: h.createRuntime, rendererFactory: h.rendererFactory };
+      const props = {
+        label: 'Island',
+        createRuntime: h.createRuntime,
+        rendererFactory: h.rendererFactory,
+      };
       const { rerender } = render(<GameHost runtimeId="scene-0" {...props} />);
       for (let i = 1; i < 5; i += 1) rerender(<GameHost runtimeId={`scene-${i}`} {...props} />);
       await ready();
       expect(h.runtimes.filter((r) => r.state === 'running')).toHaveLength(1);
       expect(h.runtimes.filter((r) => r.state !== 'disposed')).toHaveLength(1);
-      for (const runtime of h.runtimes.slice(0, -1)) expect(runtime.dispose).toHaveBeenCalledTimes(1);
+      for (const runtime of h.runtimes.slice(0, -1))
+        expect(runtime.dispose).toHaveBeenCalledTimes(1);
       expect(h.renderers.filter((r) => !vi.mocked(r.dispose).mock.calls.length)).toHaveLength(1);
       expect(screen.getByTestId('game-host-canvas').querySelectorAll('canvas')).toHaveLength(1);
       expect(frames.pendingCount()).toBe(1);
@@ -118,7 +139,13 @@ describe('GameHost stabilization', () => {
         if (setup.mock.calls.length === 1) await gate;
       });
       const onRuntimeReady = vi.fn();
-      const props = { label: 'Island', setup, onRuntimeReady, createRuntime: h.createRuntime, rendererFactory: h.rendererFactory };
+      const props = {
+        label: 'Island',
+        setup,
+        onRuntimeReady,
+        createRuntime: h.createRuntime,
+        rendererFactory: h.rendererFactory,
+      };
       const { rerender } = render(<GameHost runtimeId="slow" {...props} />);
       rerender(<GameHost runtimeId="fast" {...props} />);
       await ready();
@@ -139,7 +166,15 @@ describe('GameHost stabilization', () => {
       const setup = vi.fn(() => {
         if (fail) throw new Error('boom');
       });
-      render(<GameHost runtimeId="t" label="x" setup={setup} createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+      render(
+        <GameHost
+          runtimeId="t"
+          label="x"
+          setup={setup}
+          createRuntime={h.createRuntime}
+          rendererFactory={h.rendererFactory}
+        />,
+      );
       await screen.findByRole('alert');
       expect(frames.pendingCount()).toBe(0);
       fail = false;
@@ -159,7 +194,15 @@ describe('GameHost stabilization', () => {
       const setup = vi.fn(() => {
         throw new Error('still broken');
       });
-      render(<GameHost runtimeId="t" label="x" setup={setup} createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+      render(
+        <GameHost
+          runtimeId="t"
+          label="x"
+          setup={setup}
+          createRuntime={h.createRuntime}
+          rendererFactory={h.rendererFactory}
+        />,
+      );
       await screen.findByRole('alert');
       await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
       await waitFor(() => expect(setup).toHaveBeenCalledTimes(2));
@@ -170,7 +213,11 @@ describe('GameHost stabilization', () => {
 
     it('the pause state does not leak across a restart', async () => {
       const h = harness();
-      const props = { label: 'Island', createRuntime: h.createRuntime, rendererFactory: h.rendererFactory };
+      const props = {
+        label: 'Island',
+        createRuntime: h.createRuntime,
+        rendererFactory: h.rendererFactory,
+      };
       const { rerender } = render(<GameHost runtimeId="a" {...props} />);
       await ready();
       act(() => {
@@ -188,7 +235,11 @@ describe('GameHost stabilization', () => {
 
     it('window listeners of a disposed scene no longer pause or resume it', async () => {
       const h = harness();
-      const props = { label: 'Island', createRuntime: h.createRuntime, rendererFactory: h.rendererFactory };
+      const props = {
+        label: 'Island',
+        createRuntime: h.createRuntime,
+        rendererFactory: h.rendererFactory,
+      };
       const { rerender } = render(<GameHost runtimeId="a" {...props} />);
       await ready();
       rerender(<GameHost runtimeId="b" {...props} />);
@@ -206,7 +257,14 @@ describe('GameHost stabilization', () => {
     it(`${REMOUNT_CYCLES} mount/unmount cycles dispose every runtime and renderer exactly once and leave no frame loop or canvas`, async () => {
       const h = harness();
       for (let i = 0; i < REMOUNT_CYCLES; i += 1) {
-        const view = render(<GameHost runtimeId={`cycle-${i}`} label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+        const view = render(
+          <GameHost
+            runtimeId={`cycle-${i}`}
+            label="x"
+            createRuntime={h.createRuntime}
+            rendererFactory={h.rendererFactory}
+          />,
+        );
         await ready();
         act(() => frames.step());
         view.unmount();
@@ -233,7 +291,12 @@ describe('GameHost stabilization', () => {
       for (let i = 0; i < REMOUNT_CYCLES; i += 1) {
         const view = render(
           <StrictMode>
-            <GameHost runtimeId="s" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />
+            <GameHost
+              runtimeId="s"
+              label="x"
+              createRuntime={h.createRuntime}
+              rendererFactory={h.rendererFactory}
+            />
           </StrictMode>,
         );
         await ready();
@@ -275,7 +338,15 @@ describe('GameHost stabilization', () => {
   describe('accessibility', () => {
     it('exposes a named region, busy while loading, a status for loading, and a text alternative', async () => {
       const h = harness();
-      render(<GameHost runtimeId="t" label="Pirate Bay scene" fallback={<span>A cove with a bridge to repair.</span>} createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+      render(
+        <GameHost
+          runtimeId="t"
+          label="Pirate Bay scene"
+          fallback={<span>A cove with a bridge to repair.</span>}
+          createRuntime={h.createRuntime}
+          rendererFactory={h.rendererFactory}
+        />,
+      );
       const region = screen.getByRole('region', { name: 'Pirate Bay scene' });
       expect(region).toHaveAttribute('aria-busy', 'true');
       expect(screen.getByRole('status')).toHaveTextContent('Getting the island ready');
@@ -283,7 +354,10 @@ describe('GameHost stabilization', () => {
       expect(region).toHaveAttribute('aria-busy', 'false');
       expect(screen.queryByRole('status')).toBeNull();
       expect(screen.getByText('A cove with a bridge to repair.')).toBeInTheDocument();
-      expect(screen.getByTestId('game-host-canvas').querySelector('canvas')).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.getByTestId('game-host-canvas').querySelector('canvas')).toHaveAttribute(
+        'aria-hidden',
+        'true',
+      );
     });
 
     it('uses the default text alternative when no fallback is given, and localized messages when supplied', async () => {
@@ -308,7 +382,15 @@ describe('GameHost stabilization', () => {
       const setup = vi.fn(() => {
         if (fail) throw new Error('x');
       });
-      render(<GameHost runtimeId="t" label="x" setup={setup} createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+      render(
+        <GameHost
+          runtimeId="t"
+          label="x"
+          setup={setup}
+          createRuntime={h.createRuntime}
+          rendererFactory={h.rendererFactory}
+        />,
+      );
       const alert = await screen.findByRole('alert');
       const retry = screen.getByRole('button', { name: 'Try again' });
       expect(retry.tagName).toBe('BUTTON');
@@ -344,7 +426,14 @@ describe('GameHost stabilization', () => {
 
     it('announces the paused state as a status and clears it on resume', async () => {
       const h = harness();
-      render(<GameHost runtimeId="t" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+      render(
+        <GameHost
+          runtimeId="t"
+          label="x"
+          createRuntime={h.createRuntime}
+          rendererFactory={h.rendererFactory}
+        />,
+      );
       await ready();
       act(() => {
         window.dispatchEvent(new Event('blur'));
@@ -359,7 +448,12 @@ describe('GameHost stabilization', () => {
     it('the loading overlay and children never show an overlay of children before ready', async () => {
       const h = harness();
       render(
-        <GameHost runtimeId="t" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory}>
+        <GameHost
+          runtimeId="t"
+          label="x"
+          createRuntime={h.createRuntime}
+          rendererFactory={h.rendererFactory}
+        >
           <button type="button">Hud button</button>
         </GameHost>,
       );
@@ -389,7 +483,14 @@ describe('GameHost stabilization', () => {
       it('reads the OS setting at start and follows it live (preferencesChanged is emitted)', async () => {
         const media = stubMatchMedia(true);
         const h = harness();
-        render(<GameHost runtimeId="t" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+        render(
+          <GameHost
+            runtimeId="t"
+            label="x"
+            createRuntime={h.createRuntime}
+            rendererFactory={h.rendererFactory}
+          />,
+        );
         await ready();
         const runtime = h.runtimes[0]!;
         expect(runtime.services.get(HostPreferencesService)?.reducedMotion).toBe(true);
@@ -404,7 +505,15 @@ describe('GameHost stabilization', () => {
       it('a pinned reducedMotion prop wins over the OS and ignores later OS changes', async () => {
         const media = stubMatchMedia(false);
         const h = harness();
-        render(<GameHost runtimeId="t" label="x" reducedMotion createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+        render(
+          <GameHost
+            runtimeId="t"
+            label="x"
+            reducedMotion
+            createRuntime={h.createRuntime}
+            rendererFactory={h.rendererFactory}
+          />,
+        );
         await ready();
         expect(h.runtimes[0]!.services.get(HostPreferencesService)?.reducedMotion).toBe(true);
         expect(media.listeners.size).toBe(0);
@@ -413,7 +522,14 @@ describe('GameHost stabilization', () => {
       it('removes the media listener on unmount', async () => {
         const media = stubMatchMedia(false);
         const h = harness();
-        const view = render(<GameHost runtimeId="t" label="x" createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+        const view = render(
+          <GameHost
+            runtimeId="t"
+            label="x"
+            createRuntime={h.createRuntime}
+            rendererFactory={h.rendererFactory}
+          />,
+        );
         await ready();
         expect(media.listeners.size).toBe(1);
         view.unmount();
@@ -423,7 +539,12 @@ describe('GameHost stabilization', () => {
   });
 
   describe('gameplay event delivery', () => {
-    const factory = createGameplayEventFactory({ realmId: 'realm.test', adventureId: 'adv.test', areaId: null, sessionRef: null });
+    const factory = createGameplayEventFactory({
+      realmId: 'realm.test',
+      adventureId: 'adv.test',
+      areaId: null,
+      sessionRef: null,
+    });
 
     async function mountWithSinks() {
       const h = harness();
@@ -447,7 +568,10 @@ describe('GameHost stabilization', () => {
       const { runtime, onGameplayEvent, onEngineEvent } = await mountWithSinks();
       const payloads: Record<string, unknown> = {
         'learning.question.presented': { learningRef: { kind: 'CHEST_CHALLENGE', id: 'q.1' } },
-        'learning.answer.submitted': { learningRef: { kind: 'CHEST_CHALLENGE', id: 'q.1' }, choiceId: 'a' },
+        'learning.answer.submitted': {
+          learningRef: { kind: 'CHEST_CHALLENGE', id: 'q.1' },
+          choiceId: 'a',
+        },
         'exploration.area.entered': { areaId: 'area.1' },
         'exploration.discovery.found': { discoveryId: 'd.1' },
         'collectible.collected': { collectibleId: 'c.1', setId: null },
@@ -525,7 +649,10 @@ describe('GameHost stabilization', () => {
       const runtime = h.runtimes[0]!;
       const event = factory.create('puzzle.completed', { puzzleId: 'p.1' });
       expect(() => runtime.events.emit('gameplay.event' as never, event as never)).not.toThrow();
-      runtime.events.emit('gameplay.event' as never, factory.create('puzzle.completed', { puzzleId: 'p.2' }) as never);
+      runtime.events.emit(
+        'gameplay.event' as never,
+        factory.create('puzzle.completed', { puzzleId: 'p.2' }) as never,
+      );
       expect(calls).toEqual(['puzzle.completed', 'puzzle.completed']);
       expect(runtime.diagnostics.snapshot().counters[HOST_COUNTERS.callbackErrors]).toBe(1);
     });
@@ -534,12 +661,20 @@ describe('GameHost stabilization', () => {
       const h = harness();
       const first = vi.fn();
       const second = vi.fn();
-      const props = { runtimeId: 't', label: 'x', createRuntime: h.createRuntime, rendererFactory: h.rendererFactory };
+      const props = {
+        runtimeId: 't',
+        label: 'x',
+        createRuntime: h.createRuntime,
+        rendererFactory: h.rendererFactory,
+      };
       const { rerender } = render(<GameHost {...props} onGameplayEvent={first} />);
       await ready();
       rerender(<GameHost {...props} onGameplayEvent={second} />);
       expect(h.runtimes).toHaveLength(1);
-      h.runtimes[0]!.events.emit('gameplay.event' as never, factory.create('puzzle.completed', { puzzleId: 'p.1' }) as never);
+      h.runtimes[0]!.events.emit(
+        'gameplay.event' as never,
+        factory.create('puzzle.completed', { puzzleId: 'p.1' }) as never,
+      );
       expect(first).not.toHaveBeenCalled();
       expect(second).toHaveBeenCalledTimes(1);
     });
@@ -547,11 +682,22 @@ describe('GameHost stabilization', () => {
     it('claims emitted after unmount are not delivered', async () => {
       const h = harness();
       const onGameplayEvent = vi.fn();
-      const view = render(<GameHost runtimeId="t" label="x" onGameplayEvent={onGameplayEvent} createRuntime={h.createRuntime} rendererFactory={h.rendererFactory} />);
+      const view = render(
+        <GameHost
+          runtimeId="t"
+          label="x"
+          onGameplayEvent={onGameplayEvent}
+          createRuntime={h.createRuntime}
+          rendererFactory={h.rendererFactory}
+        />,
+      );
       await ready();
       const runtime = h.runtimes[0]!;
       view.unmount();
-      runtime.events.emit('gameplay.event' as never, factory.create('puzzle.completed', { puzzleId: 'p.1' }) as never);
+      runtime.events.emit(
+        'gameplay.event' as never,
+        factory.create('puzzle.completed', { puzzleId: 'p.1' }) as never,
+      );
       expect(onGameplayEvent).not.toHaveBeenCalled();
     });
   });

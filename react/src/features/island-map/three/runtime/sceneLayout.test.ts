@@ -130,15 +130,29 @@ describe('triggerVolumes', () => {
             capabilities: [
               {
                 id: 'gameplay.checkpoints',
-                config: { checkpoints: [{ id: 'welcome-harbor:lookout', courseId: 'harbour', position: { x: 0, y: 0, z: 0 }, label: 'the lookout' }] },
+                config: {
+                  checkpoints: [
+                    {
+                      id: 'welcome-harbor:lookout',
+                      courseId: 'harbour',
+                      position: { x: 0, y: 0, z: 0 },
+                      label: 'the lookout',
+                    },
+                  ],
+                },
               },
             ],
           },
         },
       ],
     };
-    const checkpoints = triggerVolumes(manifest, WELCOME_HARBOR_CHECKPOINTS).filter((volume) => volume.kind === 'CHECKPOINT');
-    expect(checkpoints.map((volume) => volume.id)).toEqual(['welcome-harbor:dock', 'welcome-harbor:shed']);
+    const checkpoints = triggerVolumes(manifest, WELCOME_HARBOR_CHECKPOINTS).filter(
+      (volume) => volume.kind === 'CHECKPOINT',
+    );
+    expect(checkpoints.map((volume) => volume.id)).toEqual([
+      'welcome-harbor:dock',
+      'welcome-harbor:shed',
+    ]);
     // Still declared: the list the validator, spawn and toasts use is unchanged.
     expect(manifest.checkpoints.ids).toContain('welcome-harbor:lookout');
   });

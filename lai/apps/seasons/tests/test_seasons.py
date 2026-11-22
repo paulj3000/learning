@@ -79,8 +79,13 @@ def test_invalid_events_are_rejected(fields):
 
 def test_valid_event_with_feb_29_passes_and_db_requires_all_or_none():
     SeasonalEvent(
-        slug="ok", title="Ok", window_start_month=2, window_start_day=29,
-        window_end_month=3, window_end_day=1, audio_cue_ids=["music.north_pole.village"],
+        slug="ok",
+        title="Ok",
+        window_start_month=2,
+        window_start_day=29,
+        window_end_month=3,
+        window_end_day=1,
+        audio_cue_ids=["music.north_pole.village"],
     ).full_clean()
     with pytest.raises(IntegrityError), transaction.atomic():
         SeasonalEvent.objects.create(slug="half", title="H", window_start_month=1)
@@ -119,8 +124,12 @@ def test_year_round_and_inactive_events_never_hide(bay):
 def test_multiple_window_only_events_any_window_reveals(bay):
     make("a", availability=Availability.WINDOW_ONLY).places.add(bay)
     make(
-        "b", availability=Availability.WINDOW_ONLY, window_start_month=10, window_start_day=1,
-        window_end_month=10, window_end_day=31,
+        "b",
+        availability=Availability.WINDOW_ONLY,
+        window_start_month=10,
+        window_start_day=1,
+        window_end_month=10,
+        window_end_day=31,
     ).places.add(bay)
     assert is_place_visible(bay, D(2026, 10, 15))
     assert is_place_visible(bay, D(2026, 12, 15))
@@ -140,7 +149,10 @@ def test_seasonal_info_shape(bay, home):
 
 def change(child, key=KEY, slug="pirate-builder-bay", when=None):
     return WorldChange.objects.create(
-        child=child, location_slug=slug, change_type="X", change_key=key,
+        child=child,
+        location_slug=slug,
+        change_type="X",
+        change_key=key,
         created_at=when or timezone.now(),
     )
 

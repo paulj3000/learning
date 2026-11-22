@@ -4,7 +4,10 @@
  * never throws, reports unknown keys as issues and clamps nothing.
  */
 
-import { DEFAULT_ANIMATION_DEFINITION, type AnimationMachineDefinition } from '../animation/animationStateMachine';
+import {
+  DEFAULT_ANIMATION_DEFINITION,
+  type AnimationMachineDefinition,
+} from '../animation/animationStateMachine';
 import { AVATAR_LIMITS, DEFAULT_PLAYER_AVATAR } from '../camera/playerPresentation';
 import { num, validateConfig } from '../camera/validation';
 import type { CapabilityDefinition, CapabilityRegistry } from '../core/capabilities';
@@ -32,7 +35,8 @@ export const ANIMATION_LIMITS = Object.freeze({ defaultFade: { min: 0, max: 1 } 
 export const characterAvatarCapability: CapabilityDefinition<AvatarCapabilityConfig> = {
   id: CHARACTER_AVATAR,
   version: '1.0.0',
-  description: 'The child avatar, placed exactly at the canonical player transform. Never carries root motion.',
+  description:
+    'The child avatar, placed exactly at the canonical player transform. Never carries root motion.',
   defaults: Object.freeze({
     enabled: DEFAULT_PLAYER_AVATAR.enabled,
     scale: DEFAULT_PLAYER_AVATAR.scale,
@@ -52,7 +56,8 @@ export const characterAvatarCapability: CapabilityDefinition<AvatarCapabilityCon
 export const characterAnimationCapability: CapabilityDefinition<AnimationCapabilityConfig> = {
   id: CHARACTER_ANIMATION,
   version: '1.0.0',
-  description: 'Data-driven avatar animation: movement states to clips through the avatar animationMap, with crossfades and fallbacks.',
+  description:
+    'Data-driven avatar animation: movement states to clips through the avatar animationMap, with crossfades and fallbacks.',
   requires: [CHARACTER_AVATAR],
   defaults: Object.freeze({ defaultFade: DEFAULT_ANIMATION_DEFINITION.defaultFade }),
   validate: (input) =>
@@ -67,6 +72,8 @@ export function registerCharacterCapabilities(registry: CapabilityRegistry): voi
 }
 
 /** The state machine definition for a resolved animation config. */
-export function animationDefinitionFromConfig(config: AnimationCapabilityConfig): AnimationMachineDefinition {
+export function animationDefinitionFromConfig(
+  config: AnimationCapabilityConfig,
+): AnimationMachineDefinition {
   return { ...DEFAULT_ANIMATION_DEFINITION, defaultFade: config.defaultFade };
 }

@@ -27,7 +27,10 @@ describe('pageState', () => {
 
   it('is DISCOVERED once the child has been to the page room', () => {
     expect(
-      pageState(entry('page-painted-words'), { ...NO_CONTEXT, visitedRoomIds: new Set(['illustration-studio']) }),
+      pageState(entry('page-painted-words'), {
+        ...NO_CONTEXT,
+        visitedRoomIds: new Set(['illustration-studio']),
+      }),
     ).toBe('DISCOVERED');
   });
 
@@ -86,9 +89,15 @@ describe('retired or unavailable content', () => {
 
 describe('adventureForPage', () => {
   it('links each page to the adventure that restores it', () => {
-    expect(adventureForPage(page('page-painted-words'), 'PATHFINDER', EMPTY)).toBe('the-painted-words');
-    expect(adventureForPage(page('page-first-story'), 'PATHFINDER', EMPTY)).toBe('the-storykeepers-tale');
-    expect(adventureForPage(page('page-first-story'), 'SPROUT', EMPTY)).toBe('quills-picture-story');
+    expect(adventureForPage(page('page-painted-words'), 'PATHFINDER', EMPTY)).toBe(
+      'the-painted-words',
+    );
+    expect(adventureForPage(page('page-first-story'), 'PATHFINDER', EMPTY)).toBe(
+      'the-storykeepers-tale',
+    );
+    expect(adventureForPage(page('page-first-story'), 'SPROUT', EMPTY)).toBe(
+      'quills-picture-story',
+    );
   });
 
   it('offers the second word set to a replay and none for a discovery or another band', () => {
@@ -105,7 +114,10 @@ describe('adventureForPage', () => {
 
 describe('nextMissingPage', () => {
   it('names the first missing required page, then nothing once whole', () => {
-    const half = storybookProgress({ worldChangeKeys: ['FIRST_STORY_TOLD'], discoveryIds: [] }, 'PATHFINDER');
+    const half = storybookProgress(
+      { worldChangeKeys: ['FIRST_STORY_TOLD'], discoveryIds: [] },
+      'PATHFINDER',
+    );
     expect(nextMissingPage(half)?.id).toBe('page-painted-words');
     const whole = storybookProgress(
       { worldChangeKeys: ['FIRST_STORY_TOLD', 'STUDIO_PAGE_MENDED'], discoveryIds: [] },

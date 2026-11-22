@@ -1,4 +1,5 @@
-"""Asset Manager collision profiles (`apps/assets/collision.py`, `docs/ASSET_COLLISION_PROFILES.md`)."""
+"""Asset Manager collision profiles (`apps/assets/collision.py`,
+`docs/ASSET_COLLISION_PROFILES.md`)."""
 
 import io
 import json
@@ -128,11 +129,18 @@ def test_compound_boxes_describe_a_building():
         {"x": -2, "z": 0, "y": 0, "width": 0.2, "height": 3, "depth": 4},
         {"x": 2, "z": 0, "y": 0, "width": 0.2, "height": 3, "depth": 4},
     ]
-    row = profile(asset, shape=CollisionShape.COMPOUND, boxes=walls, behavior=CollisionBehavior.SOLID)
+    row = profile(
+        asset, shape=CollisionShape.COMPOUND, boxes=walls, behavior=CollisionBehavior.SOLID
+    )
     result = collision.runtime_collision(row, version)
     assert len(result["boxes"]) == 3 and result["behavior"] == "SOLID"
     assert result["boxes"][0] == {
-        "minX": -2.0, "minY": 0.0, "minZ": -2.1, "maxX": 2.0, "maxY": 3.0, "maxZ": -1.9
+        "minX": -2.0,
+        "minY": 0.0,
+        "minZ": -2.1,
+        "maxX": 2.0,
+        "maxY": 3.0,
+        "maxZ": -1.9,
     }
 
 
@@ -193,7 +201,13 @@ def test_one_default_and_one_override_per_version_at_most():
     [
         ({"shape": CollisionShape.COMPOUND, "boxes": []}, "boxes"),
         ({"shape": CollisionShape.COMPOUND, "boxes": [{"x": 0, "width": 1}]}, "boxes"),
-        ({"shape": CollisionShape.COMPOUND, "boxes": [{"x": 0, "width": 1, "height": 1, "depth": 1, "colour": 1}]}, "boxes"),
+        (
+            {
+                "shape": CollisionShape.COMPOUND,
+                "boxes": [{"x": 0, "width": 1, "height": 1, "depth": 1, "colour": 1}],
+            },
+            "boxes",
+        ),
         ({"boxes": [{"x": 0, "width": 1, "height": 1, "depth": 1}]}, "boxes"),
         ({"radius": 0.3}, "radius"),
         ({"width": 500}, "width"),
@@ -292,8 +306,15 @@ def test_the_admin_form_reports_an_unbuildable_compound(roles):
     published(asset)
     response = staff("pub", "Asset publishers").post(
         f"{PROFILES}add/",
-        {"asset": asset.pk, "version": "", "shape": "COMPOUND", "behavior": "SOLID", "axis": "Y",
-         "boxes": "[]", "notes": ""},
+        {
+            "asset": asset.pk,
+            "version": "",
+            "shape": "COMPOUND",
+            "behavior": "SOLID",
+            "axis": "Y",
+            "boxes": "[]",
+            "notes": "",
+        },
     )
     assert response.status_code == 200
     assert "A compound profile needs at least one box." in response.content.decode()
@@ -304,9 +325,11 @@ def test_the_preview_page_carries_the_runtime_collision(roles):
     asset = make_definition("crate", kind="prop", category="prop")
     version = published(asset)
     profile(asset, width=0.8, height=0.8, depth=0.8, offset_y=0)
-    page = staff("pub", "Asset publishers").get(
-        f"/admin/assets/assetversion/{version.pk}/preview/"
-    ).content.decode()
+    page = (
+        staff("pub", "Asset publishers")
+        .get(f"/admin/assets/assetversion/{version.pk}/preview/")
+        .content.decode()
+    )
     assert 'data-asset-id="crate"' in page
     assert "data-collision=" in page and "JUMPABLE" in page
     assert 'data-preview-action="collision"' in page

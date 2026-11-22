@@ -11,7 +11,11 @@ import {
   CASTLE_PLATFORM_GROUPS,
   padFootprint,
 } from './runtime/manifests/castleRooms/castlePlatforms';
-import { TOWER_ORRERY, TOWER_STAR_CHART, TOWER_TELESCOPE } from './runtime/manifests/castleRooms/settingTower';
+import {
+  TOWER_ORRERY,
+  TOWER_STAR_CHART,
+  TOWER_TELESCOPE,
+} from './runtime/manifests/castleRooms/settingTower';
 import { STORYKEEPER_CASTLE_MANIFEST as MANIFEST } from './runtime/manifests/storykeeperCastle';
 import {
   EMBER_CASTLE_HALF_METERS,
@@ -40,7 +44,10 @@ const DOOR_GAP = 0.2;
 const SAFE_SPOT_RADIUS = 0.3;
 
 const overlaps = (a: RectZone, b: RectZone, margin = 0): boolean =>
-  a.minX < b.maxX + margin && b.minX < a.maxX + margin && a.minZ < b.maxZ + margin && b.minZ < a.maxZ + margin;
+  a.minX < b.maxX + margin &&
+  b.minX < a.maxX + margin &&
+  a.minZ < b.maxZ + margin &&
+  b.minZ < a.maxZ + margin;
 
 const square = (id: string, spot: { x: number; z: number }, half: number): RectZone => ({
   id,
@@ -53,7 +60,9 @@ const square = (id: string, spot: { x: number; z: number }, half: number): RectZ
 const ORION = square('orion', PROFESSOR_ORION_SPOT, ORION_COLLIDER_HALF_METERS);
 const EMBER = square('ember', EMBER_CASTLE_SPOT, EMBER_CASTLE_HALF_METERS);
 
-const PADS = CASTLE_PLATFORM_GROUPS.flatMap((group) => group.pads.map((pad) => padFootprint(group, pad)));
+const PADS = CASTLE_PLATFORM_GROUPS.flatMap((group) =>
+  group.pads.map((pad) => padFootprint(group, pad)),
+);
 
 const SAFE_SPOTS = [
   ...CASTLE_ROOMS.map((room) => room.safeSpot),
@@ -63,7 +72,12 @@ const SAFE_SPOTS = [
 const roomFloor = (roomId: string) => ROOMS.find((room) => room.id === roomId)!.floor;
 
 describe.each([
-  { name: 'Professor Orion', footprint: ORION, roomId: 'setting-tower', ownCollider: 'collider:professor-orion' },
+  {
+    name: 'Professor Orion',
+    footprint: ORION,
+    roomId: 'setting-tower',
+    ownCollider: 'collider:professor-orion',
+  },
   { name: 'Ember (castle visit)', footprint: EMBER, roomId: 'story-hall', ownCollider: '' },
 ])('$name stands clear of the castle', ({ footprint, roomId, ownCollider }) => {
   it('stands inside its room and off every wall', () => {
@@ -104,7 +118,10 @@ describe.each([
     }
     for (const npc of MANIFEST.npcs) {
       if (footprint === ORION && npc.entityId === PROFESSOR_ORION_ID) continue;
-      expect(overlaps(footprint, square(npc.entityId, npc.position, 0.45), COLLIDER_GAP), npc.entityId).toBe(false);
+      expect(
+        overlaps(footprint, square(npc.entityId, npc.position, 0.45), COLLIDER_GAP),
+        npc.entityId,
+      ).toBe(false);
     }
   });
 
@@ -112,20 +129,35 @@ describe.each([
     for (const door of CASTLE_DOORS) {
       const vertical = door.gap.maxX - door.gap.minX < door.gap.maxZ - door.gap.minZ;
       const approach: RectZone = vertical
-        ? { ...door.gap, minX: door.centre.x - DOOR_ENTRY_OFFSET_METERS, maxX: door.centre.x + DOOR_ENTRY_OFFSET_METERS }
-        : { ...door.gap, minZ: door.centre.z - DOOR_ENTRY_OFFSET_METERS, maxZ: door.centre.z + DOOR_ENTRY_OFFSET_METERS };
+        ? {
+            ...door.gap,
+            minX: door.centre.x - DOOR_ENTRY_OFFSET_METERS,
+            maxX: door.centre.x + DOOR_ENTRY_OFFSET_METERS,
+          }
+        : {
+            ...door.gap,
+            minZ: door.centre.z - DOOR_ENTRY_OFFSET_METERS,
+            maxZ: door.centre.z + DOOR_ENTRY_OFFSET_METERS,
+          };
       expect(overlaps(footprint, approach, DOOR_GAP), door.id).toBe(false);
     }
     for (const spot of SAFE_SPOTS) {
-      expect(overlaps(footprint, square('safe', spot, 0), SAFE_SPOT_RADIUS), `${spot.x}, ${spot.z}`).toBe(false);
+      expect(
+        overlaps(footprint, square('safe', spot, 0), SAFE_SPOT_RADIUS),
+        `${spot.x}, ${spot.z}`,
+      ).toBe(false);
     }
   });
 });
 
 describe('Professor Orion in the Setting Tower (SC-R05-03)', () => {
   it('is clear of the telescope, the orrery and the star chart', () => {
-    expect(overlaps(ORION, square('telescope', TOWER_TELESCOPE, TOWER_TELESCOPE.half), COLLIDER_GAP)).toBe(false);
-    expect(overlaps(ORION, square('orrery', TOWER_ORRERY, TOWER_ORRERY.half), COLLIDER_GAP)).toBe(false);
+    expect(
+      overlaps(ORION, square('telescope', TOWER_TELESCOPE, TOWER_TELESCOPE.half), COLLIDER_GAP),
+    ).toBe(false);
+    expect(overlaps(ORION, square('orrery', TOWER_ORRERY, TOWER_ORRERY.half), COLLIDER_GAP)).toBe(
+      false,
+    );
     const chart: RectZone = {
       id: 'chart',
       minX: TOWER_STAR_CHART.x - 0.05,
@@ -181,7 +213,9 @@ describe('Professor Orion says the right thing (catalog)', () => {
     const node = selectDialogueNode(orion, context());
     expect(node?.id).toBe('orion-greeting');
     expect(node?.setsMemoryFlags).toContain('metOrion');
-    expect(node?.choices.find((c) => c.label === 'What do you see?')?.nextNodeId).toBe('orion-telescope');
+    expect(node?.choices.find((c) => c.label === 'What do you see?')?.nextNodeId).toBe(
+      'orion-telescope',
+    );
   });
 
   it('asks a returning friend to count the chart stars, and every count is praised', () => {
@@ -197,9 +231,14 @@ describe('Professor Orion says the right thing (catalog)', () => {
   });
 
   it('notices a told story, and a restored Storybook before that', () => {
-    expect(selectDialogueNode(orion, context({ worldChangeKeys: ['FIRST_STORY_TOLD'] }))?.id).toBe('orion-story-told');
+    expect(selectDialogueNode(orion, context({ worldChangeKeys: ['FIRST_STORY_TOLD'] }))?.id).toBe(
+      'orion-story-told',
+    );
     expect(
-      selectDialogueNode(orion, context({ worldChangeKeys: ['FIRST_STORY_TOLD', 'GREAT_STORYBOOK_RESTORED'] }))?.id,
+      selectDialogueNode(
+        orion,
+        context({ worldChangeKeys: ['FIRST_STORY_TOLD', 'GREAT_STORYBOOK_RESTORED'] }),
+      )?.id,
     ).toBe('orion-storybook-restored');
   });
 

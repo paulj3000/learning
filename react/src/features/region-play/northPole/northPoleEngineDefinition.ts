@@ -1,4 +1,9 @@
-import { defineAdventure, defineRealm, type AdventureDefinition, type RealmDefinition } from '@lai/game-engine/sdk';
+import {
+  defineAdventure,
+  defineRealm,
+  type AdventureDefinition,
+  type RealmDefinition,
+} from '@lai/game-engine/sdk';
 import { NPC_MANAGER, QUEST_SERVICE, SOUND_MANAGER } from '@lai/game-engine/services';
 import {
   NORTH_POLE_KEYS,
@@ -49,14 +54,34 @@ export const NORTH_POLE_CHECKPOINT_IDS = [
  * reachable on foot).
  */
 export const NORTH_POLE_JUMP_ROUTES = [
-  { id: 'np-jump-village-steps', jumpRouteId: 'np-ledge-step-a', accessibleRouteId: 'np-stair-village-1' },
-  { id: 'np-jump-workshop-crates', jumpRouteId: 'np-ledge-crate-1', accessibleRouteId: 'np-stair-shelf-1' },
-  { id: 'np-jump-forest-stones', jumpRouteId: 'np-plat-pepper-1', accessibleRouteId: 'np-stair-candy-1' },
-  { id: 'np-jump-gingerbread-cookies', jumpRouteId: 'np-plat-cookie-1', accessibleRouteId: 'np-ramp-ginger-1' },
+  {
+    id: 'np-jump-village-steps',
+    jumpRouteId: 'np-ledge-step-a',
+    accessibleRouteId: 'np-stair-village-1',
+  },
+  {
+    id: 'np-jump-workshop-crates',
+    jumpRouteId: 'np-ledge-crate-1',
+    accessibleRouteId: 'np-stair-shelf-1',
+  },
+  {
+    id: 'np-jump-forest-stones',
+    jumpRouteId: 'np-plat-pepper-1',
+    accessibleRouteId: 'np-stair-candy-1',
+  },
+  {
+    id: 'np-jump-gingerbread-cookies',
+    jumpRouteId: 'np-plat-cookie-1',
+    accessibleRouteId: 'np-ramp-ginger-1',
+  },
   { id: 'np-jump-village-trampoline', jumpRouteId: 'np-plat-trampoline', accessibleRouteId: null },
   { id: 'np-jump-stables-logs', jumpRouteId: 'np-ledge-log-1', accessibleRouteId: null },
   { id: 'np-jump-lake-thin-ice', jumpRouteId: 'np-plat-lake-stone', accessibleRouteId: null },
-] as const satisfies readonly { id: string; jumpRouteId: string; accessibleRouteId: string | null }[];
+] as const satisfies readonly {
+  id: string;
+  jumpRouteId: string;
+  accessibleRouteId: string | null;
+}[];
 
 /** Zone restorations: the world changes a child sees on the island (scoring REALM_MILESTONE). */
 export const NORTH_POLE_MILESTONE_IDS = [
@@ -74,7 +99,13 @@ export const NORTH_POLE_REALM: Readonly<RealmDefinition> = defineRealm({
   id: NORTH_POLE_WORLD_SLUG,
   version: '1.0.0',
   titleKey: 'realm.northPole.title',
-  places: [{ id: NORTH_POLE_PLACE_SLUG, titleKey: 'place.northPoleVillage.title', areaIds: [NORTH_POLE_AREA] }],
+  places: [
+    {
+      id: NORTH_POLE_PLACE_SLUG,
+      titleKey: 'place.northPoleVillage.title',
+      areaIds: [NORTH_POLE_AREA],
+    },
+  ],
   ageBands: ['SPROUT', 'PATHFINDER', 'EXPLORER'],
   milestoneIds: [...NORTH_POLE_MILESTONE_IDS],
   adventureIds: [NORTH_POLE_ADVENTURE_ID],
@@ -134,7 +165,11 @@ export const NORTH_POLE_ADVENTURE: Readonly<AdventureDefinition> = defineAdventu
   ],
   questIds: [...NORTH_POLE_QUEST_IDS],
   challengeIds: [...NORTH_POLE_PUZZLE_IDS],
-  jumpChallenges: NORTH_POLE_JUMP_ROUTES.map((route) => ({ ...route, areaId: NORTH_POLE_AREA, optional: true })),
+  jumpChallenges: NORTH_POLE_JUMP_ROUTES.map((route) => ({
+    ...route,
+    areaId: NORTH_POLE_AREA,
+    optional: true,
+  })),
   checkpoints: NORTH_POLE_CHECKPOINT_IDS.map((id) => ({ id, areaId: NORTH_POLE_AREA })),
   worldConsequenceId: NORTH_POLE_KEYS.adventureComplete,
   contentSource: 'DJANGO_PUBLISHED',

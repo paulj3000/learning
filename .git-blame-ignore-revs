@@ -1,0 +1,9 @@
+# Bulk formatting commits that blame should skip (git config blame.ignoreRevsFile .git-blame-ignore-revs).
+# GitHub reads this file automatically. These SHAs are valid only if the branch is merged
+# with a merge commit, never squashed or rebased.
+# GE-090-D6 (A): ruff format .
+263f1bf6436e7865d1b313299aa52aa306b9cebf
+# GE-090-D6 (C1): wrapped over-long lines (values unchanged)
+b9c2229ac2a3f235c6a0a4ad2f9c058aa28084dc
+# GE-090-D6 (E): prettier --write .
+017339a8aa45c63d26b95bfe1f6005f9c0c2ab23

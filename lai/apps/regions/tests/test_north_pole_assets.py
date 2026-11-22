@@ -131,6 +131,8 @@ def test_every_asset_makes_a_valid_content_asset():
     for asset in ASSETS:
         ContentAsset.objects.create(**content_asset_defaults(asset))
     assert ContentAsset.objects.filter(tags__contains=[REGION_TAG]).count() == len(ASSETS)
-    assert not ContentAsset.objects.filter(tags__contains=[REGION_TAG]).exclude(
-        default_version=None
-    ).exists()
+    assert (
+        not ContentAsset.objects.filter(tags__contains=[REGION_TAG])
+        .exclude(default_version=None)
+        .exists()
+    )

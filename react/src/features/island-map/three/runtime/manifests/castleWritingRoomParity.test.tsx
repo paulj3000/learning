@@ -151,19 +151,25 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
   it('gives a child who finished the Secret Door arc the same room, builds the engine with their state', async () => {
     await renderUnlocked('EXPLORER', HOLDER);
     expect(vi.mocked(createLocationEngine)).toHaveBeenCalledTimes(1);
-    expect(engine.options?.worldState?.worldChangeKeys).toContain('THE_CASTLES_SECRET_DOOR_COMPLETE');
+    expect(engine.options?.worldState?.worldChangeKeys).toContain(
+      'THE_CASTLES_SECRET_DOOR_COMPLETE',
+    );
   });
 
   it('lists every always-available interaction by the same titles as the Phaser room', async () => {
     await renderUnlocked();
     expect(screen.getByRole('button', { name: 'The writing desk' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Shelves of empty books' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'The path back into the castle' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'The path back into the castle' }),
+    ).toBeInTheDocument();
   });
 
   it('also lists the open book and Keeper Quill, which the Phaser room does not have', async () => {
     await renderUnlocked();
-    expect(screen.getByRole('button', { name: 'Write a story in the open book' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Write a story in the open book' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Keeper Quill' })).toBeInTheDocument();
   });
 
@@ -216,7 +222,9 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
       }),
     );
     expect(
-      await screen.findByText('Shelf after shelf of blank books, left ready by the old Storykeepers.'),
+      await screen.findByText(
+        'Shelf after shelf of blank books, left ready by the old Storykeepers.',
+      ),
     ).toBeInTheDocument();
   });
 
@@ -262,8 +270,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
 });
 
 describe('The Writing Room: one progress contract for both renderers', () => {
-  const read = (relative: string) =>
-    readFileSync(new URL(relative, import.meta.url), 'utf8');
+  const read = (relative: string) => readFileSync(new URL(relative, import.meta.url), 'utf8');
 
   it('keeps the Phaser room in place, with its view, scene and tests', () => {
     for (const file of [
@@ -277,7 +284,9 @@ describe('The Writing Room: one progress contract for both renderers', () => {
 
   it('has neither view write a world change', () => {
     expect(read('../../../CastleWritingRoomWorldView.tsx')).not.toContain('recordWorldChangeOnce');
-    expect(read('../../../scenes/CastleWritingRoomScene.ts')).not.toContain('recordWorldChangeOnce');
+    expect(read('../../../scenes/CastleWritingRoomScene.ts')).not.toContain(
+      'recordWorldChangeOnce',
+    );
     expect(read('./castleWritingRoom.ts')).not.toContain('recordWorldChangeOnce');
     expect(read('../../castleWritingRoomRegion.ts')).not.toContain('recordWorldChangeOnce');
   });
@@ -290,7 +299,9 @@ describe('The Writing Room: one progress contract for both renderers', () => {
 
   it('gives the Phaser room nothing new (ADR-020): no book, no Quill, no write path', () => {
     expect(read('../../../scenes/CastleWritingRoomScene.ts')).not.toMatch(/write|quill/i);
-    expect(read('../../../CastleWritingRoomWorldView.tsx')).not.toContain('writing-room-write-story');
+    expect(read('../../../CastleWritingRoomWorldView.tsx')).not.toContain(
+      'writing-room-write-story',
+    );
   });
 
   it('leaves the Phaser route the default (SC-R10-03 stays gated)', () => {

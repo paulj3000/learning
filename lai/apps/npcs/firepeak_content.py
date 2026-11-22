@@ -7,7 +7,8 @@ so staff edits in Django Admin survive a rerun.
 
 Nothing here grants, unlocks or completes anything. Choice actions used are `NONE`, `END`,
 `REQUEST_HINT` (Kindle only, hybrid mode) and `OFFER_QUEST` (Flint only: accepting is the child's
-own tap through the quests API, the same flow Pip uses). Puzzle intros, answers and rewards stay with the
+own tap through the quests API, the same flow Pip uses). Puzzle intros, answers and rewards stay
+with the
 puzzle engine; these lines are the friendly baseline around them.
 
 Copy rules: readable aloud, no em dash, no question about the child's name, address, school or
@@ -284,7 +285,10 @@ NPCS: tuple[FirepeakNpc, ...] = (
             "Ignis is calm and thankful." + _PERSONA_RULES
         ),
         persona_topics=("the Heart of Firepeak", "the crystals and their journey"),
-        fallback_lines=("Think about the journey you took.", "Take your time. The Heart is patient."),
+        fallback_lines=(
+            "Think about the journey you took.",
+            "Take your time. The Heart is patient.",
+        ),
         greeting_explorer=(
             "You came a long way. I am Ignis, guardian of the Heart. Set the crystals in the "
             "order of your journey, and the Heart will glow again."

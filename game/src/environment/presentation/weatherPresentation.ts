@@ -40,7 +40,12 @@ export interface WeatherView {
 /** Fog density at 1.0 is thick but still readable: 0.04 per metre. */
 export const FOG_DENSITY_SCALE = 0.04;
 
-export function createWeatherView(scene: Scene, scope: ResourceScope, weather: WeatherApi, options: WeatherViewOptions): WeatherView {
+export function createWeatherView(
+  scene: Scene,
+  scope: ResourceScope,
+  weather: WeatherApi,
+  options: WeatherViewOptions,
+): WeatherView {
   const kinds = Object.values(weather.kinds()).filter((k) => k.precipitation !== null);
   const specs = new Map<string, ParticleEmitterSpec>();
   const budgetShares = new Map<string, number>();
@@ -57,7 +62,9 @@ export function createWeatherView(scene: Scene, scope: ResourceScope, weather: W
       size: p.size,
       color: p.color,
       // Following: simulate round the origin and move the view (the box goes with the child).
-      origin: options.follow ? { x: 0, y: options.area.y, z: 0 } : { x: options.area.x, y: options.area.y, z: options.area.z },
+      origin: options.follow
+        ? { x: 0, y: options.area.y, z: 0 }
+        : { x: options.area.x, y: options.area.y, z: options.area.z },
       halfX: options.area.halfX,
       halfZ: options.area.halfZ,
       height: options.area.height,
@@ -70,10 +77,16 @@ export function createWeatherView(scene: Scene, scope: ResourceScope, weather: W
   const pools = new Map<string, { pool: ParticlePool; view: ParticleView; cap: number }>();
   for (const [id, spec] of specs) {
     // GE-L14: a kind's `budgetShare` limits it to that share of the tier budget.
-    const cap = Math.floor((allocateParticleBudget([spec], options.tier).get(id) ?? 0) * (budgetShares.get(id) ?? 1));
+    const cap = Math.floor(
+      (allocateParticleBudget([spec], options.tier).get(id) ?? 0) * (budgetShares.get(id) ?? 1),
+    );
     pools.set(id, {
       pool: createParticlePool(cap, hashSeed(id)),
-      view: createParticleView(scene, scope, cap, { name: `engine.weather.${id}`, color: spec.color, size: spec.size }),
+      view: createParticleView(scene, scope, cap, {
+        name: `engine.weather.${id}`,
+        color: spec.color,
+        size: spec.size,
+      }),
       cap,
     });
   }
@@ -94,8 +107,16 @@ export function createWeatherView(scene: Scene, scope: ResourceScope, weather: W
         const entry = pools.get(id)!;
         const rate = snapshot.rates[id] ?? 0;
         const cap = Math.min(entry.cap, shares.get(id) ?? 0);
-        const effective = effectiveEmitter({ ...spec, ratePerSecond: Math.max(0.0001, rate) }, cap, options.reducedMotion());
-        stepParticles(entry.pool, rate > 0 ? effective : { ...effective, rate: 0 }, dt, { x: weather.state.kinds[id]!.precipitation!.drift * snapshot.windStrength, y: 0, z: 0 });
+        const effective = effectiveEmitter(
+          { ...spec, ratePerSecond: Math.max(0.0001, rate) },
+          cap,
+          options.reducedMotion(),
+        );
+        stepParticles(entry.pool, rate > 0 ? effective : { ...effective, rate: 0 }, dt, {
+          x: weather.state.kinds[id]!.precipitation!.drift * snapshot.windStrength,
+          y: 0,
+          z: 0,
+        });
         entry.view.update(entry.pool);
       }
       if (snapshot.fogDensity > 0.001) {

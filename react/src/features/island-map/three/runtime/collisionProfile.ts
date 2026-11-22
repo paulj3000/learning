@@ -45,7 +45,9 @@ export function parseCollisionProfile(raw: unknown): CollisionProfile | undefine
     if (typeof box !== 'object' || box === null) return undefined;
     const values = box as Record<string, unknown>;
     if (!KEYS.every((key) => isFiniteWithin(values[key]))) return undefined;
-    const out = Object.fromEntries(KEYS.map((key) => [key, values[key] as number])) as unknown as ModelBox;
+    const out = Object.fromEntries(
+      KEYS.map((key) => [key, values[key] as number]),
+    ) as unknown as ModelBox;
     if (out.maxX <= out.minX || out.maxY <= out.minY || out.maxZ <= out.minZ) return undefined;
     parsed.push(out);
   }

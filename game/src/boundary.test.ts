@@ -28,14 +28,29 @@ function specifiers(source: string): string[] {
   const found: string[] = [];
   const file = ts.createSourceFile('x.ts', source, ts.ScriptTarget.Latest, true);
   const visit = (node: ts.Node): void => {
-    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
       found.push(node.moduleSpecifier.text);
-    } else if (ts.isCallExpression(node) && node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0]!)) {
+    } else if (
+      ts.isCallExpression(node) &&
+      node.arguments.length > 0 &&
+      ts.isStringLiteral(node.arguments[0]!)
+    ) {
       const callee = node.expression;
-      if (callee.kind === ts.SyntaxKind.ImportKeyword || (ts.isIdentifier(callee) && callee.text === 'require')) {
+      if (
+        callee.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(callee) && callee.text === 'require')
+      ) {
         found.push((node.arguments[0] as ts.StringLiteral).text);
       }
-    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
+    } else if (
+      ts.isImportTypeNode(node) &&
+      ts.isLiteralTypeNode(node.argument) &&
+      ts.isStringLiteral(node.argument.literal)
+    ) {
       found.push(node.argument.literal.text);
     }
     ts.forEachChild(node, visit);
@@ -54,12 +69,17 @@ export function boundaryViolations(root: string): string[] {
     }
     for (const spec of specifiers(readFileSync(path, 'utf8'))) {
       if (spec.startsWith('.')) {
-        if (/(^|\/)react\/src\//.test(spec) || spec.split('/').filter((p) => p === '..').length > 3) {
+        if (
+          /(^|\/)react\/src\//.test(spec) ||
+          spec.split('/').filter((p) => p === '..').length > 3
+        ) {
           violations.push(`${rel}: relative import leaves game/ (${spec})`);
         }
         continue;
       }
-      const allowed = ALLOWED_RUNTIME.some((re) => re.test(spec)) || (isTest && ALLOWED_TEST_ONLY.some((re) => re.test(spec)));
+      const allowed =
+        ALLOWED_RUNTIME.some((re) => re.test(spec)) ||
+        (isTest && ALLOWED_TEST_ONLY.some((re) => re.test(spec)));
       if (!allowed) {
         violations.push(`${rel}: imports "${spec}"`);
       }
@@ -76,7 +96,14 @@ describe('game/ import boundary (ADR-020)', () => {
   it('catches forbidden imports in every form', () => {
     // Built from names so no import-shaped text sits in this file (the repo-level
     // workspace check scans source text for forbidden imports).
-    const forbidden = ['react', '@/api/client', 'aws-amplify', 'phaser', '@aws-sdk/client-s3', 'cannon-es'];
+    const forbidden = [
+      'react',
+      '@/api/client',
+      'aws-amplify',
+      'phaser',
+      '@aws-sdk/client-s3',
+      'cannon-es',
+    ];
     const forms = [
       (m: string) => `import React from '${m}';`,
       (m: string) => `export { x } from '${m}';`,

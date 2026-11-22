@@ -31,7 +31,12 @@ export const RENDERER_GAUGES = Object.freeze({
 
 export function readRendererStats(renderer: RendererInfoLike): RendererStats {
   const { render, memory } = renderer.info;
-  return { drawCalls: render.calls, triangles: render.triangles, geometries: memory.geometries, textures: memory.textures };
+  return {
+    drawCalls: render.calls,
+    triangles: render.triangles,
+    geometries: memory.geometries,
+    textures: memory.textures,
+  };
 }
 
 export interface RendererStatsCollector {
@@ -39,7 +44,10 @@ export interface RendererStatsCollector {
   collect(): RendererStats;
 }
 
-export function createRendererStatsCollector(renderer: RendererInfoLike, diagnostics: Diagnostics): RendererStatsCollector {
+export function createRendererStatsCollector(
+  renderer: RendererInfoLike,
+  diagnostics: Diagnostics,
+): RendererStatsCollector {
   return {
     collect() {
       const stats = readRendererStats(renderer);

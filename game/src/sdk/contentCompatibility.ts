@@ -117,7 +117,11 @@ function inspect(
     if (!isValidRange(root.engineApi)) {
       add('ENGINE_API_MISMATCH', 'engineApi', 'must be a semver range like "^0.1.0"');
     } else if (!satisfiesRange(version, root.engineApi)) {
-      add('ENGINE_API_MISMATCH', 'engineApi', `range "${root.engineApi}" does not include engine API ${version}`);
+      add(
+        'ENGINE_API_MISMATCH',
+        'engineApi',
+        `range "${root.engineApi}" does not include engine API ${version}`,
+      );
     }
   }
 
@@ -132,12 +136,18 @@ function inspect(
           add('MALFORMED', `capabilities[${index}]`, 'must be an object with a capability id');
           return;
         }
-        requests.push(raw.config === undefined ? { id: raw.id } : { id: raw.id, config: raw.config });
+        requests.push(
+          raw.config === undefined ? { id: raw.id } : { id: raw.id, config: raw.config },
+        );
       });
       if (registry) {
         for (const issue of registry.resolve(requests).issues) {
           const unknown = /unknown capability/i.test(issue.message);
-          add(unknown ? 'UNKNOWN_CAPABILITY' : 'INVALID_CAPABILITY_CONFIG', issue.path, issue.message);
+          add(
+            unknown ? 'UNKNOWN_CAPABILITY' : 'INVALID_CAPABILITY_CONFIG',
+            issue.path,
+            issue.message,
+          );
         }
       }
     }
@@ -148,11 +158,21 @@ function inspect(
   if (isRecord(movement) && isRecord(movement.jump)) {
     for (const [key, [low, high]] of Object.entries(JUMP_LIMIT_RANGES)) {
       const value = movement.jump[key];
-      if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < low || value > high)) {
-        add('JUMP_LIMIT_EXCEEDED', `movement.jump.${key}`, `must be a number from ${low} to ${high}`);
+      if (
+        value !== undefined &&
+        (typeof value !== 'number' || !Number.isFinite(value) || value < low || value > high)
+      ) {
+        add(
+          'JUMP_LIMIT_EXCEEDED',
+          `movement.jump.${key}`,
+          `must be a number from ${low} to ${high}`,
+        );
       }
     }
-    if (movement.jump.allowDoubleJump !== undefined && typeof movement.jump.allowDoubleJump !== 'boolean') {
+    if (
+      movement.jump.allowDoubleJump !== undefined &&
+      typeof movement.jump.allowDoubleJump !== 'boolean'
+    ) {
       add('JUMP_LIMIT_EXCEEDED', 'movement.jump.allowDoubleJump', 'must be true or false');
     }
   }
@@ -169,7 +189,11 @@ function inspect(
         add('MALFORMED', 'platforming.platforms', 'must be an array');
       }
       if (platforms.length > maxPlatforms) {
-        add('TOO_MANY_PLATFORMS', 'platforming.platforms', `${platforms.length} platforms; at most ${maxPlatforms} per area`);
+        add(
+          'TOO_MANY_PLATFORMS',
+          'platforming.platforms',
+          `${platforms.length} platforms; at most ${maxPlatforms} per area`,
+        );
       }
       const moving = new Set<string>();
       for (const platform of platforms) {
@@ -179,7 +203,11 @@ function inspect(
       }
       const checkpoints = Array.isArray(platforming.checkpoints) ? platforming.checkpoints : [];
       checkpoints.forEach((checkpoint: unknown, index) => {
-        if (isRecord(checkpoint) && typeof checkpoint.platformId === 'string' && moving.has(checkpoint.platformId)) {
+        if (
+          isRecord(checkpoint) &&
+          typeof checkpoint.platformId === 'string' &&
+          moving.has(checkpoint.platformId)
+        ) {
           add(
             'CHECKPOINT_ON_MOVING_PLATFORM',
             `platforming.checkpoints[${index}]`,
@@ -211,7 +239,11 @@ function inspect(
             );
           }
         } else if (accessible === challenge.jumpRouteId) {
-          add('JUMP_WITHOUT_ACCESSIBLE_ROUTE', `${path}.accessibleRouteId`, 'the accessible route must differ from the jump route');
+          add(
+            'JUMP_WITHOUT_ACCESSIBLE_ROUTE',
+            `${path}.accessibleRouteId`,
+            'the accessible route must differ from the jump route',
+          );
         }
       });
     }
@@ -231,7 +263,9 @@ function inspect(
       const isGate =
         listName === 'gates' ||
         item.gate === true ||
-        (Array.isArray(requirements) ? requirements.length > 0 : requirements !== undefined && requirements !== null);
+        (Array.isArray(requirements)
+          ? requirements.length > 0
+          : requirements !== undefined && requirements !== null);
       if (isGate) {
         add('JUMPABLE_GATE', `${listName}[${index}]`, 'a progression gate may never be jumpable');
       }
@@ -248,9 +282,16 @@ function inspect(
   const isAdventure = kind === 'ADVENTURE' || (kind === 'AUTO' && typeof root.realmId === 'string');
   if (isAdventure) {
     const consequence = root.worldConsequenceId ?? root.worldChange;
-    const present = typeof consequence === 'string' ? consequence !== '' : isRecord(consequence) && Object.keys(consequence).length > 0;
+    const present =
+      typeof consequence === 'string'
+        ? consequence !== ''
+        : isRecord(consequence) && Object.keys(consequence).length > 0;
     if (!present) {
-      add('MISSING_WORLD_CONSEQUENCE', 'worldConsequenceId', 'an adventure must leave a visible world consequence (learning makes the island grow)');
+      add(
+        'MISSING_WORLD_CONSEQUENCE',
+        'worldConsequenceId',
+        'an adventure must leave a visible world consequence (learning makes the island grow)',
+      );
     }
   }
 }

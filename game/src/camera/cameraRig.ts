@@ -23,7 +23,11 @@
 import { Vector3 } from 'three';
 import { interpolatePlayerPosition, type PlayerTransform } from '../contracts/player';
 import type { ColliderSpec, PhysicsProvider } from '../contracts/physics';
-import { loadCameraPreference, saveCameraPreference, type PreferenceStorage } from './cameraPreference';
+import {
+  loadCameraPreference,
+  saveCameraPreference,
+  type PreferenceStorage,
+} from './cameraPreference';
 import {
   PlayerCameraController,
   type ObstructionProbe,
@@ -50,7 +54,12 @@ function resolvePhysics(source: PhysicsSource): PhysicsProvider | undefined {
 
 function insideSpec(spec: ColliderSpec, p: Readonly<{ x: number; y: number; z: number }>): boolean {
   return (
-    p.x >= spec.min.x && p.x <= spec.max.x && p.y >= spec.min.y && p.y <= spec.max.y && p.z >= spec.min.z && p.z <= spec.max.z
+    p.x >= spec.min.x &&
+    p.x <= spec.max.x &&
+    p.y >= spec.min.y &&
+    p.y <= spec.max.y &&
+    p.z >= spec.min.z &&
+    p.z <= spec.max.z
   );
 }
 
@@ -70,7 +79,12 @@ export function physicsObstruction(source: PhysicsSource): ObstructionProbe {
     if (!physics) {
       return null;
     }
-    const hit = physics.raycast(origin, direction, maxDistance, (spec) => blocksCamera(spec) && !insideSpec(spec, origin));
+    const hit = physics.raycast(
+      origin,
+      direction,
+      maxDistance,
+      (spec) => blocksCamera(spec) && !insideSpec(spec, origin),
+    );
     return hit ? hit.distance : null;
   };
 }
@@ -106,7 +120,11 @@ export function keepCameraOutOfColliders(
   let high = 1;
   for (let i = 0; i < 12; i += 1) {
     const mid = (low + high) / 2;
-    probe.set(anchor.x + (end.x - anchor.x) * mid, anchor.y + (end.y - anchor.y) * mid, anchor.z + (end.z - anchor.z) * mid);
+    probe.set(
+      anchor.x + (end.x - anchor.x) * mid,
+      anchor.y + (end.y - anchor.y) * mid,
+      anchor.z + (end.z - anchor.z) * mid,
+    );
     if (blocked(probe)) {
       high = mid;
     } else {
@@ -234,7 +252,12 @@ export class CameraRig {
 
     const physics = resolvePhysics(this.options.physics);
     if (frame.mode === 'third-person' && physics && this.configuration.collisionEnabled) {
-      keepCameraOutOfColliders(physics, frame.aimOrigin, frame.position, this.options.safetyRadius ?? DEFAULT_SAFETY_RADIUS);
+      keepCameraOutOfColliders(
+        physics,
+        frame.aimOrigin,
+        frame.position,
+        this.options.safetyRadius ?? DEFAULT_SAFETY_RADIUS,
+      );
     }
     return frame;
   }
@@ -253,7 +276,11 @@ export interface CameraLike {
  * controller yaw looks down +Z, a Three.js camera down -Z) and `rotation.x = pitch`.
  * `baseFov` plus the frame's sprint offset sets the field of view when a base is given.
  */
-export function applyCameraFrame(frame: PlayerCameraFrame, camera: CameraLike, baseFov?: number): void {
+export function applyCameraFrame(
+  frame: PlayerCameraFrame,
+  camera: CameraLike,
+  baseFov?: number,
+): void {
   camera.rotation.order = 'YXZ';
   camera.position.copy(frame.position);
   camera.rotation.set(frame.pitch, frame.yaw + Math.PI, 0);

@@ -22,10 +22,22 @@ import {
   type Material,
   type Object3D,
 } from 'three';
-import { interpolatePlayerPosition, type PlayerTransform, type Vec3Like } from '../contracts/player';
-import { AnimationStateMachine, type AnimationFrame, type AnimationMachineDefinition, type AnimationMap } from '../animation/animationStateMachine';
+import {
+  interpolatePlayerPosition,
+  type PlayerTransform,
+  type Vec3Like,
+} from '../contracts/player';
+import {
+  AnimationStateMachine,
+  type AnimationFrame,
+  type AnimationMachineDefinition,
+  type AnimationMap,
+} from '../animation/animationStateMachine';
 import { withoutRootMotionFor, type RootMotionOptions } from '../animation/rootMotion';
-import { createThreeAnimationDriver, type ThreeAnimationDriver } from '../animation/threeAnimationDriver';
+import {
+  createThreeAnimationDriver,
+  type ThreeAnimationDriver,
+} from '../animation/threeAnimationDriver';
 import { AVATAR_LIMITS } from '../camera/playerPresentation';
 import { toControllerYaw, type YawConvention } from '../camera/yaw';
 import { num, validateConfig } from '../camera/validation';
@@ -84,7 +96,13 @@ export function validateAvatarDefinition(input: unknown): ValidationResult<Avata
     }
     const { animationMap, sockets, footprintOffset, ...flat } = input;
     const issues: { path: string; message: string }[] = [];
-    const base = validateConfig<{ id: string; assetId: string; scale: number; rotationOffset: number; eyeHeight: number }>(
+    const base = validateConfig<{
+      id: string;
+      assetId: string;
+      scale: number;
+      rotationOffset: number;
+      eyeHeight: number;
+    }>(
       flat,
       { id: '', assetId: '', scale: 1, rotationOffset: 0, eyeHeight: 1.1 },
       {
@@ -110,8 +128,15 @@ export function validateAvatarDefinition(input: unknown): ValidationResult<Avata
           const value = footprintOffset[key];
           if (key !== 'x' && key !== 'z') {
             issues.push({ path: `footprintOffset.${key}`, message: 'is not an offset axis' });
-          } else if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > FOOTPRINT_OFFSET_LIMIT) {
-            issues.push({ path: `footprintOffset.${key}`, message: `must be a number within ${FOOTPRINT_OFFSET_LIMIT}` });
+          } else if (
+            typeof value !== 'number' ||
+            !Number.isFinite(value) ||
+            Math.abs(value) > FOOTPRINT_OFFSET_LIMIT
+          ) {
+            issues.push({
+              path: `footprintOffset.${key}`,
+              message: `must be a number within ${FOOTPRINT_OFFSET_LIMIT}`,
+            });
           } else {
             offset[key] = value;
           }
@@ -141,7 +166,10 @@ export function validateAvatarDefinition(input: unknown): ValidationResult<Avata
       } else {
         for (const [socket, node] of Object.entries(sockets)) {
           if (!(AVATAR_SOCKETS as readonly string[]).includes(socket)) {
-            issues.push({ path: `sockets.${socket}`, message: `is not a socket (${AVATAR_SOCKETS.join(', ')})` });
+            issues.push({
+              path: `sockets.${socket}`,
+              message: `is not a socket (${AVATAR_SOCKETS.join(', ')})`,
+            });
           } else if (typeof node !== 'string' || node.trim() === '') {
             issues.push({ path: `sockets.${socket}`, message: 'must be a bone or node name' });
           } else {
@@ -165,7 +193,12 @@ export function validateAvatarDefinition(input: unknown): ValidationResult<Avata
       }),
     };
   } catch (error) {
-    return validationFailed([{ path: '', message: `could not be validated: ${error instanceof Error ? error.message : 'unknown error'}` }]);
+    return validationFailed([
+      {
+        path: '',
+        message: `could not be validated: ${error instanceof Error ? error.message : 'unknown error'}`,
+      },
+    ]);
   }
 }
 
@@ -225,8 +258,15 @@ export interface AvatarPlacement {
  * Where the avatar root goes this frame: exactly the interpolated canonical position and the
  * canonical yaw. This is the only placement rule; there is no independent avatar position.
  */
-export function avatarPlacement(transform: PlayerTransform, alpha: number, convention: YawConvention = 'controller'): AvatarPlacement {
-  return { position: interpolatePlayerPosition(transform, alpha), yaw: toControllerYaw(transform.yaw, convention) };
+export function avatarPlacement(
+  transform: PlayerTransform,
+  alpha: number,
+  convention: YawConvention = 'controller',
+): AvatarPlacement {
+  return {
+    position: interpolatePlayerPosition(transform, alpha),
+    yaw: toControllerYaw(transform.yaw, convention),
+  };
 }
 
 // --- equipment -----------------------------------------------------------------------------
@@ -455,7 +495,12 @@ export function createAvatarController(options: AvatarControllerOptions): Avatar
         return;
       }
       const frame = machine.update(
-        { movement: transform.state, horizontalSpeed: Math.hypot(transform.velocity.x, transform.velocity.z), walkSpeed: speeds.walkSpeed, runSpeed: speeds.runSpeed },
+        {
+          movement: transform.state,
+          horizontalSpeed: Math.hypot(transform.velocity.x, transform.velocity.z),
+          walkSpeed: speeds.walkSpeed,
+          runSpeed: speeds.runSpeed,
+        },
         deltaSeconds,
       );
       driver.apply(frame);

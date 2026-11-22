@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
 import { arrivalIn, CASTLE_DOORS, castleRoomAt } from '../castleLayout';
-import type { FirstPersonController } from '../firstPersonController';
-import { DEFAULT_PLAYER_COLLISION, footprintDistance } from '../playerCollision';
+import {
+  type FirstPersonController,
+  DEFAULT_PLAYER_COLLISION,
+  footprintDistance,
+} from '@lai/game-engine/movement';
 import { SOURCE_LOCATION_MANIFESTS } from './manifests';
 import { STORYKEEPER_CASTLE_MANIFEST } from './manifests/storykeeperCastle';
 import { WELCOME_HARBOR_MANIFEST } from './manifests/welcomeHarbor';

@@ -134,7 +134,9 @@ def test_imports_each_model_as_a_validated_version_with_its_provenance(source):
     assert tall.source["provenance"]["licenceStatus"] == "confirmed"
     (version,) = versions("test-tree-tall")
     assert version.status == VersionStatus.VALIDATED
-    assert re.fullmatch(r"assets/models/test-tree-tall/[0-9a-f-]{36}/model\.glb", version.storage_key)
+    assert re.fullmatch(
+        r"assets/models/test-tree-tall/[0-9a-f-]{36}/model\.glb", version.storage_key
+    )
     assert get_storage().exists(version.storage_key)
     assert version.dimensions["y"] == pytest.approx(6.0, abs=1e-3)
     provenance = version.metadata["provenance"]
@@ -233,10 +235,16 @@ def test_an_existing_definition_keeps_what_an_administrator_set(source):
 
 
 def test_retired_or_conflicting_definitions_are_reported_not_overwritten(source):
-    ContentAsset.objects.create(asset_id="test-tree-tall", kind="kit-piece", category="scenery",
-                                origin="DJANGO", status=AssetStatus.RETIRED)
-    ContentAsset.objects.create(asset_id="test-tree-short", kind="character", category="npc",
-                                origin="DJANGO")
+    ContentAsset.objects.create(
+        asset_id="test-tree-tall",
+        kind="kit-piece",
+        category="scenery",
+        origin="DJANGO",
+        status=AssetStatus.RETIRED,
+    )
+    ContentAsset.objects.create(
+        asset_id="test-tree-short", kind="character", category="npc", origin="DJANGO"
+    )
     report = import_pack(TREES, source)
     reasons = {item["asset"]: item["reason"] for item in report.unresolved}
     assert reasons == {"test-tree-tall": "asset_retired", "test-tree-short": "asset_kind_conflict"}
@@ -252,8 +260,11 @@ def test_a_model_that_fails_validation_is_not_stored(source, settings):
 
 def test_a_missing_node_is_unresolved_and_a_missing_pack_is_refused(source, tmp_path):
     partial = dataclasses.replace(
-        TREES, models=(*TREES.models, dataclasses.replace(TREES.models[0], asset_id="test-x",
-                                                          node="Nowhere"))
+        TREES,
+        models=(
+            *TREES.models,
+            dataclasses.replace(TREES.models[0], asset_id="test-x", node="Nowhere"),
+        ),
     )
     report = import_pack(partial, source)
     assert {"asset": "test-x", "node": "Nowhere", "reason": "source_missing"} in report.unresolved
@@ -379,7 +390,9 @@ def test_s3_uploads_through_the_configured_bucket_with_server_made_keys(source, 
     report = import_pack(TREES, source, allow_shared_storage=True)
     assert len(report.imported) == 2
     s3_storage.assert_no_pending_responses()
-    assert all(v.storage_key.startswith("assets/models/test-tree-") for v in AssetVersion.objects.all())
+    assert all(
+        v.storage_key.startswith("assets/models/test-tree-") for v in AssetVersion.objects.all()
+    )
     with pytest.raises(PackRefused, match="Django Admin"):
         import_pack(TREES, source, publish=True, allow_shared_storage=True)
 
@@ -393,8 +406,9 @@ def real_source(tmp_path):
     directory = tmp_path / "environment"
     directory.mkdir()
     (directory / "palms.glb").write_bytes(
-        pack_glb({f"PalmTree_{i}": (2, 2, 4 + i * 0.3) for i in range(1, 6)},
-                 texture=rgba_png(16, 16))
+        pack_glb(
+            {f"PalmTree_{i}": (2, 2, 4 + i * 0.3) for i in range(1, 6)}, texture=rgba_png(16, 16)
+        )
     )
     (directory / "Barrel.glb").write_bytes(pack_glb({"Barrel": (0.15, 0.15, 0.2)}))
     (directory / "Barrel.fbx").write_bytes(b"Kaydara FBX Binary  \x00")
@@ -454,13 +468,23 @@ def test_publish_through_the_command_publishes_every_confirmed_pack(real_source,
 
 def test_command_refusals(real_source, tmp_path):
     with pytest.raises(CommandError, match="cannot be combined"):
-        run("import_treasure_rush_environment", "--source", str(real_source), "--dry-run",
-            "--publish")
+        run(
+            "import_treasure_rush_environment",
+            "--source",
+            str(real_source),
+            "--dry-run",
+            "--publish",
+        )
     with pytest.raises(CommandError, match="DEBUG is off"):
         run("import_treasure_rush_environment", "--source", str(real_source), "--publish")
     with pytest.raises(CommandError, match="does not exist"):
-        run("import_treasure_rush_environment", "--source", str(tmp_path / "missing"),
-            "--category", "logs")
+        run(
+            "import_treasure_rush_environment",
+            "--source",
+            str(tmp_path / "missing"),
+            "--category",
+            "logs",
+        )
 
 
 # --- the real declarations ----------------------------------------------------------------------
@@ -470,7 +494,14 @@ def test_the_declared_packs_are_well_formed_and_reusable():
     ids = [model.asset_id for pack in PACKS.values() for model in pack.models]
     assert len(ids) == len(set(ids)) == 20
     assert set(model_packs.GROUPS) == {
-        "palms", "barrels", "logs", "bushes", "flowers", "grass", "campfire", "feather"
+        "palms",
+        "barrels",
+        "logs",
+        "bushes",
+        "flowers",
+        "grass",
+        "campfire",
+        "feather",
     }
     environment = [p for p in PACKS.values() if p.group not in ("campfire", "feather")]
     for pack in PACKS.values():
@@ -484,7 +515,11 @@ def test_the_declared_packs_are_well_formed_and_reusable():
                 description=model.description,
                 tags=list(
                     dict.fromkeys(
-                        (*pack.tags, *model.tags, *((slugify(pack.author),) if pack.tag_author else ()))
+                        (
+                            *pack.tags,
+                            *model.tags,
+                            *((slugify(pack.author),) if pack.tag_author else ()),
+                        )
                     )
                 ),
             )
@@ -495,7 +530,9 @@ def test_the_declared_packs_are_well_formed_and_reusable():
             if pack.group in ("palms", "barrels", "logs"):
                 assert model.source_url.startswith("https://poly.pizza/m/")
             else:
-                assert model.source_url == "https://quaternius.com/packs/ultimatestylizednature.html"
+                assert (
+                    model.source_url == "https://quaternius.com/packs/ultimatestylizednature.html"
+                )
     # Every environment pack confirmed CC0-1.0 by the owner (2026-11-14), recorded.
     for pack in environment:
         assert pack.licence_confirmed is True and pack.author == "Quaternius"

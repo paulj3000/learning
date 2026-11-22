@@ -18,12 +18,20 @@
  *   resources (reverse order), clears entities, services and listeners.
  */
 
-import { createCapabilityRegistry, type CapabilityRegistry, type CapabilityRequest } from './capabilities';
+import {
+  createCapabilityRegistry,
+  type CapabilityRegistry,
+  type CapabilityRequest,
+} from './capabilities';
 import { createDiagnostics, type Diagnostics, type DiagnosticsOptions } from './diagnostics';
 import { createEntityWorld, type EntityWorld } from './entities';
 import { EngineError } from './errors';
 import { createEventBus, type EventMap, type TypedEventBus } from './eventBus';
-import { createFixedTimestepClock, type FixedTimestepClock, type FixedTimestepOptions } from './fixedTimestep';
+import {
+  createFixedTimestepClock,
+  type FixedTimestepClock,
+  type FixedTimestepOptions,
+} from './fixedTimestep';
 import { createLifecycle, type LifecycleState } from './lifecycle';
 import { createResourceScope, type ResourceScope } from './resources';
 import { createServiceRegistry, type ServiceRegistry } from './services';
@@ -61,7 +69,10 @@ export interface EngineRuntime<Events extends EventMap = EventMap> {
   readonly installed: ReadonlyMap<string, unknown>;
   /** Typed config of an installed capability. */
   capabilityConfig<T>(id: string): T | undefined;
-  start(requests?: readonly CapabilityRequest[], setup?: (runtime: EngineRuntime<Events>) => Promise<void> | void): Promise<void>;
+  start(
+    requests?: readonly CapabilityRequest[],
+    setup?: (runtime: EngineRuntime<Events>) => Promise<void> | void,
+  ): Promise<void>;
   /** Advances real time. Runs fixed steps, then one presentation frame. No-op unless running. */
   tick(frameSeconds: number): void;
   pause(): void;
@@ -73,12 +84,16 @@ function isDiagnostics(value: DiagnosticsOptions | Diagnostics | undefined): val
   return typeof (value as Diagnostics | undefined)?.snapshot === 'function';
 }
 
-export function createEngineRuntime<Events extends EventMap = EventMap>(options: EngineRuntimeOptions): EngineRuntime<Events> {
+export function createEngineRuntime<Events extends EventMap = EventMap>(
+  options: EngineRuntimeOptions,
+): EngineRuntime<Events> {
   if (!options.id || !options.id.trim()) {
     throw new EngineError('INVALID_CONFIG', 'An engine runtime needs a non-empty id');
   }
   const lifecycle = createLifecycle();
-  const diagnostics = isDiagnostics(options.diagnostics) ? options.diagnostics : createDiagnostics(options.diagnostics);
+  const diagnostics = isDiagnostics(options.diagnostics)
+    ? options.diagnostics
+    : createDiagnostics(options.diagnostics);
   const events = createEventBus<Events & RuntimeEventMap>({
     onListenerError: (error, eventName) => {
       diagnostics.warn('LISTENER_THREW', { event: eventName });
@@ -102,8 +117,10 @@ export function createEngineRuntime<Events extends EventMap = EventMap>(options:
   let step = 0;
 
   // Event emission typed against the merged map; `as never` keeps the generic call simple.
-  const emitRuntime = <Name extends keyof RuntimeEventMap>(name: Name, payload: RuntimeEventMap[Name]) =>
-    events.emit(name as never, payload as never);
+  const emitRuntime = <Name extends keyof RuntimeEventMap>(
+    name: Name,
+    payload: RuntimeEventMap[Name],
+  ) => events.emit(name as never, payload as never);
 
   lifecycle.onChange((state, previous) => emitRuntime('engine.stateChanged', { state, previous }));
 
@@ -156,12 +173,18 @@ export function createEngineRuntime<Events extends EventMap = EventMap>(options:
           if (lifecycle.state !== 'starting') {
             return;
           }
-          const uninstall = definition.install?.(runtime as unknown as EngineRuntime<EventMap>, config);
+          const uninstall = definition.install?.(
+            runtime as unknown as EngineRuntime<EventMap>,
+            config,
+          );
           installed.set(definition.id, config);
           if (typeof uninstall === 'function') {
             uninstallers.push({ id: definition.id, run: uninstall });
           }
-          emitRuntime('engine.capabilityInstalled', { id: definition.id, version: definition.version });
+          emitRuntime('engine.capabilityInstalled', {
+            id: definition.id,
+            version: definition.version,
+          });
         }
         if (setup) {
           await setup(runtime);

@@ -18,7 +18,11 @@ import { STORYKEEPER_CASTLE_CHECKPOINTS } from '../../discovery/checkpoints';
  */
 
 const FIND_IDS = ['castle-chamber-star', 'castle-chamber-mouse-door'] as const;
-const NOTHING: WorldInteractionContext = { worldChangeKeys: [], ownedItemIds: [], discoveryIds: [] };
+const NOTHING: WorldInteractionContext = {
+  worldChangeKeys: [],
+  ownedItemIds: [],
+  discoveryIds: [],
+};
 const NOOK: WorldInteractionContext = { ...NOTHING, discoveryIds: [SECRET_PASSAGE_DISCOVERY_ID] };
 const interactionOf = (id: string) => CASTLE_CHAMBER_INTERACTIONS.find((i) => i.id === id)!;
 const zoneOf = (id: string) => ZONES.find((z) => z.id === id)!;
@@ -65,7 +69,9 @@ describe.each(FIND_IDS)('the chamber find %s', (id) => {
       expect(overlaps(zone, collider.rect), `overlaps ${collider.rect.id}`).toBe(false);
     }
     const spawn = STORYKEEPER_CASTLE_CHECKPOINTS[0];
-    expect(spawn.x < zone.minX || spawn.x > zone.maxX || spawn.z < zone.minZ || spawn.z > zone.maxZ).toBe(true);
+    expect(
+      spawn.x < zone.minX || spawn.x > zone.maxX || spawn.z < zone.minZ || spawn.z > zone.maxZ,
+    ).toBe(true);
   });
 
   it('can be reached on foot once the nook is found', () => {
@@ -81,7 +87,7 @@ describe.each(FIND_IDS)('the chamber find %s', (id) => {
     expect(MANIFEST.noReticleBands).toEqual(['SPROUT']);
   });
 
-  it('grants nothing but the record, except the mouse door\'s one optional keepsake (Final F)', () => {
+  it("grants nothing but the record, except the mouse door's one optional keepsake (Final F)", () => {
     const definition = findIslandDiscovery(id)!;
     expect(definition.startsQuestId).toBeUndefined();
     expect(definition.requirements).toEqual([
@@ -115,7 +121,8 @@ describe.each(FIND_IDS)('the chamber find %s', (id) => {
 describe('the chamber finds as scenery', () => {
   it('stand on the wall faces of the chamber, one box each, and stay inside the chamber budget', () => {
     const boxes = MANIFEST.scenery.filter(
-      (item) => item.kind === 'BOX' && /^castle-chamber-(star-glint|mouse-door-small)$/.test(item.id),
+      (item) =>
+        item.kind === 'BOX' && /^castle-chamber-(star-glint|mouse-door-small)$/.test(item.id),
     );
     expect(boxes).toHaveLength(2);
     for (const spot of CHAMBER_FIND_SPOTS) {
