@@ -8,7 +8,9 @@ from pathlib import Path
 
 import pytest
 
-yaml = pytest.importorskip("yaml")
+# A hard import, not importorskip: PyYAML is pinned in requirements-dev.txt, so a missing module
+# is a broken environment and must fail, never silently skip these guards (GE-090).
+import yaml
 
 REPO = Path(__file__).resolve().parents[2]
 WORKFLOWS = REPO / ".github/workflows"

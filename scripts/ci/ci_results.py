@@ -12,7 +12,7 @@ Anything missing, malformed or ambiguous is `incomplete`, never `pass` (fail clo
 Standard library only: it runs on the GitHub runner, the EC2 instance and the development host.
 
     python3 scripts/ci/ci_results.py verify results.json --commit <sha> [--scope affected|full-unit]
-        [--tree <tree sha>] [--summary out.md] [--json]
+        [--tree <tree sha>] [--base <base sha>] [--summary out.md] [--json]
 Exit codes: 0 pass, 1 fail (tests failed), 2 incomplete (results missing, blocked or invalid).
 """
 
@@ -228,7 +228,12 @@ def load(path: Path) -> dict[str, Any]:
 
 
 def verify(
-    doc: dict[str, Any], *, commit_sha: str, scope: str | None = None, tree_sha: str | None = None
+    doc: dict[str, Any],
+    *,
+    commit_sha: str,
+    scope: str | None = None,
+    tree_sha: str | None = None,
+    base_sha: str | None = None,
 ) -> tuple[str, list[str]]:
     """The merge-gate check of one results document against the request it should answer."""
     if not SHA_RE.match(commit_sha or ""):
@@ -245,6 +250,13 @@ def verify(
         problems.append(f"tested tree {doc.get('tree_sha')!r} is not the commit's tree {tree_sha}")
     if scope is not None and doc.get("scope") != scope:
         problems.append(f"results are for scope {doc.get('scope')!r}, not {scope!r}")
+    if base_sha is not None:
+        planned = (doc.get("plan") or {}).get("base_sha", base_sha)
+        if doc.get("base_sha") != base_sha or planned != base_sha:
+            problems.append(
+                f"results were planned against base {doc.get('base_sha')!r}, not the requested "
+                f"{base_sha}"
+            )
     verdict, reasons = compute_verdict(doc)
     if problems:
         return "incomplete", problems + reasons
@@ -300,13 +312,16 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("--commit", required=True)
     check.add_argument("--scope", choices=SCOPES)
     check.add_argument("--tree", help="expected tree SHA of the commit")
+    check.add_argument("--base", help="expected base SHA the affected plan diffed against")
     check.add_argument("--summary", type=Path, help="append a Markdown summary to this file")
     check.add_argument("--json", action="store_true", help="print the verdict as JSON")
     args = parser.parse_args(argv)
 
     try:
         doc = load(args.results)
-        verdict, reasons = verify(doc, commit_sha=args.commit, scope=args.scope, tree_sha=args.tree)
+        verdict, reasons = verify(
+            doc, commit_sha=args.commit, scope=args.scope, tree_sha=args.tree, base_sha=args.base
+        )
     except ResultsError as exc:
         doc, verdict, reasons = {}, "incomplete", [str(exc)]
     if args.summary:

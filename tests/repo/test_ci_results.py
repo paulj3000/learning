@@ -16,7 +16,7 @@ _SPEC.loader.exec_module(results)
 
 SHA = "a" * 40
 OTHER = "b" * 40
-TREE = "c" * 40
+TREE = "d" * 40
 
 PYTEST_XML = """<?xml version="1.0" encoding="utf-8"?>
 <testsuites><testsuite name="pytest" tests="4">
@@ -217,6 +217,30 @@ def test_verify_rejects_results_for_anything_else(kwargs, fragment):
     verdict, reasons = results.verify(passing_doc(), **kwargs)
     assert verdict == "incomplete"
     assert any(fragment in r for r in reasons)
+
+
+def test_verify_accepts_the_requested_base():
+    doc = passing_doc(plan={**passing_doc()["plan"], "base_sha": OTHER})
+    assert results.verify(doc, commit_sha=SHA, base_sha=OTHER) == ("pass", [])
+
+
+@pytest.mark.parametrize("where", ["results", "plan"])
+def test_verify_rejects_results_planned_against_another_base(where):
+    """An `affected` run with an explicit base must have diffed against exactly that base."""
+    elsewhere = "d" * 40
+    doc = passing_doc()
+    if where == "results":
+        doc["base_sha"] = elsewhere
+    else:
+        doc["plan"] = {**doc["plan"], "base_sha": elsewhere}
+    verdict, reasons = results.verify(doc, commit_sha=SHA, base_sha=OTHER)
+    assert verdict == "incomplete"
+    assert any("planned against base" in r for r in reasons)
+
+
+def test_cli_checks_the_base(tmp_path):
+    assert run_cli(tmp_path, passing_doc(), "--base", OTHER)[0] == 0
+    assert run_cli(tmp_path, passing_doc(), "--base", "d" * 40)[0] == 2
 
 
 def test_verify_rejects_a_tampered_request_block():

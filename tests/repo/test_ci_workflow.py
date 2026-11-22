@@ -73,7 +73,10 @@ def test_the_ssm_command_does_not_open_ssh_or_postgres():
 
 @pytest.fixture(scope="module")
 def workflow():
-    yaml = pytest.importorskip("yaml")
+    # A hard import, not importorskip: PyYAML is pinned in requirements-dev.txt, so a missing
+    # module is a broken environment and must fail, never silently skip these guards (GE-090).
+    import yaml
+
     data = yaml.safe_load(TEXT)
     data["on"] = data.pop(True, data.get("on"))  # PyYAML reads `on` as True
     return data
@@ -90,10 +93,12 @@ def steps(job):
 
 def test_dispatch_inputs(workflow):
     inputs = workflow["on"]["workflow_dispatch"]["inputs"]
-    assert set(inputs) == {"commit_sha", "test_scope", "request_id"}
+    assert set(inputs) == {"commit_sha", "test_scope", "request_id", "base_sha"}
     assert inputs["commit_sha"]["required"] is True
     assert inputs["test_scope"]["options"] == ["affected", "full-unit"]
     assert inputs["request_id"]["required"] is False
+    assert inputs["base_sha"]["required"] is False
+    assert inputs["base_sha"]["default"] == ""
     assert set(workflow["on"]) == {"workflow_dispatch"}
 
 
@@ -119,6 +124,28 @@ def test_the_commit_is_validated_against_its_branch(job):
     assert "merge-base --is-ancestor" in validate
     assert "^[0-9a-f]{40}$" in validate
     assert "integration/" in validate
+
+
+def test_an_explicit_base_is_validated_and_only_narrows_affected(job):
+    """base_sha lets a candidate be diffed against an earlier verified commit, not main."""
+    validate = steps(job)["Validate the request"]["run"]
+    assert 'base_sha="$(git merge-base origin/main "$INPUT_COMMIT_SHA")"' in validate  # default
+    assert '[[ "$INPUT_BASE_SHA" =~ ^[0-9a-f]{40}$ ]]' in validate
+    assert 'git merge-base --is-ancestor "$INPUT_BASE_SHA" "$INPUT_COMMIT_SHA"' in validate
+    assert '[ "$INPUT_SCOPE" = affected ] || fail' in validate  # full-unit stays full
+    assert '[ "$INPUT_BASE_SHA" != "$INPUT_COMMIT_SHA" ]' in validate
+    assert "${{ inputs.base_sha }}" not in validate  # reaches the script only through env
+    assert '--arg base_source "$base_source"' in validate
+
+
+def test_the_verdict_step_checks_the_base_and_publishes_a_failing_verdict(job):
+    step = steps(job)["Check the results against the request (fail closed)"]
+    assert step["env"]["BASE_SHA"] == "${{ steps.request.outputs.base_sha }}"
+    run = step["run"]
+    assert '${BASE_SHA:+--base "$BASE_SHA"}' in run
+    # Under the step's `bash -e`, a non-zero verify must not abort before the verdict is written.
+    assert '>"$OUT_DIR/verdict.json" || code=$?' in run
+    assert run.rstrip().endswith('exit "$code"')
 
 
 @pytest.mark.parametrize(
