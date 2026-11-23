@@ -129,6 +129,10 @@ export function WorldHud({
           <button
             type="button"
             className={styles.actionPrompt}
+            // The one gameplay action prompt. A stable marker, so tests (and anything else that
+            // asks "what can the child do here?") never confuse it with HUD controls such as the
+            // camera button, whose name has the same "Verb: thing" shape (GE-090-D7).
+            data-hud="action-prompt"
             onClick={onInteract}
             aria-label={`${focusAction}: ${focusedLabel}`}
           >
@@ -173,6 +177,7 @@ export function WorldHud({
         <button
           type="button"
           className={`${styles.cameraButton} ${showJump ? styles.cameraBesideJump : ''}`.trim()}
+          data-hud="camera-view"
           aria-label={`View: ${CAMERA_VIEW_LABELS[cameraMode]}. Change view`}
           onClick={onToggleCamera}
           onContextMenu={(event) => event.preventDefault()}

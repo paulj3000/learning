@@ -244,6 +244,34 @@ describe('WorldHud camera button (LAI-JMP-01a)', () => {
     expect(screen.queryByText('V')).not.toBeInTheDocument();
   });
 
+  it('coexists with a gameplay prompt, and only the prompt is marked as one (GE-090-D7)', async () => {
+    device(false);
+    const onInteract = vi.fn();
+    const onToggleCamera = vi.fn();
+    const { container } = render(
+      <WorldHud
+        {...baseProps}
+        focusedLabel="Pirate Pip"
+        focusAction="Talk"
+        onInteract={onInteract}
+        cameraMode="third-person"
+        onToggleCamera={onToggleCamera}
+      />,
+    );
+    const prompts = container.querySelectorAll('[data-hud="action-prompt"]');
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]).toBe(screen.getByRole('button', { name: 'Talk: Pirate Pip' }));
+    const camera = screen.getByRole('button', { name: 'View: Behind me. Change view' });
+    expect(camera).toHaveAttribute('data-hud', 'camera-view');
+    // Both stay usable, and each does only its own job.
+    await userEvent.click(camera);
+    expect(onToggleCamera).toHaveBeenCalledTimes(1);
+    expect(onInteract).not.toHaveBeenCalled();
+    await userEvent.click(prompts[0] as HTMLElement);
+    expect(onInteract).toHaveBeenCalledTimes(1);
+    expect(onToggleCamera).toHaveBeenCalledTimes(1);
+  });
+
   it('is absent where the location does not allow switching', () => {
     device(true);
     render(<WorldHud {...baseProps} cameraMode="third-person" />);
