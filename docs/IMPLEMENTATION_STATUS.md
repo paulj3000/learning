@@ -37,6 +37,23 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-23, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, Trello #247); in progress, NOT merged
+
+- Owner direction (2026-11-23): shipped-scene references are listed, never blocking (S6 not required). Collision-profile effects are reported. The hub becomes a Place only if that has no side effects.
+- Built (independent of W2-1):
+  - the hub's 11 ids are kept through import in `ContentRelease.report["scene_assets_without_place"]` (interim, no migration);
+  - `apps/catalog/scene_usage.py`;
+  - the asset definition `used_by` and the retire warning (non-blocking);
+  - the collision profile page lists shipped scenes (S4);
+  - S5 is pinned (`avatar.default` fails `SlugField` validation);
+  - the client test that a retired entry keeps the bundled model and any collision the server sends.
+- Waiting: the S1 `catalog` usage provider, after LAI 07's W2-1 (#65) merges.
+- Owner decisions open:
+  - the resolver rule "retired + bundled keeps collision" (LAI 07);
+  - making the hub a Place (side effects in the design doc, section 8.3).
+- S7 is not recommended now.
+- Design and evidence: `docs/engineering/game-engine/bundled-asset-references.md`.
+
 ## GE-090-D7: browser acceptance defects (2026-11-22, `fix/ge-090-d7-browser-acceptance` from `aa8adb33`, Trello VD4zv7WN); Development Complete, NOT merged, NOT owner-accepted
 
 The 19 desktop and tablet acceptance failures on `main` had four causes: two product defects and

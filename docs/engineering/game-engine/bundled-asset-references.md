@@ -1,8 +1,9 @@
-# #247: bundled asset references in Asset Library dependency reporting (design)
+# GE-247: bundled asset references in Asset Library dependency reporting
 
-Status: **Proposed, design only** (Agent 4, Game Engine Core, 2026-11-23). Nothing here is
-implemented. The cross-system work waits for owner approval. Trello #247, which depends on #246 (LAI 07 W2
-registry). Baseline `main` @ `aa8adb33` (includes Asset Library W1).
+Status: **Owner-approved direction (2026-11-23); in implementation** (Agent 4 / LAI 04, Game Engine
+Core). Trello #247. Shipped-scene references are listed, never blocking (S6 not required). The
+registry parts wait for LAI 07's W2-1 (#246, PR #65). Branch `feature/ge-247-bundled-asset-references`
+on `main` @ `1b0a50a3` (includes GE-L16 #59 and GE-090-D7 #63). Section 8 records what is built.
 
 ## 1. Summary
 
@@ -104,19 +105,12 @@ rule 1; it already lists `LocationAsset` rows on the W2 branch, and S1 refines i
   time.
 - No engine runtime change.
 
-## 5. Owner decision needed
+## 5. Owner decision (2026-11-23)
 
-Should a shipped-scene usage **block** retiring the asset?
-
-- **Recommended: list only.** Retirement cannot remove the model (section 3). It returns collision
-  to the engine default, which is the tested signed-out behaviour. Blocking would also prevent
-  retiring any of the 104 bundled ids, which may be intended ("bundled assets are permanent"), but
-  that is a product rule to state, not an accident of tracking.
-- **Alternative: block** with code `bundled_scene_dependency`. The message says to change the
-  manifest and ship a client build first.
-
-Either way, staff guidance: "Collision profile changes on these assets apply to the shipped scenes
-immediately."
+**List only.** A shipped scene's reference is shown wherever staff inspect or retire the asset,
+and never blocks retirement. Retirement cannot remove the bundled model (section 3). Collision
+profile changes have immediate gameplay consequences, so they are reported on the collision
+profile page. S6 (blocking) is not required.
 
 ## 6. Ownership boundaries (task 6)
 
@@ -150,3 +144,74 @@ Release-order note: `LocationAsset` reflects the last `load_content`, not the cl
 is deployed. A client release that changes a manifest must be followed by the content import
 (`content:check` already fails CI if the committed export is stale). Record this in the release
 checklist (LAI 05).
+
+## 8. Implementation (2026-11-23)
+
+### 8.1 Built, independent of W2-1
+
+| Piece | Where | Behaviour |
+|---|---|---|
+| Hub references survive import | `lai/apps/catalog/importer.py` (`SCENE_ASSETS_WITHOUT_PLACE`) | A scene with no Place record keeps its skip message. Its asset ids are now also stored in `ContentRelease.report["scene_assets_without_place"]`, for example `{"welcome-harbor": [11 ids]}`. No migration. |
+| Which shipped scenes use an asset | `lai/apps/catalog/scene_usage.py` | `shipped_scene_usages(asset)` returns `SceneUsage(scene, has_place, release_id, current)` from `LocationAsset` rows (current = last seen in the latest release) and the latest release's hub entry. A missing or malformed entry lists nothing and never raises. `retirement_note(asset)` describes current behaviour; it mentions collision only when the asset has a profile. |
+| Asset definition page | `catalog/admin.py` `used_by` | `bay; welcome-harbor (no Place record)`, with stale scenes marked `last seen in release N`. |
+| Retire action | `catalog/admin.py` `retire_assets` | Never refused for a shipped scene. After retiring, a warning names the current scenes and the note. |
+| Collision profile page (S4) | `assets/admin.py` `CollisionProfileAdmin.shipped_scenes` (read-only; additive) | Lists the current shipped scenes and says saving changes collision there on the child's next visit. A profile for a non-default version says it does not change them. |
+| Reserved engine ids (S5) | `ContentAsset.asset_id` is a `SlugField` | `avatar.default` already fails validation (the dot). Pinned by a test; no code change. |
+| Client pinning (S2, client half) | `react/src/api/assets/djangoAssetResolver.test.ts` | A `retired` answer still loads the bundled model, and the client honours a collision profile on a retired entry when the server sends one. |
+
+### 8.2 Waits for W2-1 (#65 on `main`)
+
+- **S1 provider.** `register_usage_provider("catalog", provider)` from `CatalogConfig.ready()`. It
+  wraps `shipped_scene_usages` and returns `[]` for a version question. Each usage has the label
+  from `SceneUsage.label`, `blocks_retirement=False` and `details={"scene", "release", "current",
+  "note"}`. It never raises on a missing or stale index. `manage.py asset_usage` then lists these
+  rows; the W2-5 admin panel will render `details["note"]`.
+
+### 8.3 Welcome Harbor: why not a Place record yet
+
+Audited on `7ea078aa`. A first-class hub `Location` cannot go into `ISLAND_LOCATIONS`: the client
+would render the hub twice (WorldHubPage, parent dashboard region list, IslandLocationPage, realm
+cards), because it already renders it from `WelcomeHarbor.tsx`. An export-only record on the home
+island (the Firepeak pattern) avoids that, but it has these Django side effects:
+
+- The child islands API (`game_sessions/discovery.py`, island places) would send the hub as a
+  Place with 0 adventures.
+- `AvailabilityView`, the NPC, question-studio and audio place pickers, and the audio coverage
+  report would gain a hub entry.
+- 4 pinned tests change: `contentExport.test.ts` (the `region-without-location-record` ambiguity),
+  `test_importer.py` (2 skip messages) and `test_export_content.py` (the hub NPC allowance).
+  `locations.json`, `manifest.json` and the golden content digest are regenerated.
+
+So the hub's references use the release report: an interim home with no schema change. A nullable
+`LocationAsset.location` was rejected (a migration on a PROTECT FK that every consumer relies on).
+**Owner decision open:** keep the interim, or make the hub a Place and accept or suppress the
+side effects above (for example an inactive row, which needs a `discovery.py` change).
+
+### 8.4 Collision safety
+
+- **The model never disappears.** Every shipped-scene id is an `ASSET_MANIFEST` entry, and shipped
+  regions load only through the bundled loader (`regionAssets.test.ts` "keeps the bundled loader
+  for a source-controlled region").
+- **Collision can disappear today.** The resolver drops `collision` for a retired asset. 75 of the
+  104 shipped-scene ids have no built-in footprint (kit pieces such as `archway`, `bookshelf`,
+  `shipwreck`, `wall-stone`), so a staff profile on one of them is the only derived collider. The
+  scene's authored colliders and building walls are separate and unaffected.
+- **Proposed fix, owner approval pending (LAI 07, `assets/resolver.py`):** a retired asset with a
+  `bundled_path` keeps its `collision` (status stays `retired`, no URL). The client half is
+  already pinned (section 8.1). Until it is approved, the staff note says the profile stops
+  applying.
+- **Deployed profiles: nothing to audit yet.** LAI 05 verified on 2026-11-23, read-only, that no
+  DEV stack or deploy run exists. When an environment exists, LAI 05 runs
+  `collision_clearance_audit` and the profiled-and-shipped query read-only and reports ids only.
+
+### 8.5 S1 to S7 disposition
+
+| Step | Disposition |
+|---|---|
+| S1 | Helper and admin uses built; provider registration waits for #65 |
+| S2 | Client half built; resolver half is LAI 07's, together with the pending resolver rule |
+| S3 | Hub references kept through import (interim, release report); first-class Place is an owner decision (8.3) |
+| S4 | Built (collision profile page) |
+| S5 | Already enforced by the schema; pinned by a test |
+| S6 | Not required (owner) |
+| S7 | Not recommended now: per-id use kinds would only enrich labels. Every consumer here needs only "which scene uses this id", and a v2 index means an export schema bump, a golden digest change and an importer change for no staff-visible decision. Revisit if staff need "placed vs LOD twin" in the UI. |

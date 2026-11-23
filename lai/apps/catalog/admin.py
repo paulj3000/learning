@@ -18,7 +18,7 @@ from django.db.models import BooleanField, Count, ExpressionWrapper, Q, Subquery
 
 from apps.assets import preview as asset_preview
 from apps.assets.models import AssetVersion
-from apps.catalog import admin_access
+from apps.catalog import admin_access, scene_usage
 from apps.catalog.authoring_admin import AuthoredContentAdminMixin
 from apps.catalog.models import (
     Adventure,
@@ -440,12 +440,10 @@ class ContentAssetAdmin(CatalogModelAdmin):
         )
         return asset_preview.link_for(version)
 
-    @admin.display(description="Used by locations")
+    @admin.display(description="Used by shipped scenes")
     def used_by(self, obj) -> str:
-        slugs = obj.location_links.order_by("location__slug").values_list(
-            "location__slug", flat=True
-        )
-        return ", ".join(slugs) or "No shipped scene"
+        usages = scene_usage.shipped_scene_usages(obj)
+        return "; ".join(usage.short for usage in usages) or "No shipped scene"
 
     @admin.action(description="Retire selected assets", permissions=["retire"])
     def retire_assets(self, request, queryset):
@@ -453,7 +451,8 @@ class ContentAssetAdmin(CatalogModelAdmin):
 
         count = 0
         for asset in queryset:
-            used = asset.location_links.count()
+            # Shipped scenes never block retirement (GE-247); they are listed so staff see it.
+            scenes = [usage for usage in scene_usage.shipped_scene_usages(asset) if usage.current]
             try:
                 retire_asset(asset)
             except AssetActionRefused as refused:  # a retirement guard objected (LAI-NPC-036)
@@ -461,11 +460,12 @@ class ContentAssetAdmin(CatalogModelAdmin):
                 continue
             self.log_change(request, asset, "Retired the asset.")
             count += 1
-            if used:
+            if scenes:
                 self.message_user(
                     request,
-                    f"{asset.asset_id} is still referenced by {used} place(s); games fall back "
-                    "to their bundled art until it is reactivated.",
+                    f"{asset.asset_id} is still used by shipped scene(s) "
+                    f"{', '.join(usage.short for usage in scenes)}. "
+                    f"{scene_usage.retirement_note(asset)}",
                     messages.WARNING,
                 )
         if count:
