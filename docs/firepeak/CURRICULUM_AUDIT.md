@@ -47,11 +47,14 @@ parameters. Variant ids (`v1`, ...) are the ids in that file.
   - objectives do not depend on the age band.
 - **Rule used here:** map by what the prompts actually test, never because two identifiers look
   alike. Where a valid code does not match the intent, the row says so.
-- **Status column.** "confirmed by LAI 06" means LAI 06 agreed on 2026-11-23. "LAI 03 proposal"
-  means it is awaiting LAI 06. Either way the mapping goes to the owner as LAI 06's reviewed
-  table in the FPV-D10 PR. Nothing here is owner-approved.
+- **Status column.** Every row is "confirmed by LAI 06" (2026-11-23, after two review rounds).
+  The mapping goes to the owner as LAI 06's reviewed table in the FPV-D10 PR. Nothing here is
+  owner-approved.
 
 ## New objectives this adventure needs (authored by LAI 06)
+
+LAI 06's full list is 12 new objectives. It also retitles `cause-and-effect` to "Understanding
+cause and effect". Codes as LAI 06 sent them, 2026-11-23:
 
 | Code | Domain | Parent-facing title |
 |---|---|---|
@@ -98,16 +101,16 @@ title or titles shown on the parent dashboard.
 |---|---|---|---|---|---|---|---|---|---|
 | `the-heart-of-firepeak` | `fh-emberwood-pattern` "Finish the crystal pattern" | Pathfinder | `patterns` | yes | Recognizing and continuing patterns | `patterns` | none | Recognizing and continuing patterns | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-emberwood-pattern` "Finish the crystal pattern" | Explorer | `patterns` | yes | Number sequences, including doubling and counting back. | `patterns` | none | Recognizing and continuing patterns | confirmed by LAI 06 |
-| `the-heart-of-firepeak` | `fh-emberwood-count` "Count the embers" | Pathfinder | `counting-and-groups` | **no** | v1 and v2 compare two quantities. v3 counts on (continuing a sequence). v4 is 5 + 2. | `comparing-and-ordering-numbers` (new) | v3: `patterns`; v4: `addition-within-ten` | Comparing and ordering numbers; Recognizing and continuing patterns; Addition within ten | LAI 03 proposal, LAI 06 to confirm |
+| `the-heart-of-firepeak` | `fh-emberwood-count` "Count the embers" | Pathfinder | `counting-and-groups` | **no** | v1 and v2 compare two quantities. v3 counts on (continuing a sequence). v4 is 5 + 2. | `comparing-and-ordering-numbers` (new) | v3: `patterns`; v4: `addition-within-ten` | Comparing and ordering numbers; Recognizing and continuing patterns; Addition within ten | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-emberwood-count` "Count the embers" | Explorer | `counting-and-groups` | **no** | Equal groups (3 baskets of 4) are multiplication. Counting by 5s and 2s continues a sequence. | `multiplication-facts` | v1: `patterns`; v3: `patterns` | Multiplication facts; Recognizing and continuing patterns | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-lava-numbers` "Build the lava bridge" | Pathfinder | `add-subtract-multiply` | **no** | Addition within ten | `addition-within-ten` | v2: `subtraction-within-ten`; v4: `subtraction-within-ten` | Addition within ten; Subtraction within ten | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-lava-numbers` "Build the lava bridge" | Explorer | `add-subtract-multiply` | **no** | Addition within 100 | `addition-within-100` (new) | v2: `subtraction-within-100`; v3: `multiplication-facts`; v5: `multiplication-facts` | Addition within 100; Subtraction within 100; Multiplication facts | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-lava-compare` "Choose the right path" | Pathfinder | `compare-order-halves` | **no** | Comparing and ordering numbers | `comparing-and-ordering-numbers` (new) | none | Comparing and ordering numbers | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-lava-compare` "Choose the right path" | Explorer | `compare-order-halves` | **no** | Half of 20 and half of 18 are about parts of a whole. | `comparing-and-ordering-numbers` (new) | v3: `halves-and-fractions`; v4: `halves-and-fractions` | Comparing and ordering numbers; Halves and simple fractions | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-caverns-shapes` "Match the cave shapes" | Pathfinder | `shapes-and-geometry` | **no** | Naming and describing shapes | `shapes-and-geometry` (new) | none | Naming and describing shapes | confirmed by LAI 06 |
-| `the-heart-of-firepeak` | `fh-caverns-shapes` "Match the cave shapes" | Explorer | `shapes-and-geometry` | **no** | v3 asks how many equal parts quarters make. | `shapes-and-geometry` (new) | v3: `halves-and-fractions` | Naming and describing shapes; Halves and simple fractions | confirmed by LAI 06, LAI 03 proposal, LAI 06 to confirm |
-| `the-heart-of-firepeak` | `fh-caverns-arrange` "Arrange the cave crystals" | Pathfinder | `ordering-and-measurement` | **no** | v1 and v3 order crystals by size (existing `measurement`: measuring and comparing size). v2 and v4 order numbers. | `measurement` | v2: `comparing-and-ordering-numbers`; v4: `comparing-and-ordering-numbers` | Measuring and comparing size; Comparing and ordering numbers | LAI 03 proposal, LAI 06 to confirm |
-| `the-heart-of-firepeak` | `fh-caverns-arrange` "Arrange the cave crystals" | Explorer | `ordering-and-measurement` | **no** | v2 and v3 order fractions. v1 orders by number of sides. v4 orders numbers. | `halves-and-fractions` (new) | v1: `shapes-and-geometry`; v4: `comparing-and-ordering-numbers` | Halves and simple fractions; Naming and describing shapes; Comparing and ordering numbers | LAI 03 proposal, LAI 06 to confirm |
+| `the-heart-of-firepeak` | `fh-caverns-shapes` "Match the cave shapes" | Explorer | `shapes-and-geometry` | **no** | v3 asks how many equal parts quarters make. | `shapes-and-geometry` (new) | v3: `halves-and-fractions` | Naming and describing shapes; Halves and simple fractions | confirmed by LAI 06 |
+| `the-heart-of-firepeak` | `fh-caverns-arrange` "Arrange the cave crystals" | Pathfinder | `ordering-and-measurement` | **no** | v1 and v3 order crystals by size (existing `measurement`: measuring and comparing size). v2 and v4 order numbers. | `measurement` | v2: `comparing-and-ordering-numbers`; v4: `comparing-and-ordering-numbers` | Measuring and comparing size; Comparing and ordering numbers | confirmed by LAI 06 |
+| `the-heart-of-firepeak` | `fh-caverns-arrange` "Arrange the cave crystals" | Explorer | `ordering-and-measurement` | **no** | v2 and v3 order fractions. v1 orders by number of sides. v4 orders numbers. | `halves-and-fractions` (new) | v1: `shapes-and-geometry`; v4: `comparing-and-ordering-numbers` | Halves and simple fractions; Naming and describing shapes; Comparing and ordering numbers | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-forge-switches` "Wake the forge machines" | Pathfinder | `sequencing-cause-and-effect` | **no** | The prompt states the order. | `following-instructions` | none | Following ordered instructions | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-forge-switches` "Wake the forge machines" | Explorer | `sequencing-cause-and-effect` | **no** | Reasoning from constraints: what must happen before what. LAI 06 will retitle `cause-and-effect` to drop "in nature" (owner table). | `cause-and-effect` | none | Understanding cause and effect in nature | confirmed by LAI 06 |
 | `the-heart-of-firepeak` | `fh-forge-circuit` "Light the forge lamp" | Pathfinder | `circuits-and-sharing` | **no** | How simple circuits work | `simple-circuits` (new) | none | How simple circuits work | confirmed by LAI 06 |
@@ -121,9 +124,12 @@ title or titles shown on the parent dashboard.
 
 ## Next steps
 
-1. LAI 06 confirms the rows marked "LAI 03 proposal" and lands the per-variant contract commit.
+1. LAI 06 lands the per-variant contract commit. The variant key is an optional lowercase `skill`
+   next to `id`, `prompt`, `options` or `items`, `answer` and `explanation`; the band default
+   stays required.
 2. LAI 03 updates the content tags on its adventure branch, based on that commit, with tests:
-   - every band and variant `skill` is a `LearningObjective` code;
+   - every band and variant `skill` is a `LearningObjective` code, checked with
+     `manage.py puzzle_skill_report --strict` (LAI 06) after the import and the seeds;
    - no band mixes objectives without an override.
 3. LAI 06's FPV-D10 PR carries the new objectives and the reviewed mapping table for the owner.
 4. Backfilling earlier solves is an owner decision (FPV-D10).
