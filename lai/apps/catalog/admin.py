@@ -20,6 +20,7 @@ from apps.assets import preview as asset_preview
 from apps.assets.models import AssetVersion
 from apps.catalog import admin_access, scene_usage
 from apps.catalog.authoring_admin import AuthoredContentAdminMixin
+from apps.catalog.importer import SCENE_ASSETS_WITHOUT_PLACE
 from apps.catalog.models import (
     Adventure,
     AdventureStep,
@@ -440,9 +441,29 @@ class ContentAssetAdmin(CatalogModelAdmin):
         )
         return asset_preview.link_for(version)
 
+    def get_queryset(self, request):
+        # The latest release for `used_by`, in this query rather than once per listed row.
+        latest = ContentRelease.objects.order_by("-imported_at", "-id")
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                latest_release_pk=Subquery(latest.values("pk")[:1]),
+                latest_without_place=Subquery(
+                    latest.values(f"report__{SCENE_ASSETS_WITHOUT_PLACE}")[:1]
+                ),
+            )
+        )
+
     @admin.display(description="Used by shipped scenes")
     def used_by(self, obj) -> str:
-        usages = scene_usage.shipped_scene_usages(obj)
+        if not hasattr(obj, "latest_release_pk"):  # not from get_queryset: ask once
+            latest = scene_usage.latest_release()
+        elif obj.latest_release_pk is None:  # nothing imported yet
+            latest = None
+        else:
+            latest = scene_usage.LatestRelease(obj.latest_release_pk, obj.latest_without_place)
+        usages = scene_usage.shipped_scene_usages(obj, latest)
         return "; ".join(usage.short for usage in usages) or "No shipped scene"
 
     @admin.action(description="Retire selected assets", permissions=["retire"])

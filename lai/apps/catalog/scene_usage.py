@@ -53,9 +53,34 @@ class SceneUsage:
         return text if self.current else f"{text}, last seen in release {self.release_id}"
 
 
-def shipped_scene_usages(asset: ContentAsset) -> list[SceneUsage]:
-    """Every shipped scene that uses `asset`: current ones first, then stale ones, each by slug."""
-    latest = ContentRelease.objects.only("pk", "report").first()
+@dataclass(frozen=True)
+class LatestRelease:
+    """What the listing needs from the latest release: its id and its hub entry (raw)."""
+
+    pk: int
+    without_place: object = None
+
+
+def latest_release() -> LatestRelease | None:
+    """The newest release (ContentRelease orders newest first), or None before any import."""
+    row = (
+        ContentRelease.objects.values_list("pk", f"report__{SCENE_ASSETS_WITHOUT_PLACE}")
+        .order_by("-imported_at", "-id")
+        .first()
+    )
+    return None if row is None else LatestRelease(pk=row[0], without_place=row[1])
+
+
+_FETCH = object()
+
+
+def shipped_scene_usages(asset: ContentAsset, latest=_FETCH) -> list[SceneUsage]:
+    """Every shipped scene that uses `asset`: current ones first, then stale ones, each by slug.
+
+    `latest` is the `latest_release()` answer when the caller already has it (an admin list
+    computes it in its own query, so a page of assets does not ask once per row)."""
+    if latest is _FETCH:
+        latest = latest_release()
     if latest is None:
         return []
     usages = [
@@ -71,8 +96,7 @@ def shipped_scene_usages(asset: ContentAsset) -> list[SceneUsage]:
     ]
     # Only the latest release, and a missing or malformed entry is simply no usage: this runs inside
     # retirement, where raising would refuse every retirement (fail closed).
-    report = latest.report if isinstance(latest.report, dict) else {}
-    unplaced = report.get(SCENE_ASSETS_WITHOUT_PLACE)
+    unplaced = latest.without_place
     if isinstance(unplaced, dict):
         usages += [
             SceneUsage(scene=slug, has_place=False, release_id=latest.pk, current=True)

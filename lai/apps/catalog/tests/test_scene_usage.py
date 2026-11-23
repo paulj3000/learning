@@ -202,6 +202,25 @@ def test_the_definition_page_lists_the_hub_and_stale_scenes(tmp_path):
     )
 
 
+def test_the_asset_list_asks_for_the_latest_release_once_per_page(
+    tmp_path, django_assert_max_num_queries
+):
+    from django.contrib import admin
+    from django.test import RequestFactory
+
+    import_content(write_export(tmp_path / "v1"))
+    asset_admin = admin.site._registry[ContentAsset]
+    request = RequestFactory().get("/admin/catalog/contentasset/")
+    request.user = ParentAccount(is_staff=True, is_superuser=True)
+    rows = list(asset_admin.get_queryset(request).order_by("asset_id"))
+    assert {"rock", "tree", "tree-lod1"} <= {row.asset_id for row in rows}
+    # One query per row for its links, none for the release: the list query brought it.
+    with django_assert_max_num_queries(len(rows)):
+        shown = {row.asset_id: asset_admin.used_by(row) for row in rows}
+    assert shown["rock"] == "bay; welcome-harbor (no Place record)"
+    assert shown["tree-lod1"] == "No shipped scene"
+
+
 # --- collision profiles: changes apply to shipped scenes ------------------------------------
 
 
