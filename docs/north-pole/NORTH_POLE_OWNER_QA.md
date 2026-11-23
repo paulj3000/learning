@@ -118,9 +118,14 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
    it looks right or add an `np-snowball-stable` placement.
 7. Area puzzle solves record no `SkillEvidence` at all (`game_sessions/play.py` `solve_puzzle`,
    shared with Firepeak; confirmed by the scoring lead 2026-11-23), so North Pole puzzle learning
-   does not reach the parent dashboard's by-skill view. Chests do record evidence. In addition,
-   5 puzzle skill slugs (sight-words, addition-two-digit, shapes, shapes-and-halves, fractions)
-   are not curriculum objectives. Owner routing: progression owner, curriculum content decision.
+   does not reach the parent dashboard's by-skill view. Chests do record evidence. The fix is
+   FPV-D10, owned by LAI 06. In addition, 9 puzzle skill ids are not learning objectives:
+   sight-words, addition-two-digit, number-order, fractions, shapes-and-halves, shapes, symmetry,
+   following-directions and earth-and-space. The earlier count of 5 was wrong. Several other bands
+   use a valid code that does not match the intent. The per-puzzle mapping is in
+   `CURRICULUM_AUDIT.md`. Until FPV-D10 and the content re-tag both land, the parent dashboard
+   shows North Pole learning by skill from the chests only. Record that as this known gap, not a
+   new failure.
 8. Fragment, restoration, reindeer and sleigh-bell cues have no North Pole-specific call point
    yet. Found 2026-11-18, still true on `main` `aa8adb33`: `RegionPlayCompanion` raises `crystalCollect` for every pickup with new
    items, so every collectible (snowflakes, candy canes, cookies) also plays the star-fragment

@@ -357,8 +357,8 @@ section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
   game-engine bridge, realms).
 - `npm run typecheck`, `content:check` and `golden:check`: pass on the same tree (run in the
   Firepeak worktree at `aa8adb33`).
-- Defects: Area puzzle solves record no `SkillEvidence` (shared, with Firepeak) and 5 puzzle
-  skill slugs are not curriculum objectives; every collectible plays the star-fragment cue.
+- Defects: Area puzzle solves record no `SkillEvidence` (shared, with Firepeak) and 9 puzzle
+  skill ids are not learning objectives (corrected from 5 on the same day, `CURRICULUM_AUDIT.md`); every collectible plays the star-fragment cue.
   Details in `docs/north-pole/NORTH_POLE_OWNER_QA.md` section 4.
 - Owner QA checklist refreshed for `main` with ids (R, W, S, P, T, E).
 - Not run (policy): Playwright, browser, device, full suites, lint, format, build.
