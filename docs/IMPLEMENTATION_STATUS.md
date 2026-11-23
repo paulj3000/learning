@@ -37,6 +37,26 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W2-1: usage registry and aggregate retirement guard (2026-11-23, `feature/asset-library-w2-1-registry` on `main` `1b0a50a3`, Trello #246); Development Complete, NOT merged
+
+- **Delivers** (`docs/ASSET_LIBRARY.md` section 25):
+  - `apps/assets/dependencies.py`: `Usage`, `register_usage_provider`, `usages_for`,
+    `registered_sources`, and `retirement_guard`, registered from `AssetsConfig.ready()`
+    through the existing `services.register_retirement_guard`.
+  - The read-only command `manage.py asset_usage <asset_id> [--number N] [--json]`.
+- **Behaviour:** none changes yet. No app registers a provider, so retirement refuses exactly
+  what it refused before, and the NPC and avatar guards stay registered. A provider that raises
+  refuses retirement (`dependency_check_failed`, logged with ids only).
+- **Scope:** no migration, no `services.py` or admin change, no API or client change.
+- **Commits:** b5890533 and ecf46521 (W2-0 contract), e88d6eca (W2-1), 40a726f5 (ruff format),
+  then a merge of `main` `1b0a50a3`.
+- **Tests:** 19 registry and command tests. Two are new for the standalone PR: the NPC and avatar
+  guards stay in place, and a refused retirement with a replacement keeps the default. Results
+  are on Trello #246 and in the PR.
+- **Follows:** W2-3 (regions) and W2-4 (NPC and avatar parity) in a separate PR; W2-2 waits for
+  the Sound Manager owner; W2-5 waits for the Lambda reconciliation. GE-247 (Agent 4) builds the
+  catalog provider on this API once it is on `main`.
+
 ## GE-090-D7: browser acceptance defects (2026-11-22, `fix/ge-090-d7-browser-acceptance` from `aa8adb33`, Trello VD4zv7WN); Development Complete, NOT merged, NOT owner-accepted
 
 The 19 desktop and tablet acceptance failures on `main` had four causes: two product defects and

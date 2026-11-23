@@ -1050,9 +1050,12 @@ records each model's bounding corners in `metadata["bounds"]`, which automatic p
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
 
-## 25. Dependency tracking: contract proposal (Proposed, LAI-07 W2; not implemented)
+## 25. Dependency tracking (LAI-07 W2; W2-1 implemented, W2-2 to W2-5 proposed)
 
-Status: **Proposed**. This is the W2 contract for its owners to agree. Nothing below exists yet.
+Status: **W2-1 is implemented** (the registry, the aggregate retirement guard and
+`manage.py asset_usage`; branch `feature/asset-library-w2-1-registry`, Trello #246). It changes no
+retirement outcome: no app registers a usage provider yet, and the NPC and avatar guards stay
+registered as before. W2-2 to W2-5 are still proposals for their owners to agree.
 `apps/assets/services.py`, the Django Admin classes and `apps/audio` are unchanged. The card is
 listed in `docs/IMPLEMENTATION_STATUS.md`.
 
@@ -1146,7 +1149,7 @@ Rules:
 | `npcs` (NPC Manager) | ACTIVE and SUPERSEDED releases (unchanged, from `release_dependents`) | Draft variants, extras and dialogue nodes (`draft_dependents`) | None. Parity only. |
 | `avatars` (avatars owner) | AVAILABLE avatars served the model asset or version (unchanged, from `avatars_using`) | Draft and disabled avatars; an AVAILABLE avatar's **thumbnail** | Should the thumbnail block? **Recommendation: list only**, because the served description already drops a missing thumbnail. |
 | `regions` (realm owners; engine-facing, LAI 06) | Asset-level only: a placement or chest in a PUBLISHED `WorldRegion` | DRAFT and RETIRED regions' placements | Should a PUBLISHED placement block? **Recommendation: block** (LAI 06 agrees, 2026-11-22). The placeholder is a resilience path, not a retirement outcome, and Treasure Cove's ids are mostly not in the bundled manifest. Collision also follows the served profile: without it a placement falls back to the built-in footprint, or to no collider for an unknown id. So retiring would silently change what blocks the child or what they can jump on. This is a behaviour change, so it needs the owner. |
-| `catalog` (catalog owner) | None | `LocationAsset` rows (first use per place) | None |
+| `catalog` (catalog owner; built by GE-247) | None | `LocationAsset` rows (first use per place), including shipped scenes | None. Moved to GE-247 (Trello #247, Agent 4, 2026-11-23): listed only, never blocking, asset-level only |
 | `assets` derived artifacts (Lambda owner) | None (retirement keeps the files) | Live `DerivedArtifact` rows for the version (`source_version`, `promoted_version`) | Add after the Lambda stack is reconciled: the model is not on `main` |
 
 Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,
@@ -1189,9 +1192,9 @@ contain child data.
 | Step | Scope | Files | Gate |
 |---|---|---|---|
 | W2-0 | This contract | `docs/ASSET_LIBRARY.md` | — |
-| W2-1 | Registry, aggregate guard, `asset_usage` | `apps/assets/dependencies.py`, `apps/assets/apps.py`, `apps/assets/management/commands/asset_usage.py`, tests | Contract agreed by LAI 05, 2026-11-22. Implemented on the W2 branch, not merged. |
+| W2-1 | Registry, aggregate guard, `asset_usage` | `apps/assets/dependencies.py`, `apps/assets/apps.py`, `apps/assets/management/commands/asset_usage.py`, tests | Contract agreed by LAI 05, 2026-11-22. Implemented; standalone PR from `feature/asset-library-w2-1-registry`, not merged. |
 | W2-2 | Audio provider; correct `asset-standard.md` section 2 | `apps/audio/dependencies.py`, `apps/audio/apps.py`, tests | Sound Manager owner |
-| W2-3 | Regions and catalog providers | `apps/regions/dependencies.py`, `apps/catalog/dependencies.py`, their `apps.py`, tests | Realm and catalog owners; LAI 06 on placements |
+| W2-3 | Regions provider (the catalog provider moved to GE-247) | `apps/regions/dependencies.py`, its `apps.py`, tests | Realm owners; Agent 4 on placements |
 | W2-4 | NPC and avatar providers, parity, then guard replacement | `apps/npcs/dependencies.py`, `apps/avatars/dependencies.py`, their `apps.py`, tests | NPC Manager and avatars owners |
 | W2-5 | "Used by" admin panel | `apps/assets/admin.py`, `apps/catalog/admin.py` | Lambda stack reconciled; catalog owner |
 

@@ -39,6 +39,17 @@ def test_the_aggregate_guard_is_registered_by_the_app():
     assert dependencies.retirement_guard in services.RETIREMENT_GUARDS
 
 
+def test_the_npc_and_avatar_guards_stay_in_place_beside_the_registry():
+    """W2-1 changes no behaviour: the NPC and avatar guards keep refusing until each owner
+    agrees to move them to a provider (ASSET_LIBRARY.md s. 25.2)."""
+    from apps.avatars import dependencies as avatar_dependencies
+    from apps.npcs import dependencies as npc_dependencies
+
+    assert npc_dependencies.retirement_guard in services.RETIREMENT_GUARDS
+    assert avatar_dependencies.retirement_guard in services.RETIREMENT_GUARDS
+    assert not {"npcs", "avatars"} & set(dependencies.registered_sources())
+
+
 def test_with_no_providers_retirement_is_unchanged(registry):
     asset = make_definition("free")
     services.retire_asset(asset)
@@ -251,3 +262,24 @@ def test_the_command_fails_when_a_provider_fails(registry):
     make_definition("chime", kind="audio", category="sound")
     with pytest.raises(CommandError, match="audio dependency check failed"):
         run("chime")
+
+
+def test_a_refused_retirement_with_a_replacement_keeps_the_default(registry):
+    asset = make_definition("chime", kind="audio", category="sound")
+    current = make_version(asset, 1, status=VersionStatus.PUBLISHED)
+    spare = make_version(asset, 2, status=VersionStatus.PUBLISHED)
+    asset.default_version = current
+    asset.save(update_fields=["default_version"])
+
+    def provider(asset, version):
+        pinned = version is not None and version.pk == current.pk
+        return [blocking("audio", "sound_release_dependency", "Sound release 3")] if pinned else []
+
+    register_usage_provider("audio", provider)
+    with pytest.raises(AssetActionRefused) as refused:
+        services.retire_version(current, replacement=spare)
+    assert refused.value.code == "sound_release_dependency"
+    asset.refresh_from_db()
+    current.refresh_from_db()
+    assert asset.default_version_id == current.pk
+    assert current.status == VersionStatus.PUBLISHED
