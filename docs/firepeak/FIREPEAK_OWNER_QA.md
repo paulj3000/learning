@@ -84,7 +84,7 @@ that case.
 - [ ] F2 The backpack shows the four elemental crystals, the badges (First Steps, Emberwood Explorer, Master of the Forge, Volcano Scientist, Heart of Firepeak, Crystal Collector) and the journal entries.
 - [ ] F3 Collect all seven ember shards (hidden, elevated, Lava Jumper, Summit Explorer). Firepeak Master Explorer appears once.
 - [ ] F4 Re-solving a finished puzzle says "Practice" and gives no new rewards. Re-entering after completion allows free exploration.
-- [ ] F5 **Persistence.** Sign out, sign in, open the same child: crystals, badges and the completed quest are still there. The parent dashboard shows the activity by skill.
+- [ ] F5 **Persistence.** Sign out, sign in, open the same child: crystals, badges and the completed quest are still there. The parent dashboard shows the activity by skill. **Known to fail today:** puzzle solves record no skill evidence (FPV-D10, LAI 06), and 10 of 11 Firepeak skill ids are not objectives (`CURRICULUM_AUDIT.md`). Record F5's dashboard part as this known defect.
 - [ ] F6 The return portal takes the child back to the Landing. "Leave" returns to the Realm Explorer, which shows "Completed".
 
 ### G. Staff authoring (Django Admin)

@@ -15,9 +15,10 @@ Rules the layout keeps, each checked by a test:
   collider (`effects.openings`), opened in order by the previous zone's completion key.
 - Optional jump routes rise at most 0.6 m per hop with gaps of at most 1.4 m (1.6 m for the one
   advanced route over the lava), and lead only to optional shards.
-- Lava is drawn by `effects.lava` (`visualOnly`) and enforced by `platforming.hazards`, which is
-  height aware: standing on the bridge or a stone (top above 0.05 m) is safe, touching the lava is
-  not, and the child returns to the last course checkpoint they touched. Checkpoints stand on
+- Lava is drawn by `effects.lava` (`visualOnly`) and enforced by the engine bridge's
+  `gameplay.hazards` (with `gameplay.checkpoints`, `engine_bridge()` below), which is height
+  aware: standing on the bridge or a stone (top above 0.05 m) is safe, touching the lava is not,
+  and the child returns to the last course checkpoint they touched. Checkpoints stand on
   open ground, never in lava, on a platform or in a collider.
 """
 

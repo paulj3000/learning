@@ -557,7 +557,7 @@ fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core)
     `platforming.recoveryLeads`) and moves crumble-then-fall for `fh-stone-vanish` to the engine's
     `gameplay.platforms` with unchanged timing (design section 12 item 9). The steam push shipped
     in layout version 4. Every other platform stays on the live system until GE-076.
-  - ADR-073 still needs its Reserved row on `main` (owner registry-only change).
+  - ADR-073's registry row is on `main` (Proposed). The acceptance change is prepared on `docs/adr-073-080-081-acceptance` and needs the owner's merge (2026-11-23).
 - Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
 - Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
 - Great Storybook page and Trophy Room pedestal: Firepeak side only; castle registration needs owner decisions (`STORYKEEPER_INTEGRATION.md`, reconciled 2026-11-23).
