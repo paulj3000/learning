@@ -404,7 +404,27 @@ engine lead's migration-ready SHA on `core/gameengine`.
   (content decision). Clue and hint selection with two Pip quests needs a product decision.
 - **Not done:** browser, device, gamepad or Playwright checks (policy); owner QA.
 
-## The Heart of Firepeak (FPV-01 to FPV-24, 2026-11-18, `feature/firepeak-volcano-adventure`); development complete, unit-tested only, owner QA pending, NOT merged
+## The Heart of Firepeak (FPV-01 to FPV-24); on `main`, owner QA pending, not owner-accepted, not deployed
+
+**Release-readiness check (2026-11-23, LAI 03, `main` `aa8adb33`).** Firepeak is on `main`
+(GE-090 step 17, PR #44). Checked on this SHA, unit level only:
+- Engine: `npm run engine:validate` on `firepeak_heart_scene.json` with the standard capability
+  registry, 0 issues. Lava hazard, telegraphed falling rocks, steam push volume, the crumbling
+  engine platform and the eight checkpoints run through the engine bridge (layout version 5).
+- Django (PostgreSQL 18.7, gated): 430 passed, 0 failed (Firepeak cues, Heart import, authoring
+  forms, Heart security, NPC seed, engine bridge, Heart layout, play and seed, Firepeak Volcano,
+  platforming, puzzle kinds, scoring collectors, realms and rules).
+- React (gated): 41 files, 486 passed, 0 failed (region play and Firepeak, regionPlay extension,
+  engine bridge and stabilization, content export, realms, audio, Great Storybook, castle trophies).
+- `npm run typecheck`, `content:check` (13 files) and `golden:check` (8 files): pass.
+- Defect found: Area puzzle solves (`game_sessions/play.py` `solve_puzzle`) record a
+  `PuzzleAttempt` but no `SkillEvidence`, so the parent dashboard's by-skill view has no Firepeak
+  (or North Pole) puzzle learning. Shared code; routed to the progression owner (LAI 06).
+- FPV-22 reconciled with the merged castle: `docs/firepeak/STORYKEEPER_INTEGRATION.md`.
+- Owner QA checklist refreshed for `main`: `docs/firepeak/FIREPEAK_OWNER_QA.md`.
+- Not run (policy): Playwright, browser, device, full suites, lint, format, build.
+
+### Development history (2026-11-18 to 2026-11-19, `feature/firepeak-volcano-adventure`)
 
 Contract and decisions: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`, ADR-073 (Proposed). Based on
 `feature/treasure-rush-palm-trees` (420f1afd) for the shared jump, camera and platform engine.
@@ -466,7 +486,7 @@ fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core)
   - ADR-073 still needs its Reserved row on `main` (owner registry-only change).
 - Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
 - Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
-- Great Storybook page and Trophy Room pedestal: Firepeak side only (`STORYKEEPER_INTEGRATION.md`).
+- Great Storybook page and Trophy Room pedestal: Firepeak side only; castle registration needs owner decisions (`STORYKEEPER_INTEGRATION.md`, reconciled 2026-11-23).
 - Question Studio bank for area puzzles: extension point only.
 - Falling rocks, steam push and the crumbling stone: adopted (GE-073, GE-073F).
 - Managed NPCs do not speak per-puzzle stage lines in their own panel (the puzzle panel shows them).
