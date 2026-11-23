@@ -285,8 +285,8 @@ def _window(event, day):
 
 
 def test_launch_outside_the_window_is_refused_and_saves_survive(treasure, api, bay):
-    """Hiding is enforced by the server's launch check, not only by discovery, and never removes
-    a world change, an inventory item or a seasonal completion; back in the window it all returns."""
+    """Hiding is enforced by the server's launch check, not only by discovery. It never removes a
+    world change, an inventory item or a seasonal completion; back in the window it all returns."""
     from apps.inventory.models import InventoryItem
 
     child, client = treasure.families.a1, api(treasure.families.a)
@@ -296,7 +296,9 @@ def test_launch_outside_the_window_is_refused_and_saves_survive(treasure, api, b
     _window(event, today)
     event.places.add(bay)
 
-    assert client.post(url, {"regionId": "treasure-rush-cove"}, "application/json").status_code == 201
+    assert (
+        client.post(url, {"regionId": "treasure-rush-cove"}, "application/json").status_code == 201
+    )
     change(child)
     saved = (
         set(WorldChange.objects.filter(child=child).values_list("change_key", flat=True)),
@@ -315,7 +317,9 @@ def test_launch_outside_the_window_is_refused_and_saves_survive(treasure, api, b
     ) == saved
 
     _window(event, today)
-    assert client.post(url, {"regionId": "treasure-rush-cove"}, "application/json").status_code == 201
+    assert (
+        client.post(url, {"regionId": "treasure-rush-cove"}, "application/json").status_code == 201
+    )
     assert SeasonalCompletion.objects.for_child(child).count() == 1
 
 
