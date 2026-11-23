@@ -4589,6 +4589,48 @@ it; retired events stop immediately; and the Director still cannot say anything 
 approved line. Retiring every published event leaves the castle with only the client's quiet
 lines, never the retired copy. Details: `docs/regions/prep/ai_director_prep.md`,
 `docs/AI_AND_CHILD_SAFETY.md`, `docs/PLAY_API.md`.
+## ADR-066: Derived artifacts (Option C): staff-only records in the existing asset bucket under `processing/artifacts/<env>/`, create-only worker writes, explicit promotion into new unpublished versions, 90/30-day retention
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-066-derived-artifacts.md`.
+
+## ADR-067: Native audio transcoding with an LGPL FFmpeg layer: Opus primary, MP3 alternative, per-category loudness profiles, own `audio` queue, results on the canonical consumer
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-067-audio-transcoding.md`.
+
+## ADR-068: Separate Pillow image Lambda for conversion and image thumbnails; new public-facing derivatives are stripped of sensitive metadata; originals kept; no silent historical rewrite
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-068-image-conversion.md`.
+
+## ADR-069: Staff browser GLB thumbnail capture in Django Admin, stored as private derived artifacts; server-side rendering deferred
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-069-staff-thumbnail-capture.md`.
+
+## ADR-070: GLB optimization: Meshopt first, then KTX2; compression extensions rejected unless verified and their control is on; no Draco, Batch, Fargate, Blender or server rendering
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-070-glb-optimization.md`.
+
+## ADR-071: Compatibility-gated processing release and production processing infrastructure as code (no deployment)
+
+Status: Accepted (owner, 2026-11-18) for RELEASE and PRODUCTION (code only). Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-071-processing-release-and-production.md`.
+
 ## ADR-072: Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated
 
 Status: Accepted (project owner, 2026-11-18). Branch `feature/engineering-standards`.

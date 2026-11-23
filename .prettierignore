@@ -18,6 +18,8 @@ content/derived
 # generated: the Django Admin 3D preview bundle (npm run build:admin-preview), checked byte-exact
 # against its source by npm run admin-preview:check
 lai/apps/assets/static/assets/admin/asset-preview.js
+# generated: the Django Admin thumbnail capture bundle (npm run build:admin-capture, ADR-069)
+lai/apps/assets/static/assets/admin/asset-capture.js
 # Django templates: Prettier's HTML parser does not understand the template language
 lai/**/templates/**/*.html
 # generated: the Treasure Cove layout snapshot (python -m apps.regions.treasure_cove_layout from

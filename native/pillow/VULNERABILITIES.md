@@ -1,10 +1,10 @@
 # Vulnerability note: Pillow 13.0.0 (checked 2026-11-18)
 
-| Source | Result |
-|---|---|
-| PyPI release metadata (`https://pypi.org/pypi/Pillow/13.0.0/json`, field `vulnerabilities`) | none listed |
-| OSV (`api.osv.dev` query, ecosystem PyPI, package `pillow`, version 13.0.0) | 0 advisories |
-| Same OSV query for Pillow 12.3.0 (the previous release) | 62 advisories, so 13.0.0 is the fixed baseline |
+| Source                                                                                      | Result                                         |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| PyPI release metadata (`https://pypi.org/pypi/Pillow/13.0.0/json`, field `vulnerabilities`) | none listed                                    |
+| OSV (`api.osv.dev` query, ecosystem PyPI, package `pillow`, version 13.0.0)                 | 0 advisories                                   |
+| Same OSV query for Pillow 12.3.0 (the previous release)                                     | 62 advisories, so 13.0.0 is the fixed baseline |
 
 Not checked (no machine-readable source used): advisories for the bundled C libraries (libwebp,
 libjpeg-turbo, libtiff, OpenJPEG, lcms2, zstd, xz) beyond what Pillow's wheel build tracks. The

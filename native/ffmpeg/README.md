@@ -6,11 +6,11 @@ committed.
 
 ## What is built
 
-| Component | Version | Licence | Linked |
-|---|---|---|---|
-| FFmpeg (libavcodec, libavformat, libavfilter, libavutil, libswresample + `ffmpeg`) | 7.1.5 | LGPL-2.1-or-later (no `--enable-gpl`, `--enable-nonfree`, `--enable-version3`) | shared, `$ORIGIN` runpath |
-| libopus | 1.6.1 | BSD-3-Clause | shared |
-| LAME (libmp3lame) | 3.100 | LGPL-2.0-or-later | shared, replaceable (LGPL section 6) |
+| Component                                                                          | Version | Licence                                                                        | Linked                               |
+| ---------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------ | ------------------------------------ |
+| FFmpeg (libavcodec, libavformat, libavfilter, libavutil, libswresample + `ffmpeg`) | 7.1.5   | LGPL-2.1-or-later (no `--enable-gpl`, `--enable-nonfree`, `--enable-version3`) | shared, `$ORIGIN` runpath            |
+| libopus                                                                            | 1.6.1   | BSD-3-Clause                                                                   | shared                               |
+| LAME (libmp3lame)                                                                  | 3.100   | LGPL-2.0-or-later                                                              | shared, replaceable (LGPL section 6) |
 
 Sources and SHA-256 are pinned in `sources.lock.json`; a mismatch stops the build. The FFmpeg
 tarball was also verified against the detached GPG signature (release key fingerprint
@@ -64,7 +64,7 @@ in this change; only the x86_64 build was. Two supported ways to produce the arm
 (for Workstream G to wire; no workflow is added here):
 
 1. A GitHub Actions job on a hosted arm64 runner (`ubuntu-24.04-arm`): checkout, `docker build
-   native/ffmpeg` and `docker run` exactly as above (native arm64, no emulation), then
+native/ffmpeg` and `docker run` exactly as above (native arm64, no emulation), then
    `python3 lambda/audio_worker/build.py --layer ...`, upload `lai-ffmpeg-layer-aarch64.zip`, its
    `.sha256` and `build-record.json` as workflow artifacts. Pin the base image by digest. Run
    `tests/processing_native/test_audio_ffmpeg_integration.py` against the extracted layer on the
