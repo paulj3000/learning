@@ -41,9 +41,12 @@
   always the viewport's: settings shown below the stage (camera view, sprint) shorten it.
   WorldStage measures that gap and sets `--child-stage-bottom-gap` on the full-screen element
   (GE-090-D8), so the panels clear the exits on a phone too; with nothing below, it is 0.
+  The top bar is hidden, but the HUD's top row ("Go back to the harbor", WorldHud.module.css:
+  0.75rem padding + a 2.75rem link) takes its place, so `--child-header-inset` reserves that row:
+  a tall panel stops below the link instead of covering it.
 */
 .shell :fullscreen {
-  --child-header-inset: 0px;
+  --child-header-inset: calc(0.75rem + 2.75rem);
   --child-stage-exits-inset: calc(7.5rem + var(--child-stage-bottom-gap, 0px));
   --child-nav-inset-bottom: 0px;
   --child-nav-inset-left: 0px;

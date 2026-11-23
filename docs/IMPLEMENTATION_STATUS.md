@@ -47,10 +47,15 @@ bottom and the viewport's while in full screen (and on resize), and sets
 `--child-stage-bottom-gap` on the full-screen element; `ChildShell.module.css` adds it to the
 inset. Both Pip panels (NPC Manager and legacy) and every Treasure Rush dialog use that inset, so
 all of them clear the exits. With nothing below the stage the gap is 0, so the tablet layout is
-unchanged; the camera button stays on the HUD. Tests: `WorldStage.test.tsx` (4 new; 3 fail without
-the fix), `childNavInsets.test.ts`, `RegionPlayCompanion*.test.tsx`, `shells.test.tsx`: 5 files,
-118 passed (gated). Typecheck and lint pass. Not run (not authorized): Playwright
-`portal-adult-exit:142` and the rest of the browser suite.
+unchanged; the camera button stays on the HUD. Follow-up from LAI 01's review: with a larger
+inset, a tall panel's `max-height` could put its top 16px from the screen top, over the HUD's "Go
+back to the harbor" link; in full screen `--child-header-inset` now reserves the HUD's top row
+(0.75rem + 2.75rem, pinned to WorldHud.module.css by a test), so a panel stops below the link.
+Tests (gated): `WorldStage.test.tsx` (4 new; 3 fail without the fix), `childNavInsets.test.ts`
+(new HUD-row pairing test), `portal/shell`, `npc-manager` and `RegionPlayCompanion*.test.tsx`: 31
+files, 476 passed. Typecheck and lint pass. Not run (not authorized): Playwright
+`portal-adult-exit:142` and the rest of the browser suite. Unverified: phone landscape (667x375),
+where the panel's 10rem floor can exceed the room left; phone support is not expanded here.
 
 ## GE-090-D7: browser acceptance defects (2026-11-22, `fix/ge-090-d7-browser-acceptance` from `aa8adb33`, Trello VD4zv7WN); Development Complete, NOT merged, NOT owner-accepted
 

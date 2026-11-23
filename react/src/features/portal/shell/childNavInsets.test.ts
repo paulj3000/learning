@@ -55,12 +55,25 @@ describe('child nav insets', () => {
     expect(shellTsx).not.toMatch(/\bpb-20\b|\bmd:pl-56\b/);
   });
 
-  it('drop to zero in full screen, where the stage covers the nav', () => {
+  it('drop to zero in full screen, where the stage covers the nav (the HUD top row stays reserved)', () => {
     const full = rules(shellCss).find((rule) => rule.selector.includes(':fullscreen'));
     expect(full).toBeDefined();
     expect(declaration(full!.body, '--child-nav-inset-bottom')).toBe('0px');
     expect(declaration(full!.body, '--child-nav-inset-left')).toBe('0px');
-    expect(declaration(full!.body, '--child-header-inset')).toBe('0px');
+    // GE-090-D8: the top bar is hidden, but the HUD's top row (the harbor link) is reserved.
+    expect(declaration(full!.body, '--child-header-inset')).toBe('calc(0.75rem + 2.75rem)');
+  });
+
+  it("reserve exactly the HUD's top row in full screen, so a tall panel never covers the harbor link", () => {
+    const hud = rules(read('features/island-map/three/WorldHud.module.css'));
+    expect(declaration(hud.find((rule) => rule.selector === '.overlay')!.body, 'padding')).toBe(
+      'var(--space-3)',
+    );
+    expect(declaration(hud.find((rule) => rule.selector === '.exitLink')!.body, 'min-height')).toBe(
+      '2.75rem',
+    );
+    const full = rules(shellCss).find((rule) => rule.selector.includes(':fullscreen'))!;
+    expect(declaration(full.body, '--child-header-inset')).toBe('calc(0.75rem + 2.75rem)');
   });
 
   it("make room for the stage's own exits in full screen, and only there", () => {
