@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WorldStage } from './WorldStage';
+import { STAGE_BOTTOM_GAP, WorldStage } from './WorldStage';
 
 let fullscreenElement: Element | null = null;
 
@@ -136,5 +136,74 @@ describe('WorldStage leave button (AP-04)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Full screen' }));
     });
     expect(screen.queryByRole('button', { name: 'Leave island' })).not.toBeInTheDocument();
+  });
+
+  describe('GE-090-D8: the gap under the stage in full screen', () => {
+    let stageBottom = 667;
+    const originalHeight = window.innerHeight;
+
+    beforeEach(() => {
+      stageBottom = 667;
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: 667 });
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        const bottom = this.hasAttribute('data-world-stage') ? stageBottom : 0;
+        return {
+          top: 0,
+          left: 0,
+          right: 375,
+          bottom,
+          width: 375,
+          height: bottom,
+          x: 0,
+          y: 0,
+        } as DOMRect;
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalHeight });
+    });
+
+    async function enterFullScreen() {
+      setFullscreenEnabled(true);
+      renderInWrapper();
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+      });
+      return screen.getByTestId('wrapper');
+    }
+
+    it('is 0 when the stage reaches the bottom of the screen (a tablet with nothing below)', async () => {
+      const wrapper = await enterFullScreen();
+      expect(wrapper.style.getPropertyValue(STAGE_BOTTOM_GAP)).toBe('0px');
+    });
+
+    it('measures settings shown below the stage at 375x667, so panels clear the exits', async () => {
+      stageBottom = 540;
+      const wrapper = await enterFullScreen();
+      expect(wrapper.style.getPropertyValue(STAGE_BOTTOM_GAP)).toBe('127px');
+    });
+
+    it('follows a resize while full screen, and is removed on leaving it', async () => {
+      const wrapper = await enterFullScreen();
+      stageBottom = 600;
+      act(() => {
+        window.dispatchEvent(new Event('resize'));
+      });
+      expect(wrapper.style.getPropertyValue(STAGE_BOTTOM_GAP)).toBe('67px');
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Exit full screen' }));
+      });
+      expect(wrapper.style.getPropertyValue(STAGE_BOTTOM_GAP)).toBe('');
+    });
+
+    it('never sets it outside full screen', () => {
+      setFullscreenEnabled(true);
+      renderInWrapper();
+      expect(screen.getByTestId('wrapper').style.getPropertyValue(STAGE_BOTTOM_GAP)).toBe('');
+    });
   });
 });

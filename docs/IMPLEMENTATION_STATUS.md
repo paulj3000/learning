@@ -37,6 +37,21 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## GE-090-D8: adult exits clear of dialogue panels in full screen (2026-11-23, `fix/ge-090-d8-adult-exit` from `1b0a50a3`); Development Complete, NOT merged
+
+At 375x667 in full screen, Pip's panel covered "Exit full screen" (`portal-adult-exit:142`, found
+by GE-090-D7). The panels sat `--child-stage-exits-inset` (7.5rem) above the viewport's bottom,
+but the exits sit on the stage's bottom edge, and the camera view and sprint settings shown below
+the stage in full screen lift that edge. `WorldStage` now measures the gap between the stage's
+bottom and the viewport's while in full screen (and on resize), and sets
+`--child-stage-bottom-gap` on the full-screen element; `ChildShell.module.css` adds it to the
+inset. Both Pip panels (NPC Manager and legacy) and every Treasure Rush dialog use that inset, so
+all of them clear the exits. With nothing below the stage the gap is 0, so the tablet layout is
+unchanged; the camera button stays on the HUD. Tests: `WorldStage.test.tsx` (4 new; 3 fail without
+the fix), `childNavInsets.test.ts`, `RegionPlayCompanion*.test.tsx`, `shells.test.tsx`: 5 files,
+118 passed (gated). Typecheck and lint pass. Not run (not authorized): Playwright
+`portal-adult-exit:142` and the rest of the browser suite.
+
 ## GE-090-D7: browser acceptance defects (2026-11-22, `fix/ge-090-d7-browser-acceptance` from `aa8adb33`, Trello VD4zv7WN); Development Complete, NOT merged, NOT owner-accepted
 
 The 19 desktop and tablet acceptance failures on `main` had four causes: two product defects and

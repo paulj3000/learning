@@ -67,7 +67,10 @@ describe('child nav insets', () => {
     const [phone] = rules(shellCss).filter((rule) => rule.selector === '.shell');
     expect(declaration(phone.body, '--child-stage-exits-inset')).toBe('0px');
     const full = rules(shellCss).find((rule) => rule.selector.includes(':fullscreen'))!;
-    expect(declaration(full.body, '--child-stage-exits-inset')).toBe('7.5rem');
+    // GE-090-D8: plus the measured gap below the stage (WorldStage), 0 when nothing is below it.
+    expect(declaration(full.body, '--child-stage-exits-inset')).toBe(
+      'calc(7.5rem + var(--child-stage-bottom-gap, 0px))',
+    );
     for (const path of [
       'features/island-map/three/extensions/regionPlay/ui/RegionPlayPanels.module.css',
       'features/npc-manager/ui/NpcInteraction.module.css',
