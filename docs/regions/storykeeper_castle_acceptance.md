@@ -94,7 +94,9 @@ Open only, never marked passed here:
 
 ## 4. Owner acceptance checklist for SC-R04-05 to SC-R11 (SC-R12-01, open)
 
-Branch `feature/storykeeper-castle-completion`. Every item below has unit-test evidence in
+Built on `feature/storykeeper-castle-completion`, which is now entirely in `main` (castle head
+`df376878`, GE-090 step 20c; reconciled against `main` `aa8adb33` on 2026-11-23, section 4.4).
+Run these checks on `main`, plus the GE-090-D7 branch where section 4.4 says so. Every item below has unit-test evidence in
 `tasks/TASK_TRACKER.md` and **none has been run in a browser, on a device or with a child**. Tick
 an item only after you have played it yourself. Run the local stack with fake providers (no live
 AWS) unless a line says otherwise.
@@ -155,8 +157,8 @@ python manage.py backfill_castle_keepsakes          # dry run; add --apply to gr
 
 ### 4.3 Owner decisions this branch carries
 
-1. ADR-065 (Castle Director), Proposed: accept, amend or reject. Promote the event catalog to an
-   ADR-047 revisioned admin model, or keep the JSON mirror.
+1. RESOLVED: ADR-065 (Castle Director) is Accepted (owner, 2026-11-18), and the event catalog is
+   the ADR-047 revisioned Django model (`regions.0008`, `0009`).
 2. Where Quill flavour (SC-R09-02, service only) surfaces, if at all.
 3. RESOLVED (SC-final-B, owner approved): the Writing Room has a write-your-story action, Keeper Quill
    is placed there, Sprouts can enter, and `entryRequirements` stays in the shared manifest schema
@@ -176,4 +178,70 @@ python manage.py backfill_castle_keepsakes          # dry run; add --apply to gr
 9. Earlier Secret Door finishers get no `secret-door-key` without an approved backfill.
 10. Retirement (SC-R10-03): Phaser castle and Writing Room stay until parity is visually confirmed
    and LAI-2303 (Sprouts gate) allows it.
-11. Formatting: `prettier --write` and Ruff on the touched files at merge readiness.
+11. RESOLVED: formatting. GE-090-D6 (PR #50) ran Prettier and Ruff across the repository, castle
+   files included, with no change to behaviour.
+
+### 4.4 Focused owner QA on `main` (2026-11-23)
+
+The castle is now on `main`. This is the short pass for desktop, touch and accessibility. It
+points at the O-items above rather than repeating them. Tick a line only after you have played
+it yourself. Use the local stack with fake providers and run section 4.0 first.
+
+**Before you start: the GE-090-D7 branch.** Two castle defects are on `main` today and are fixed on
+`fix/ge-090-d7-browser-acceptance` @ `9b68e548` (Agent 5, not merged yet):
+
+- the castle is silent for every child, because it requests a region audio manifest that answers
+  404 (it now requests the Place `storykeeper-castle`);
+- in the default third-person view, NPC reach is measured from the trailing camera, so Keeper
+  Quill's "Talk to" prompt and greeting can fail to appear when the child stands next to him.
+
+Run O-7, O-8, O-9 and the Quill lines below on that branch, or after it merges. If you run them on
+`main`, expect silence and a missing Quill prompt. That is D7, not a new defect. For sound, assign
+the castle cues to the **Place** `storykeeper-castle` in Django Admin (not to a 3D Area), then
+publish a sound release.
+
+**Desktop (Chrome, keyboard and mouse)**
+
+- [ ] Q-1 Load `/island/:childId/explore/storykeeper-castle`: no console errors, no failed
+      `/api/v1` request (A-9).
+- [ ] Q-2 Walk every doorway both ways, Entry Hall to Secret Chamber, in both camera views (the
+      "View" button) (A-3, SC-JMP-20).
+- [ ] Q-3 Leave from every room, the Writing Room included: the harbor exit is always there and
+      never behind arithmetic (O-16).
+- [ ] Q-4 Pathfinder: The Painted Words, both word sets, page `page-painted-words` restored, with
+      wrong answers on purpose (O-1, O-2, O-3).
+- [ ] Q-5 Each primary adventure once by jumping on pads and once by the HUD card only. Every
+      answer must be reachable without a jump (O-6).
+- [ ] Q-6 Writing Room, one child per band: write and save a story, check it in the adventure log
+      and in the parent's Story Keepsakes, then try the Explorer safety refusals (O-15 to O-15b).
+- [ ] Q-7 Keepsakes: brush, lens and key on the Trophy Room pedestals. The mouse door in the
+      Secret Chamber gives the Tiny Brass Knob once, with no new pedestal (O-10, O-19).
+- [ ] Q-8 Quill, Ember and Orion lines before and after restoring a page, in third-person view (O-7,
+      needs D7).
+- [ ] Q-9 Sound: room beds crossfade, mute and volume persist, captions stay when speech is
+      turned off (O-8, O-9, needs D7).
+- [ ] Q-10 Leave mid-tale and return: the tale resumes in its room with its choices (A-15).
+
+**Touch (iPad Safari, or Chrome's tablet emulation as a first pass only)**
+
+- [ ] Q-11 A full Pathfinder visit by touch alone: two-zone drag, the "Things to do" list reaches
+      every objective, and the pads and the HUD card both answer (A-12, O-17).
+- [ ] Q-12 Sprout: walk in, use the large targets and flat markers (no jump steps), and finish the
+      picture story and the Writing Room tap story without help (O-15d, A-20).
+- [ ] Q-13 Full screen at phone size (375 x 667): check that an NPC panel does not cover "Exit
+      full screen". GE-090-D7 found that it can (`portal-adult-exit:142`, proposed GE-090-D8).
+
+**Accessibility**
+
+- [ ] Q-14 Keyboard only: a full visit with no mouse. Tab order is exit, prompt, backpack, with no
+      focus trap, and focus returns to "Talk" after a dialogue closes (A-11, O-17).
+- [ ] Q-15 Screen reader (VoiceOver or NVDA): HUD prompts, the session status region and "Back to
+      the map" on an error are announced (`5946204f`).
+- [ ] Q-16 Reduced motion at the OS level, then reload: nothing sways or drifts, and outcomes still
+      show (A-10, O-18).
+- [ ] Q-17 Speech off and sound muted: every line is still on screen as a caption, and no step
+      needs sound (O-9).
+- [ ] Q-18 No timers anywhere: wrong answers loop calmly and no line counts down or says "come
+      back tomorrow" (O-2, O-13).
+
+**Device and playtest (unchanged, SC-R11):** D-1 tablet profiling and D-2 Sprouts playtest.
