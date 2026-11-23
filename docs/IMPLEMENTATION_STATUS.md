@@ -83,6 +83,28 @@ suite grew by 4 Realm Explorer viewports. All 19 historical failures pass. Lint,
 typecheck, docs check and the related Vitest suites (136 files, 1720 tests) pass. No AWS call and
 no deployment.
 
+## Storykeeper Castle reconciled with `main` (LAI 02, 2026-11-23, `main` @ `aa8adb33`); in `main`, NOT owner-accepted
+
+This supersedes the "NOT merged" wording in the older castle entries below. Details are in
+`docs/regions/storykeeper_castle_engine_integration.md` section 11.
+
+- **In `main`:** every castle commit up to `df376878` (GE-072, SC-R04-05 to SC-R11 engineering,
+  SC-JMP unit parts), through GE-090 step 20c and PR #44. GE-090-D1 (`ba4acdf0`) and D2
+  (`8e7e3719`) are in `main` too. D2's four ids are owned by `HOME_ISLAND_PACK`, which is
+  correct.
+- **Open castle defects on `main`:** two, both fixed on the unmerged GE-090-D7 branch
+  (`fix/ge-090-d7-browser-acceptance` @ `9b68e548`, Agent 5). The castle is silent because it
+  requests a region manifest that is a 404; the fix uses the Place manifest. NPC reach was
+  measured from the third-person camera, so Quill's prompt could fail to appear. I reviewed the
+  castle parts as owner and they are correct.
+- **Evidence (unit only):** Django on PostgreSQL 18.7, 1949 passed, 0 failed, 0 skipped, with no
+  missing migrations. Vitest: 103 files, 1365 passed, 1 failed. The failure is `noAmplify`, a
+  timeout while the host was paging; it passes alone (supporting information only). Typecheck,
+  content:check and golden:check are clean. No browser, Playwright or EC2 run.
+- **Owner QA:** the focused checklist for desktop, touch and accessibility is in
+  `docs/regions/storykeeper_castle_acceptance.md` section 4.4 (Q-1 to Q-18). Run it after D7
+  merges.
+
 ## LAI-07 Asset Library streamlining, W1 correctness (2026-11-22, `feature/asset-library-streamlining` rebased onto `ed6b0afc`, Trello #244); Development Complete, unit-tested on PostgreSQL 18.7, NOT merged
 
 Fixes from the LAI-07 audit, with a regression test for each. Each test was shown to fail on the

@@ -1101,6 +1101,13 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       isolated PostgreSQL 16 run: 1277 passed, 2 failed (neither castle code), 0 skipped. The Firepeak
       migration-leaf test is already fixed on integration (`e5561b66`). `DELETE /scoring/` was audited by
       the scoring lead and added to `CHILD_WRITE_ROUTES` (re-run: 37 passed). Owner gates are unchanged.
+- [x] **SC-R12-RECONCILE** Castle reconciled with `main` @ `aa8adb33` (LAI 02, 2026-11-23, branch
+      `docs/SC-R12-storykeeper-main-reconcile`). Everything above is in `main` (castle head `df376878`, GE-090
+      step 20c, PR #44), and so are GE-090-D1 and D2. Two castle defects remain on `main`, both fixed on the
+      unmerged GE-090-D7 branch (Agent 5): no castle sound (region manifest 404) and Quill's prompt
+      in third-person view. Evidence: Django on PostgreSQL 18.7, 1949 passed, 0 failed; Vitest 1365 of 1366
+      (`noAmplify` load timeout, passes alone); typecheck, content and golden clean. Owner QA checklist:
+      acceptance guide section 4.4. Closure sequence: integration doc section 11.5.
 - [x] **GE-072** Storykeeper Castle on the Game Engine Core (2026-11-19, branch `feature/storykeeper-castle-completion`,
       owner-assigned). DONE (development) for the stage the bridge contract allows; not merged, not owner accepted.
       Merged `core/gameengine` at the baseline `fc5c71cf` (`09adcc15`) and `cbe43a8e` (`15fef5db`), no rebase.
