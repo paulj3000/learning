@@ -124,7 +124,40 @@ Authoring conventions (canonical: [`THREE_WORLD_ASSET_CONVENTIONS.md`](../THREE_
 | State | Rule |
 |---|---|
 | Implemented (main) | Collision is authored data, decoupled from the visual mesh. Authored zones become `Box3` colliders; a mesh's silhouette never silently changes where a child can walk. Built-in per-asset footprints live in the shared runtime |
-| Pending merge (`feature/asset-collision-profiles`) | **Collision profiles**: staff set per asset (or per version) a shape (`None`, `Box`, `Cylinder`, `Capsule`, `Compound boxes`) and a behaviour (`Automatic`, `Solid`, `Jumpable`, `Walkable`, `Decorative`) in Django Admin; the resolver returns them and the shared runtime applies them to every placement. Not on `main`; do not depend on it until merged |
+| Implemented (main) | **Collision profiles**: staff set per asset (or per version) a shape (`None`, `Box`, `Cylinder`, `Capsule`, `Compound boxes`) and a behaviour (`Automatic`, `Solid`, `Jumpable`, `Walkable`, `Decorative`) in Django Admin; the resolver returns them and the shared runtime applies them to every placement ([`ASSET_COLLISION_PROFILES.md`](../ASSET_COLLISION_PROFILES.md)) |
+| Owner-approved 2026-11-22, Pending merge (`feature/ge-raised-solid-clearance`, GE-L16) | **Raised Solid parts and walk-under clearance**, the rule below |
+
+Behaviour rules (GE-L16, the shared engine's controller decides; no adventure code):
+
+| Behaviour | Rule |
+|---|---|
+| `Solid` | Blocks at every height. A part whose bottom is at least the **walk-under clearance** above the ground keeps its height: the child walks under it, a rising head stops at its underside, and it blocks from its underside up. A lower raised part blocks down to the ground. Never stepped or jumped onto |
+| `Automatic` | Jumpable when no taller than 1.2 m (the default jump); taller is `Solid`, with the same clearance rule. Height alone never opens a passage |
+| `Jumpable` | Blocks only where it is in height; its top is a surface the child can hop onto if the jump reaches it, and walk under if there is headroom. Use it for elevated platforms, decks and walkways |
+| `Walkable`, `Decorative` | No collider |
+
+- **Walk-under clearance** = the avatar's collision height plus a margin. The standard avatar's
+  collider is 1.7 m (the drawn avatars are about 1.35 to 1.4 m), margin 0 by default; a location
+  may add up to 0.5 m with `movement.collision.clearanceMargin`. The gap is measured from the
+  ground under the part, after the placement's position and elevation.
+- **Width** is the avatar's footprint (0.35 m radius plus a 2 cm skin): a gap between two parts
+  narrower than about 0.74 m stays blocked, whatever the headroom.
+- **Multi-part profiles** (`Compound boxes`) share one behaviour; each part is classified on its
+  own. A building with a doorway: wall parts from 0, a lintel part from 2.0 m or higher.
+- **Elevation never makes a part jumpable.** A surface the child should stand on is a `Jumpable`
+  profile (or `Automatic` and no taller than 1.2 m); a deck marked `Solid` is not stood on.
+
+| Configuration | Valid? | Result |
+|---|---|---|
+| Doorway: two wall parts from 0 to 3 m, a lintel part from 2.2 to 2.8 m | Valid | The child walks through under the lintel |
+| Lintel part from 1.5 m in a `Solid` profile | Valid but closed | Below 1.7 m: the doorway is blocked at every height |
+| Fence part from 0.05 m, 0.9 m tall, `Solid` | Valid | A wall: never hopped over (it was jumpable before GE-L16) |
+| Raised deck from 0.6 to 0.8 m, `Solid`, meant to be stood on | Invalid intent | Use `Jumpable`; a `Solid` deck is a wall |
+| Sign board from 1.0 m on a 1.0 m post, `Automatic` (1.8 m in all) | Valid | `Solid`; the board blocks down to the ground, no gap |
+| A box with its top below its bottom, or a missing size | Invalid | Refused in Django Admin; the client also refuses it and keeps the built-in default |
+
+`python manage.py collision_clearance_audit` lists every published profile with a raised Solid
+part and how the rule treats it (read-only).
 
 Rules: an adventure never adds its own physics engine or per-scene collision system. A jumpable
 obstacle is never the only way to finish an adventure (see [`jumping-standard.md`](jumping-standard.md)).

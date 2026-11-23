@@ -333,3 +333,101 @@ def test_the_preview_page_carries_the_runtime_collision(roles):
     assert 'data-asset-id="crate"' in page
     assert "data-collision=" in page and "JUMPABLE" in page
     assert 'data-preview-action="collision"' in page
+
+
+# --- raised Solid parts (GE-L16) -----------------------------------------------------------
+
+
+GATEWAY = [
+    {"x": -1.4, "z": 0, "y": 0, "width": 1.2, "height": 3, "depth": 0.4},  # post
+    {"x": 1.4, "z": 0, "y": 0, "width": 1.2, "height": 3, "depth": 0.4},  # post
+    {"x": 0, "z": 0, "y": 2.2, "width": 4, "height": 0.6, "depth": 0.4},  # lintel
+    {"x": 4, "z": 0, "y": 0.05, "width": 2, "height": 0.85, "depth": 0.4},  # rail, a cm up
+    {"x": 0, "z": 3, "y": 1.7, "width": 1, "height": 0.2, "depth": 1},  # exactly 1.7 m
+]
+
+
+def test_raised_solid_parts_are_classified_by_walk_under_clearance():
+    asset = make_definition("gateway", kind="prop", category="prop")
+    version = published(asset)
+    row = profile(
+        asset, shape=CollisionShape.COMPOUND, boxes=GATEWAY, behavior=CollisionBehavior.SOLID
+    )
+    parts = collision.solid_clearance(collision.runtime_collision(row, version))
+    # Ground-level posts are ordinary walls: not listed.
+    assert [(p["index"], p["minY"], p["passage"]) for p in parts] == [
+        (2, 2.2, True),
+        (3, 0.05, False),
+        (4, 1.7, True),
+    ]
+    assert collision.WALK_UNDER_CLEARANCE == 1.7
+
+
+def test_only_solid_answers_have_raised_solid_parts():
+    asset = make_definition("deck", kind="prop", category="prop")
+    version = published(asset)
+    deck = [{"x": 0, "z": 0, "y": 2, "width": 2, "height": 0.2, "depth": 2}]
+    row = profile(
+        asset, shape=CollisionShape.COMPOUND, boxes=deck, behavior=CollisionBehavior.JUMPABLE
+    )
+    assert collision.solid_clearance(collision.runtime_collision(row, version)) == []
+    assert collision.solid_clearance(None) == []
+
+
+def test_automatic_taller_than_the_jump_is_solid_and_gets_the_same_evaluation():
+    asset = make_definition("sign", kind="prop", category="prop")
+    version = published(asset)
+    sign = [
+        {"x": 0, "z": 0, "y": 0, "width": 0.2, "height": 1.0, "depth": 0.2},  # post
+        {"x": 0, "z": 0, "y": 1.0, "width": 1.5, "height": 0.8, "depth": 0.1},  # board
+    ]
+    row = profile(asset, shape=CollisionShape.COMPOUND, boxes=sign)  # AUTO by default
+    runtime = collision.runtime_collision(row, version)
+    assert runtime["behavior"] == "SOLID"  # 1.8 m in all: above the 1.2 m jump
+    assert collision.solid_clearance(runtime) == [
+        {"index": 1, "minY": 1.0, "maxY": 1.8, "passage": False}
+    ]
+
+
+def test_the_clearance_audit_command_lists_raised_solid_parts_read_only():
+    gateway = make_definition("gateway", kind="prop", category="prop")
+    published(gateway)
+    profile(gateway, shape=CollisionShape.COMPOUND, boxes=GATEWAY, behavior=CollisionBehavior.SOLID)
+    crate = make_definition("crate", kind="prop", category="prop")
+    published(crate)
+    profile(crate, behavior=CollisionBehavior.SOLID)  # standing on its pivot: not listed
+    before = list(CollisionProfile.objects.values_list("pk", "updated_at"))
+
+    out = io.StringIO()
+    call_command("collision_clearance_audit", stdout=out)
+    text = out.getvalue()
+
+    assert "walk-under clearance 1.7 m, model space): 1 profile(s)" in text
+    assert "gateway (default, COMPOUND)" in text
+    assert "box 3: 2.2 to 2.8 m, walk-under passage" in text
+    assert "box 4: 0.05 to 0.9 m, blocks at every height" in text
+    assert "crate" not in text
+    assert list(CollisionProfile.objects.values_list("pk", "updated_at")) == before
+
+
+def test_the_admin_explains_each_raised_solid_part(roles):
+    asset = make_definition("gateway", kind="prop", category="prop")
+    published(asset)
+    row = profile(
+        asset, shape=CollisionShape.COMPOUND, boxes=GATEWAY, behavior=CollisionBehavior.SOLID
+    )
+    page = staff("pub", "Asset publishers").get(f"{PROFILES}{row.pk}/change/").content.decode()
+    assert "Raised Solid parts (walk-under clearance 1.7 m" in page
+    assert "Box 3: bottom 2.2 m, walk-under passage (blocks from its underside up)" in page
+    assert "Box 4: bottom 0.05 m, blocks at every height, down to the ground" in page
+
+
+def test_the_admin_help_text_states_the_raised_solid_rule():
+    solid = dict(CollisionBehavior.choices)[CollisionBehavior.SOLID]
+    assert "a part raised 1.7 m or more leaves a walk-under passage" in solid
+    assert "taller is Solid" in dict(CollisionBehavior.choices)[CollisionBehavior.AUTO]
+    offset_y = CollisionProfile._meta.get_field("offset_y").help_text
+    assert "1.7 m" in offset_y and "never makes it jumpable" in offset_y
+    assert "Jumpable profile for a surface to stand on" in (
+        CollisionProfile._meta.get_field("boxes").help_text
+    )

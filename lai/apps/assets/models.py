@@ -247,8 +247,11 @@ class CollisionShape(models.TextChoices):
 
 
 class CollisionBehavior(models.TextChoices):
-    AUTO = "AUTO", "Automatic (jumpable up to 1.2 m tall, solid above)"
-    SOLID = "SOLID", "Solid (blocks at every height)"
+    AUTO = "AUTO", "Automatic (jumpable up to 1.2 m tall; taller is Solid)"
+    SOLID = (
+        "SOLID",
+        ("Solid (blocks at every height; a part raised 1.7 m or more leaves a walk-under passage)"),
+    )
     JUMPABLE = "JUMPABLE", "Jumpable (hop onto or over it)"
     WALKABLE = "WALKABLE", "Walkable (walk over it; kept clear of other colliders)"
     DECORATIVE = "DECORATIVE", "Decorative (visual only, never blocks)"
@@ -301,14 +304,24 @@ class CollisionProfile(models.Model):
         null=True, blank=True, help_text="Cylinder and capsule radius, metres (a tree's trunk)."
     )
     offset_x = models.FloatField(null=True, blank=True, help_text="Centre on model X, metres.")
-    offset_y = models.FloatField(null=True, blank=True, help_text="Bottom on model Y, metres.")
+    offset_y = models.FloatField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Bottom on model Y, metres. A Solid part whose bottom is 1.7 m or more above the "
+            "ground leaves a walk-under passage; lower, it blocks down to the ground. Raising a "
+            "part never makes it jumpable."
+        ),
+    )
     offset_z = models.FloatField(null=True, blank=True, help_text="Centre on model Z, metres.")
     boxes = models.JSONField(
         default=list,
         blank=True,
         help_text=(
             'Compound only: a list of {"x", "z", "y", "width", "height", "depth"} boxes, where x '
-            "and z are the centre and y the bottom, in model space (walls of a building)."
+            "and z are the centre and y the bottom, in model space (walls of a building). A Solid "
+            "box with y of 1.7 m or more (a lintel) leaves a walk-under passage; a lower raised "
+            "box blocks down to the ground. Use a Jumpable profile for a surface to stand on."
         ),
     )
     notes = models.CharField(max_length=500, blank=True)

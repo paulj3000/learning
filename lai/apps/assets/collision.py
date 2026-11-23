@@ -14,6 +14,13 @@ existing movement controller), so:
 - `NONE`, `WALKABLE` and `DECORATIVE` are no boxes at all: deliberately nothing, which the client
   must not replace with its own default.
 
+Raised Solid parts (GE-L16): a Solid box keeps its height and leaves the space under it open only
+when the gap under it is at least the avatar's collision height (`WALK_UNDER_CLEARANCE`, the
+engine's standard 1.7 m) plus the location's margin; otherwise the engine blocks it down to the
+ground. Elevation never makes a part jumpable. `solid_clearance` reports that classification for
+staff (admin preview and `manage.py collision_clearance_audit`); the engine decides at runtime,
+with the placement's own elevation and the real avatar.
+
 An asset with no profile has no `collision` in the resolver answer and the client keeps its
 built-in defaults (`react/.../runtime/derivedColliders.ts`).
 """
@@ -29,6 +36,9 @@ from .models import CollisionAxis, CollisionBehavior, CollisionProfile, Collisio
 
 # Matches the client's `JUMPABLE_MAX_HEIGHT`: the default jump reaches 1.2 m.
 JUMPABLE_MAX_HEIGHT = 1.2
+# Mirrors the engine's standard avatar collision height (`DEFAULT_BODY_HEIGHT`, margin 0): the
+# gap a raised Solid part needs before the child can walk under it. Reporting only.
+WALK_UNDER_CLEARANCE = 1.7
 MAX_BOXES = 32
 MAX_EXTENT = 200.0  # metres; anything larger is a typo, not a prop
 _OCTAGON = math.tan(math.pi / 8)  # half-width of an octagon's flats, per unit radius
@@ -106,6 +116,48 @@ def runtime_collision(profile: CollisionProfile | None, version) -> dict | None:
     if behavior in (CollisionBehavior.WALKABLE, CollisionBehavior.DECORATIVE):
         boxes = []
     return {"behavior": str(behavior), "shape": str(profile.shape), "boxes": boxes}
+
+
+def solid_clearance(runtime: dict | None) -> list[dict]:
+    """Each raised part of a Solid runtime answer and how the engine treats it at ground level.
+
+    `[{"index", "minY", "maxY", "passage"}]`, model space: `passage` is True when the gap under
+    the part is at least `WALK_UNDER_CLEARANCE` (the child walks under it; it blocks from its
+    underside up) and False when it is lower (it blocks at every height, down to the ground). A
+    placement's elevation raises every part further, so a part that is a column on the ground can
+    be a passage on a placement set higher. Parts standing on the pivot (`minY` at or below 0) are
+    ordinary walls and are not listed.
+    """
+    if not runtime or runtime.get("behavior") != str(CollisionBehavior.SOLID):
+        return []
+    return [
+        {
+            "index": index,
+            "minY": box["minY"],
+            "maxY": box["maxY"],
+            "passage": box["minY"] >= WALK_UNDER_CLEARANCE,
+        }
+        for index, box in enumerate(runtime.get("boxes") or [])
+        if box["minY"] > 0
+    ]
+
+
+def clearance_audit(profiles) -> list[dict]:
+    """Every profile in `profiles` with a raised Solid part (read-only; GE-L16 operator audit)."""
+    rows = []
+    for row in profiles:
+        version = row.version if row.version_id else row.asset.default_version
+        parts = solid_clearance(runtime_collision(row, version))
+        if parts:
+            rows.append(
+                {
+                    "asset": row.asset.asset_id,
+                    "scope": f"v{row.version.number}" if row.version_id else "default",
+                    "shape": str(row.shape),
+                    "parts": parts,
+                }
+            )
+    return rows
 
 
 def profile_boxes(profile: CollisionProfile, bounds: Bounds | None) -> list[dict]:
