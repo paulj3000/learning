@@ -16,7 +16,7 @@ Django Admin: Assets > Collision profiles          (staff, apps/assets/admin.py)
   -> asset resolver answer: "collision": {behavior, shape, boxes}   (GET children/<id>/assets/)
   -> React: djangoAssetResolver.collisionProfiles(ids)   (same batched, cached request as models)
   -> engine: applyCollisionProfiles -> derivedColliders.ts (placement transform, keep-clear rules)
-  -> the existing movement controller (FirstPersonController): unchanged
+  -> the shared movement controller (FirstPersonController; raised Solid clearance, GE-L16)
 ```
 
 - **No new physics engine.** The movement controller only has axis-aligned boxes, so Django turns
@@ -40,7 +40,7 @@ Django Admin: Assets > Collision profiles          (staff, apps/assets/admin.py)
 | Asset | The asset (`ContentAsset`) the profile applies to. |
 | Version | Empty: the asset's default for every version. Set: an override for that version only (one per version). |
 | Shape | `None`, `Box`, `Cylinder`, `Capsule`, `Compound boxes`. |
-| Behavior | `Automatic` (jumpable up to 1.2 m tall, solid above), `Solid`, `Jumpable`, `Walkable`, `Decorative`. |
+| Behavior | `Automatic` (jumpable up to 1.2 m tall; taller is Solid), `Solid`, `Jumpable`, `Walkable`, `Decorative`. |
 | Axis | Cylinder and capsule: `Upright`, or lying along model X or Z (a log). |
 | Width, Height, Depth | Model-space size along X, Y, Z in metres. **Empty: from the model's measured bounds.** |
 | Radius | Cylinder and capsule radius. Empty: half the widest cross-section. |
@@ -54,14 +54,21 @@ only have a size, so their bounds are taken as that size centred on the pivot an
 
 ### Behaviour
 
-- **Solid**: blocks at every height. A solid box raised off the ground (a hanging sign) still
-  blocks only at its own height.
+- **Solid**: blocks at every height. A raised Solid part (GE-L16) keeps its height and leaves
+  the space under it open only when its bottom is at least the walk-under clearance above the
+  ground (the avatar's 1.7 m collision height plus the location's `clearanceMargin`, 0 by
+  default): a lintel 2.2 m up is walked under, and it blocks from its underside up. A lower raised
+  part (a hanging sign 1.2 m up, a fence model a centimetre above its pivot) blocks down to the
+  ground. Raising a part never makes it jumpable or something to stand on.
 - **Jumpable**: blocks the body, but the child can hop onto or over it (the default jump reaches
   1.2 m). Use for barrels, crates, rocks and logs. Never required to finish an adventure.
 - **Walkable**: never blocks, and its placements are **kept clear**: a derived box from any other
   asset that would cover the centre of a walkable piece is dropped. Use for paths and planks.
 - **Decorative**: never blocks (flowers, grass, butterflies, hanging leaves).
-- **Automatic**: jumpable up to 1.2 m tall, solid above.
+- **Automatic**: jumpable up to 1.2 m tall; taller is Solid, with the same clearance rule.
+- **Elevated platforms** (a deck, a walkway, a shelf to stand on) are **Jumpable**. The change page
+  lists each raised Solid part and whether it is a walk-under passage;
+  `python manage.py collision_clearance_audit` lists them for every profile (read-only).
 
 ### Shapes
 

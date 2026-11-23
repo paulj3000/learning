@@ -364,3 +364,99 @@ docker stop lai-storybook-testdb
 **Parked work.** The uncommitted `sc-final-d` worktree, from 2026-11-18, holds the client surface for Quill's flavour line (an open owner decision on SC-R09-02) and live reduced-motion edits to shared engine files. It is preserved on `park/sc-final-d-20261118` @ `dec87388` and is not for integration. The integration lead has recorded it on GE-090.
 
 **Still owner-side:** browser and device acceptance (SC-R12-01, O-1 to O-19), the tablet profile and Sprouts playtest (SC-R11), Phaser retirement (SC-R10-03), the SC-JMP-06 tutorial placement, Orion confirmation and final models, the voice consent and audio files, the decision to keep or drop ranks, and running `backfill_castle_keepsakes --apply`.
+
+## 11. Reconciled with `main` (2026-11-23, LAI 02)
+
+Baseline: `main` @ `aa8adb33`, branch `docs/SC-R12-storykeeper-main-reconcile`. Checked against
+Git and the source, not against the Trello text.
+
+### 11.1 What is on `main`
+
+- **GE-072 and every castle commit.** The castle head `df376878` is an ancestor of `main`. It came
+  in through GE-090 step 20c (`f7e57ee2`) and PR #44 (`09bf988e`), and the audit fixes
+  `5946204f` and `da36b5a0` came with it. Since then, the castle's TypeScript files on `main`
+  differ from `df376878` only by whitespace (`git diff -w` is empty up to `60a62e0a`, just before
+  the Prettier commit `017339a8`). The only other changes to castle Python are the reviewed GE-090
+  edits: D1 `ba4acdf0`, and D6 `263f1bf6`, `37b85c4e`, `b9c2229a` and `b6e2c066`.
+- **GE-090-D1** (`ba4acdf0`, PR #53): `inventory/backfill.py` locks through
+  `lock_child_profile_for_system`, and `progression/client_changes.py` through the owner-scoped
+  `lock_owned_child_profile`. Both are on `main`.
+- **GE-090-D2** (`8e7e3719`, PR #54): `HOME_ISLAND_PACK` claims `writing-room-picture-story`
+  (Sprout), `writing-room-sentence-story` (Pathfinder), `writing-room-own-story` (Explorer) and
+  `tiny-brass-knob`. The home island is the right owner. Its pack already holds
+  `storykeeper-castle`, `castle-writing-room`, `castle-keepsakes` and the discovery
+  `castle-chamber-mouse-door`, whose `DISCOVERY` reward rule `reward-castle-chamber-mouse-door`
+  grants the knob. No other pack claims any of the four ids. `content/exported/islands.json`
+  carries them in the home pack.
+
+### 11.2 Ticket reconciliation
+
+| Ticket | Code on `main` | Verdict | What remains |
+|---|---|---|---|
+| SC-R04-05 to 08 (Painted Words, Storybook progression, editions) | yes | Development Complete, integrated | Owner play O-1 to O-5 |
+| SC-R05 Quill, Ember, Orion | yes | Development Complete, integrated | Quill's prompt in third-person view needs GE-090-D7 (`24add20e`). Owner confirms Orion; final GLB models |
+| SC-R06 sound and narration | yes | Development Complete, integrated, **defective on `main`**: the castle requests a region manifest that is a 404, so it is silent | GE-090-D7 `e1e952a5` (Place manifest). Audio files, voice consent, owner audio check |
+| SC-R07 keepsakes, pedestals, Hall of Heroes, ranks | yes | Development Complete, integrated | Ranks keep or drop; `backfill_castle_keepsakes --apply` (owner, per environment) |
+| SC-R08/09 return visits, chamber, Castle Director | yes | Development Complete, integrated; ADR-065 Accepted | Owner look at the star glint and mouse door |
+| SC-R10-01/02 Writing Room, SC-final-B | yes | Development Complete, integrated | Owner play O-15 to O-15e. SC-R10-03 (Phaser retirement) stays Blocked |
+| SC-R11 engineering | yes | Development Complete, integrated | SC-R11-01 tablet profile, SC-R11-02 Sprouts playtest |
+| SC-R12 acceptance and release | guide and notes only | Blocked | Owner QA (acceptance guide 4.4) after D7 merges; release authorization |
+| SC-JMP-06 movement tutorial | reducer only (`castleMovementTutorial.ts`), not shown | Blocked (unchanged) | Owner: placement (Entry Hall proposed) and whether to show it. Assisted mode needs a spec and ADR |
+| SC-JMP-20 movement acceptance | unit part (audit, profile, save contract) | Unit part done, integrated | Browser and device part in owner QA (Q-2, Q-5, Q-11, Q-14) |
+
+### 11.3 GE-090-D7 and the castle (not a second triage)
+
+Agent 5 (LAI 05) owns D7 and has fixed it on `fix/ge-090-d7-browser-acceptance` @ `9b68e548`.
+That branch is not merged. As the castle owner, I reviewed only the castle parts:
+
+- **Cluster C (castle audio 404), `e1e952a5`: correct.** The castle has no Django `WorldRegion`
+  (its layout is a TypeScript manifest, ADR-033), so the region route can only answer 404. The
+  Place manifest is the right scope. `seed_castle_sound` creates shared cues and touches no
+  assignment, so the fix does not change it. Staff assign castle beds to the Place.
+- **`castleTaleScene` NPC pose, `24add20e`: correct.** The castle's own room tracking already used
+  the child's position (`currentRoomId` reads `childPlacement()`). Only the NPC host pose used the
+  camera, and no other castle path reads the camera position.
+- **`npc-3-castle:119`, `6f21030c`: correct.** The spec now expects Quill's SC-R05 premise line,
+  "The Great Storybook was torn", before the story rules.
+- **Follow-up after D7 merges:** `docs/regions/prep/sound_prep.md` (a historical contract) still
+  says the castle uses a region manifest. D7 already updates the canonical
+  `docs/audio/STORYKEEPER_CASTLE_AUDIO.md`.
+
+D7 clusters A, B and D, and the new `portal-adult-exit:142`, are not castle code and stay with
+Agent 5.
+
+### 11.4 Evidence on `main` @ `aa8adb33` (2026-11-23)
+
+Every run went through `scripts/dev/test_gate.py` on the shared host, which was heavily loaded
+(peak load 20 to 23, with paging).
+
+- **Django, PostgreSQL 18.7.** A throwaway loopback `postgres:18-alpine` container with tmpfs
+  storage, `LAI_REQUIRE_POSTGRES=1`, no `.env`, removed after the run. Scope: the 50 castle,
+  Storybook, Writing Room and keepsake test files, plus `apps/regions/tests`, `apps/users/tests`,
+  `apps/inventory/tests`, `progression/tests/test_world_change_audit.py`,
+  `test_protected_world_changes.py` (D1) and `audio/tests/test_manifest_api.py`. Result:
+  **1949 passed, 0 failed, 0 skipped**. `makemigrations --check`: no changes.
+- **Vitest.** Every castle, Storykeeper, Writing Room and Storybook suite, plus
+  `features/worlds` (packs.test, D2), `content-export`, `rewards`, `src/test` (engine boundary)
+  and `IslandLocationPage`: **103 files, 1365 passed, 1 failed**. The failure is
+  `src/test/noAmplify.test.ts`, a whole-repository scan that is not castle code. It hit its 5 s
+  timeout because the gate force-started the run under load and paging (58 timer stalls, up to
+  1 s). Run alone through the gate, it passes, 5 of 5. That rerun is supporting information
+  only; it is not gate evidence.
+- **Checks:** `npm run typecheck`, `npm run content:check` (13 files up to date) and
+  `npm run golden:check` (8 files) all exit 0.
+- **Not run:** Playwright, browser and acceptance suites (owner-authorized only), and EC2.
+
+### 11.5 Proposed closure sequence
+
+1. **Merge GE-090-D7** (Agent 5's PR; owner authorizes). It is the only code defect left on the
+   castle on `main`: the castle is silent, and Quill's prompt is missed in third-person view.
+2. **Owner QA** with acceptance guide section 4.4 (Q-1 to Q-18) and the O-items it cites. Findings
+   become defect cards linked to SC-R12 (Rework Required), fixed by Agent 2.
+3. **Owner decisions** that do not need code: ranks keep or drop, Orion confirmation, voice
+   consent, SC-JMP-06 placement, and `backfill_castle_keepsakes --apply` per environment.
+4. **Device and playtest:** SC-R11-01 tablet profile and SC-R11-02 Sprouts playtest. They gate
+   SC-R10-03 (Phaser retirement, with LAI-2303).
+5. **Owner accepts and closes** the children (SC-R04-05 to SC-R11, SC-JMP-20) and then SC-R12 and
+   the parent. SC-JMP-04, 05, 06, 07 and 10 to 17 stay open or are split out as follow-ups, so they
+   do not hold the parent.
