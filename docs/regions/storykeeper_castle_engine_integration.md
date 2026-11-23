@@ -394,20 +394,21 @@ Git and the source, not against the Trello text.
 | Ticket | Code on `main` | Verdict | What remains |
 |---|---|---|---|
 | SC-R04-05 to 08 (Painted Words, Storybook progression, editions) | yes | Development Complete, integrated | Owner play O-1 to O-5 |
-| SC-R05 Quill, Ember, Orion | yes | Development Complete, integrated | Quill's prompt in third-person view needs GE-090-D7 (`24add20e`). Owner confirms Orion; final GLB models |
-| SC-R06 sound and narration | yes | Development Complete, integrated, **defective on `main`**: the castle requests a region manifest that is a 404, so it is silent | GE-090-D7 `e1e952a5` (Place manifest). Audio files, voice consent, owner audio check |
+| SC-R05 Quill, Ember, Orion | yes | Development Complete, integrated | Quill's third-person reach fixed by GE-090-D7 (`24add20e`, in `main` at `1b0a50a3`). Owner confirms Orion; final GLB models |
+| SC-R06 sound and narration | yes | Development Complete, integrated. The region-manifest 404 is fixed by GE-090-D7 `e1e952a5` (Place manifest, in `main` at `1b0a50a3`) | Staff Place assignment and sound release; audio files, voice consent, owner audio check |
 | SC-R07 keepsakes, pedestals, Hall of Heroes, ranks | yes | Development Complete, integrated | Ranks keep or drop; `backfill_castle_keepsakes --apply` (owner, per environment) |
 | SC-R08/09 return visits, chamber, Castle Director | yes | Development Complete, integrated; ADR-065 Accepted | Owner look at the star glint and mouse door |
 | SC-R10-01/02 Writing Room, SC-final-B | yes | Development Complete, integrated | Owner play O-15 to O-15e. SC-R10-03 (Phaser retirement) stays Blocked |
 | SC-R11 engineering | yes | Development Complete, integrated | SC-R11-01 tablet profile, SC-R11-02 Sprouts playtest |
-| SC-R12 acceptance and release | guide and notes only | Blocked | Owner QA (acceptance guide 4.4) after D7 merges; release authorization |
+| SC-R12 acceptance and release | guide and notes only | Blocked | Owner QA (acceptance guide 4.4), unblocked by D7; release authorization |
 | SC-JMP-06 movement tutorial | reducer only (`castleMovementTutorial.ts`), not shown | Blocked (unchanged) | Owner: placement (Entry Hall proposed) and whether to show it. Assisted mode needs a spec and ADR |
 | SC-JMP-20 movement acceptance | unit part (audit, profile, save contract) | Unit part done, integrated | Browser and device part in owner QA (Q-2, Q-5, Q-11, Q-14) |
 
 ### 11.3 GE-090-D7 and the castle (not a second triage)
 
-Agent 5 (LAI 05) owns D7 and has fixed it on `fix/ge-090-d7-browser-acceptance` @ `9b68e548`.
-That branch is not merged. As the castle owner, I reviewed only the castle parts:
+Agent 5 (LAI 05) owns D7 and fixed it on `fix/ge-090-d7-browser-acceptance` (`9b68e548`, then
+`ae6aa5af` after merging `main`; code unchanged). The owner merged it as PR #63 into `main` at
+`1b0a50a3` on 2026-11-23. As the castle owner, I reviewed only the castle parts:
 
 - **Cluster C (castle audio 404), `e1e952a5`: correct.** The castle has no Django `WorldRegion`
   (its layout is a TypeScript manifest, ADR-033), so the region route can only answer 404. The
@@ -418,8 +419,8 @@ That branch is not merged. As the castle owner, I reviewed only the castle parts
   camera, and no other castle path reads the camera position.
 - **`npc-3-castle:119`, `6f21030c`: correct.** The spec now expects Quill's SC-R05 premise line,
   "The Great Storybook was torn", before the story rules.
-- **Follow-up after D7 merges:** `docs/regions/prep/sound_prep.md` (a historical contract) still
-  says the castle uses a region manifest. D7 already updates the canonical
+- **Follow-up, done:** `docs/regions/prep/sound_prep.md` (a historical contract) now notes that
+  the castle uses the Place manifest. D7 updated the canonical
   `docs/audio/STORYKEEPER_CASTLE_AUDIO.md`.
 
 D7 clusters A, B and D, and the new `portal-adult-exit:142`, are not castle code and stay with
@@ -449,8 +450,8 @@ Every run went through `scripts/dev/test_gate.py` on the shared host, which was 
 
 ### 11.5 Proposed closure sequence
 
-1. **Merge GE-090-D7** (Agent 5's PR; owner authorizes). It is the only code defect left on the
-   castle on `main`: the castle is silent, and Quill's prompt is missed in third-person view.
+1. **Merge GE-090-D7.** Done: PR #63, `main` `1b0a50a3`, 2026-11-23. No known castle code
+   defect remains on `main`.
 2. **Owner QA** with acceptance guide section 4.4 (Q-1 to Q-18) and the O-items it cites. Findings
    become defect cards linked to SC-R12 (Rework Required), fixed by Agent 2.
 3. **Owner decisions** that do not need code: ranks keep or drop, Orion confirmation, voice

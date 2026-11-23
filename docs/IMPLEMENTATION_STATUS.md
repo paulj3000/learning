@@ -92,18 +92,19 @@ This supersedes the "NOT merged" wording in the older castle entries below. Deta
   SC-JMP unit parts), through GE-090 step 20c and PR #44. GE-090-D1 (`ba4acdf0`) and D2
   (`8e7e3719`) are in `main` too. D2's four ids are owned by `HOME_ISLAND_PACK`, which is
   correct.
-- **Open castle defects on `main`:** two, both fixed on the unmerged GE-090-D7 branch
-  (`fix/ge-090-d7-browser-acceptance` @ `9b68e548`, Agent 5). The castle is silent because it
-  requests a region manifest that is a 404; the fix uses the Place manifest. NPC reach was
+- **Castle defects on `main`:** none known. Two were open at `aa8adb33` and are now fixed by
+  GE-090-D7 (PR #63, merged at `1b0a50a3` on 2026-11-23, Agent 5). The castle was silent because
+  it requested a region manifest that is a 404; it now uses the Place manifest. NPC reach was
   measured from the third-person camera, so Quill's prompt could fail to appear. I reviewed the
-  castle parts as owner and they are correct.
+  castle parts as owner and they are correct. `docs/regions/prep/sound_prep.md` now matches.
 - **Evidence (unit only):** Django on PostgreSQL 18.7, 1949 passed, 0 failed, 0 skipped, with no
   missing migrations. Vitest: 103 files, 1365 passed, 1 failed. The failure is `noAmplify`, a
   timeout while the host was paging; it passes alone (supporting information only). Typecheck,
   content:check and golden:check are clean. No browser, Playwright or EC2 run.
 - **Owner QA:** the focused checklist for desktop, touch and accessibility is in
-  `docs/regions/storykeeper_castle_acceptance.md` section 4.4 (Q-1 to Q-18). Run it after D7
-  merges.
+  `docs/regions/storykeeper_castle_acceptance.md` section 4.4 (Q-1 to Q-18). It is unblocked
+  now that D7 is in `main`. For sound, staff first assign the castle cues to the Place
+  `storykeeper-castle` and publish a sound release.
 
 ## LAI-07 Asset Library streamlining, W1 correctness (2026-11-22, `feature/asset-library-streamlining` rebased onto `ed6b0afc`, Trello #244); Development Complete, unit-tested on PostgreSQL 18.7, NOT merged
 

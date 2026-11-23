@@ -96,7 +96,7 @@ Open only, never marked passed here:
 
 Built on `feature/storykeeper-castle-completion`, which is now entirely in `main` (castle head
 `df376878`, GE-090 step 20c; reconciled against `main` `aa8adb33` on 2026-11-23, section 4.4).
-Run these checks on `main`, plus the GE-090-D7 branch where section 4.4 says so. Every item below has unit-test evidence in
+Run these checks on `main` (GE-090-D7 merged at `1b0a50a3`). Every item below has unit-test evidence in
 `tasks/TASK_TRACKER.md` and **none has been run in a browser, on a device or with a child**. Tick
 an item only after you have played it yourself. Run the local stack with fake providers (no live
 AWS) unless a line says otherwise.
@@ -187,18 +187,13 @@ The castle is now on `main`. This is the short pass for desktop, touch and acces
 points at the O-items above rather than repeating them. Tick a line only after you have played
 it yourself. Use the local stack with fake providers and run section 4.0 first.
 
-**Before you start: the GE-090-D7 branch.** Two castle defects are on `main` today and are fixed on
-`fix/ge-090-d7-browser-acceptance` @ `9b68e548` (Agent 5, not merged yet):
-
-- the castle is silent for every child, because it requests a region audio manifest that answers
-  404 (it now requests the Place `storykeeper-castle`);
-- in the default third-person view, NPC reach is measured from the trailing camera, so Keeper
-  Quill's "Talk to" prompt and greeting can fail to appear when the child stands next to him.
-
-Run O-7, O-8, O-9 and the Quill lines below on that branch, or after it merges. If you run them on
-`main`, expect silence and a missing Quill prompt. That is D7, not a new defect. For sound, assign
-the castle cues to the **Place** `storykeeper-castle` in Django Admin (not to a 3D Area), then
-publish a sound release.
+**Before you start: sound setup.** GE-090-D7 (PR #63, merged into `main` at `1b0a50a3` on
+2026-11-23) fixed the two castle defects that blocked this pass. The castle now loads its sound
+from the Place `storykeeper-castle` (it used to request a region manifest that answered 404).
+Keeper Quill's "Talk to" reach is now measured from the child rather than the trailing camera.
+For sound, assign the castle cues to the **Place** `storykeeper-castle` in Django Admin (not to a
+3D Area), then publish a sound release. With no assignment the castle is silent by design, and
+captions still appear.
 
 **Desktop (Chrome, keyboard and mouse)**
 
@@ -216,10 +211,11 @@ publish a sound release.
       and in the parent's Story Keepsakes, then try the Explorer safety refusals (O-15 to O-15b).
 - [ ] Q-7 Keepsakes: brush, lens and key on the Trophy Room pedestals. The mouse door in the
       Secret Chamber gives the Tiny Brass Knob once, with no new pedestal (O-10, O-19).
-- [ ] Q-8 Quill, Ember and Orion lines before and after restoring a page, in third-person view (O-7,
-      needs D7).
+- [ ] Q-8 Quill, Ember and Orion lines before and after restoring a page, in third-person view (O-7;
+      D7 reach fix).
 - [ ] Q-9 Sound: room beds crossfade, mute and volume persist, captions stay when speech is
-      turned off (O-8, O-9, needs D7).
+      turned off (O-8, O-9; needs
+      the Place assignment above).
 - [ ] Q-10 Leave mid-tale and return: the tale resumes in its room with its choices (A-15).
 
 **Touch (iPad Safari, or Chrome's tablet emulation as a first pass only)**
