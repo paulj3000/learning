@@ -12,6 +12,12 @@ import {
   type JumpConfiguration,
 } from './jumpConfiguration';
 import {
+  classifySolidBox,
+  groundUnderBox,
+  requiredClearance,
+  type SolidClearanceClass,
+} from './clearance';
+import {
   footprintDistance,
   resolvePlayerCollision,
   type PlayerCollisionConfiguration,
@@ -44,6 +50,13 @@ import {
  *   at ground level exactly as before jumping existed, so walking is
  *   unchanged, and no jump ever carries the child over a wall, a locked gate,
  *   a quest barrier or the edge of the world.
+ * - A **raised solid** collider (GE-L16, `clearance.ts`) keeps its height only
+ *   when the gap under it is at least `bodyHeight` plus the collision
+ *   `clearanceMargin`: then the child walks under it, a rising head stops at
+ *   its underside, and it blocks from its underside up. A lower gap blocks at
+ *   every height, like a ground-level solid. It is never stepped or jumped
+ *   onto: elevation alone never makes a collider jumpable. (A child placed
+ *   above one, by a spawn or a launch, rests on it rather than sinking in.)
  * - A **jumpable** collider (`ColliderSpec.jumpable`, a rock, crate, log or
  *   step) blocks only where it really is in height. The child can hop onto it,
  *   walk along its top, step down off it, or bump their head on its underside.
@@ -240,6 +253,10 @@ export class FirstPersonController {
   private readonly collisionConfig: PlayerCollisionConfiguration;
   /** `radius + skin`: how close the feet position may come to a blocking box, metres. */
   private readonly reach: number;
+  /** GE-L16: the gap under a raised solid that is a walk-under passage, metres. */
+  private readonly clearance: number;
+  /** Each solid box's clearance class, recomputed when the box moves (`solidClassOf`). */
+  private readonly solidClasses = new WeakMap<Box3, { at: Box3; value: SolidClearanceClass }>();
   private readonly groundHeightAt: (x: number, z: number) => number | null;
   private readonly recoveryDepth: number;
   private readonly isInPlayableArea: (x: number, z: number) => boolean;
@@ -286,6 +303,7 @@ export class FirstPersonController {
     this.bodyHeight = options.bodyHeight ?? DEFAULT_BODY_HEIGHT;
     this.collisionConfig = resolvePlayerCollision(options.collision);
     this.reach = this.collisionConfig.radius + this.collisionConfig.skin;
+    this.clearance = requiredClearance(this.bodyHeight, this.collisionConfig.clearanceMargin);
     this.groundHeightAt = options.groundHeightAt ?? (() => 0);
     this.recoveryDepth = options.recoveryDepth ?? DEFAULT_RECOVERY_DEPTH;
     this.isInPlayableArea = options.isInPlayableArea ?? (() => true);
@@ -1027,8 +1045,9 @@ export class FirstPersonController {
 
   /**
    * The highest surface under (x, z) whose top is no higher than
-   * `feetY + allowance`: the ground, or a jumpable collider's top. `null`
-   * when there is nothing (a hole).
+   * `feetY + allowance`: the ground, or a jumpable collider's top (or an
+   * overhead solid's top the feet are already on, GE-L16). `null` when there
+   * is nothing (a hole).
    */
   private supportHeight(x: number, z: number, feetY: number, allowance: number): number | null {
     let best = this.groundHeightAt(x, z);
@@ -1038,21 +1057,28 @@ export class FirstPersonController {
     for (const underFeet of [true, false]) {
       let found: number | null = null;
       for (const box of this.colliders) {
-        if (!this.jumpable.has(box)) continue;
+        let reach = allowance;
+        if (!this.jumpable.has(box)) {
+          // GE-L16: an overhead solid is never stepped or jumped onto (it blocks from its
+          // underside up), but feet already on or above its top rest there, never sink through.
+          if (!underFeet || this.solidClassOf(box) !== 'OVERHEAD') continue;
+          reach = CONTACT_EPSILON;
+        }
         if (underFeet ? !insideFootprint(box, x, z) : !this.standsOver(box, x, z)) continue;
         const top = box.max.y;
-        if (top <= feetY + allowance && (found === null || top > found)) found = top;
+        if (top <= feetY + reach && (found === null || top > found)) found = top;
       }
       if (found !== null) return best === null || found > best ? found : best;
     }
     return best;
   }
 
-  /** The lowest jumpable underside above the head at (x, z), or `null`. */
+  /** The lowest jumpable or overhead-solid underside above the head at (x, z), or `null`. */
   private ceilingHeight(x: number, z: number, headY: number): number | null {
     let lowest: number | null = null;
     for (const box of this.colliders) {
-      if (!this.jumpable.has(box) || !this.standsOver(box, x, z)) continue;
+      if (!this.jumpable.has(box) && this.solidClassOf(box) !== 'OVERHEAD') continue;
+      if (!this.standsOver(box, x, z)) continue;
       const bottom = box.min.y;
       if (bottom >= headY - CONTACT_EPSILON && (lowest === null || bottom < lowest))
         lowest = bottom;
@@ -1142,9 +1168,11 @@ export class FirstPersonController {
 
   /**
    * Whether the body standing with its feet at `feetY` would be blocked at (x, z). The body is
-   * a cylinder of `radius + skin` around the feet position. Solid colliders are tested at ground
-   * level, as they always were, so they block at every height. Jumpable ones block only where
-   * they overlap the body, less a step the feet may climb.
+   * a cylinder of `radius + skin` around the feet position. Solid colliders block at every
+   * height (`clearance.ts`): ground-level ones and raised ones without walk-under clearance as
+   * a column, as they always did; an overhead one from its underside up, so the space under it
+   * stays open. Jumpable ones block only where they overlap the body, less a step the feet may
+   * climb.
    *
    * With a `from` position (a move), a box the body already overlaps blocks only a move that
    * goes further into it: a child placed too close to something can always step away.
@@ -1164,8 +1192,12 @@ export class FirstPersonController {
           box.max.y > feetY + stepAllowance + CONTACT_EPSILON &&
           box.min.y < feetY + this.bodyHeight - CONTACT_EPSILON;
         if (!overlapsBody) continue;
-      } else if (box.min.y > 0 || box.max.y < 0) {
-        continue; // a solid box not at ground level (as `containsPoint` at y 0 was)
+      } else {
+        const solid = this.solidClassOf(box);
+        if (solid === 'BELOW_GROUND') continue;
+        // Overhead: no step allowance (it is never climbed onto) and no top (nobody gets above it).
+        if (solid === 'OVERHEAD' && box.min.y >= feetY + this.bodyHeight - CONTACT_EPSILON)
+          continue;
       }
       const distance = footprintDistance(box, x, z);
       if (distance >= reach) continue;
@@ -1177,6 +1209,15 @@ export class FirstPersonController {
       return true;
     }
     return false;
+  }
+
+  /** A solid box's clearance class (GE-L16), cached until the box moves. */
+  private solidClassOf(box: Box3): SolidClearanceClass {
+    const cached = this.solidClasses.get(box);
+    if (cached && cached.at.equals(box)) return cached.value;
+    const value = classifySolidBox(box, groundUnderBox(box, this.groundHeightAt), this.clearance);
+    this.solidClasses.set(box, { at: box.clone(), value });
+    return value;
   }
 
   /**

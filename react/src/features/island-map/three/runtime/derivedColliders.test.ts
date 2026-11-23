@@ -5,8 +5,13 @@ import type { ThreeLocationManifest } from './locationManifest';
 import { WELCOME_HARBOR_MANIFEST } from './manifests/welcomeHarbor';
 import { SOURCE_LOCATION_MANIFESTS } from './manifests';
 import { NO_WORLD_STATE, solidColliders } from './sceneLayout';
-import { buildingEntrances, derivedColliders, JUMPABLE_MAX_HEIGHT } from './derivedColliders';
-import { parseCollisionProfile, type CollisionProfile } from './collisionProfile';
+import {
+  buildingEntrances,
+  derivedColliders,
+  JUMPABLE_MAX_HEIGHT,
+  type DerivedCollider,
+} from './derivedColliders';
+import { parseCollisionProfile, type CollisionProfile, type ModelBox } from './collisionProfile';
 import { ALL_CHECKPOINTS } from '../../../discovery/checkpoints';
 
 const KINDS = new Map([['npc-test', 'character' as const]]);
@@ -306,6 +311,170 @@ describe('collision profiles from the Asset Manager', () => {
       { buildings: manifest.buildings } as Partial<ThreeLocationManifest>,
     );
     expect(solidColliders(blocking).filter((c) => c.id?.startsWith('derived:'))).toEqual([]);
+  });
+});
+
+describe('raised parts (GE-L16): elevation never makes a part jumpable', () => {
+  type Box = DerivedCollider['box'];
+  const boxOf = (min: [number, number, number], max: [number, number, number]): ModelBox => ({
+    minX: min[0],
+    minY: min[1],
+    minZ: min[2],
+    maxX: max[0],
+    maxY: max[1],
+    maxZ: max[2],
+  });
+  const at = (assetId: string, y = 0) =>
+    bare([{ kind: 'MODEL', id: 'piece', assetId, position: { x: 0, y, z: 3 } }]);
+  const derive = (manifest: ThreeLocationManifest, profiles?: Map<string, CollisionProfile>) =>
+    derivedColliders(manifest, NO_WORLD_STATE, { ...NONE, ...(profiles ? { profiles } : {}) });
+
+  /** A gateway 4 m wide at z 3: two wall posts, a lintel 2.2 m up, and a low raised rail. */
+  const gateway: CollisionProfile = {
+    behavior: 'SOLID',
+    shape: 'COMPOUND',
+    boxes: [
+      boxOf([-2, 0, -0.2], [-0.8, 3, 0.2]), // west post
+      boxOf([0.8, 0, -0.2], [2, 3, 0.2]), // east post
+      boxOf([-2, 2.2, -0.2], [2, 2.8, 0.2]), // lintel: walk-under clearance
+      boxOf([3, 0.05, -0.2], [5, 0.9, 0.2]), // rail a few cm up: no clearance
+    ],
+  };
+
+  /** The shared controller over derived colliders, the child at (x, 0) facing +Z. */
+  function walk(colliders: DerivedCollider[], x = 0, jump = false, seconds = 2) {
+    const boxes = colliders.map(
+      ({ box }: { box: Box }) =>
+        new Box3(
+          new Vector3(box.minX, box.minY, box.minZ),
+          new Vector3(box.maxX, box.maxY, box.maxZ),
+        ),
+    );
+    const controller = new FirstPersonController({
+      colliders: boxes,
+      jumpableColliders: new Set(boxes.filter((_, i) => colliders[i]!.jumpable)),
+    });
+    controller.teleport(x, 0, 0);
+    for (let i = 0; i < Math.round(seconds * 60); i += 1) {
+      if (jump) controller.pressJump();
+      controller.update(1 / 60, { forward: 1, strafe: 0 });
+    }
+    return controller;
+  }
+
+  it('a raised Solid keeps its authored height and is not jumpable; ground parts reach below 0', () => {
+    // Long parts are cut into short pieces along their length; group the pieces by part.
+    const parts = derive(at('gate-x'), new Map([['gate-x', gateway]]));
+    const posts = parts.filter((part) => part.box.maxY > 2.9);
+    const lintel = parts.filter((part) => Math.abs(part.box.minY - 2.2) < 1e-6);
+    const rail = parts.filter((part) => Math.abs(part.box.minY - 0.05) < 1e-6);
+    expect(posts.length).toBeGreaterThan(0);
+    expect(lintel.length).toBeGreaterThan(0);
+    expect(rail.length).toBeGreaterThan(0);
+    expect(posts.length + lintel.length + rail.length).toBe(parts.length);
+    for (const post of posts) expect(post.box.minY).toBeLessThan(0);
+    for (const piece of lintel) expect(piece.box.maxY).toBeCloseTo(2.8);
+    for (const piece of rail) expect(piece.box.maxY).toBeCloseTo(0.9);
+    for (const part of parts) expect(part.jumpable).toBeUndefined();
+  });
+
+  it('walks through the gateway under the lintel, but not past a post', () => {
+    const parts = derive(at('gate-x'), new Map([['gate-x', gateway]]));
+    expect(walk(parts, 0).position.z).toBeGreaterThan(5);
+    expect(walk(parts, -1.4).position.z).toBeLessThan(3);
+  });
+
+  it('the low raised rail blocks like a wall: no jumping over it, no standing on it', () => {
+    const parts = derive(at('gate-x'), new Map([['gate-x', gateway]]));
+    const controller = walk(parts, 4, true);
+    expect(controller.position.z).toBeLessThan(3);
+    expect(controller.supportingBox()).toBeNull();
+  });
+
+  it('a placement elevation counts: a Solid prop 2 m up is an overhead passage, 0.5 m up a wall', () => {
+    const post: CollisionProfile = {
+      behavior: 'SOLID',
+      shape: 'BOX',
+      boxes: [boxOf([-2, 0, -0.5], [2, 0.6, 0.5])],
+    };
+    const profiles = new Map([['sign-x', post]]);
+    const high = derive(at('sign-x', 2), profiles);
+    expect(high[0]!.box.minY).toBeCloseTo(2);
+    expect(high[0]!.jumpable).toBeUndefined();
+    expect(walk(high).position.z).toBeGreaterThan(5);
+
+    const low = derive(at('sign-x', 0.5), profiles);
+    expect(low[0]!.box.minY).toBeCloseTo(0.5);
+    expect(low[0]!.jumpable).toBeUndefined();
+    expect(walk(low, 0, true).position.z).toBeLessThan(3);
+  });
+
+  it('Automatic: up to 1.2 m is jumpable wherever it is; taller is Solid, raised or not', () => {
+    const short = derive(at('barrel', 2)); // a barrel on a 2 m shelf: 0.9 m tall
+    expect(short[0]!.jumpable).toBe(true);
+    expect(short[0]!.box.minY).toBeCloseTo(2);
+
+    const tallRaised = derive(at('npc-test', 0.55)); // the perched character footprint, 1.6 m
+    expect(tallRaised[0]!.jumpable).toBeUndefined();
+    expect(tallRaised[0]!.box.minY).toBeCloseTo(0.55);
+    expect(walk(tallRaised, 0, true).position.z).toBeLessThan(3);
+
+    const tallHigh = derive(at('npc-test', 2)); // 2 m up: clearance under it
+    expect(tallHigh[0]!.jumpable).toBeUndefined();
+    expect(walk(tallHigh).position.z).toBeGreaterThan(5);
+  });
+
+  it('Automatic thresholds (built-in footprints): 1.2 m is jumpable, just over is Solid', () => {
+    // Profiles arrive already resolved (Django turns AUTO into JUMPABLE or SOLID); the client's
+    // own Automatic rule is for the built-in footprints, at their drawn (scaled) height.
+    const scaled = (y: number) =>
+      bare([
+        {
+          kind: 'MODEL',
+          id: 'piece',
+          assetId: 'crate', // 0.8 m at scale 1
+          position: { x: 0, y: 0, z: 3 },
+          scale: { x: 1, y, z: 1 },
+        },
+      ]);
+    expect(derive(scaled(JUMPABLE_MAX_HEIGHT / 0.8))[0]!.jumpable).toBe(true);
+    const over = derive(scaled((JUMPABLE_MAX_HEIGHT + 0.01) / 0.8))[0]!;
+    expect(over.jumpable).toBeUndefined();
+    expect(over.box.minY).toBeLessThan(0);
+    // The same piece raised 2 m: still Solid by its height, now with walk-under clearance.
+    const raised = derive(
+      bare([
+        {
+          kind: 'MODEL',
+          id: 'piece',
+          assetId: 'crate',
+          position: { x: 0, y: 2, z: 3 },
+          scale: { x: 1, y: 1.6, z: 1 },
+        },
+      ]),
+    )[0]!;
+    expect(raised.jumpable).toBeUndefined();
+    expect(raised.box.minY).toBeCloseTo(2);
+    expect(walk([raised]).position.z).toBeGreaterThan(5);
+  });
+
+  it('a raised Jumpable part stays jumpable and keeps its height (an elevated platform)', () => {
+    const deck: CollisionProfile = {
+      behavior: 'JUMPABLE',
+      shape: 'BOX',
+      boxes: [boxOf([-2, 0.6, -1], [2, 0.8, 1])],
+    };
+    const [part] = derive(at('deck-x'), new Map([['deck-x', deck]]));
+    expect(part!.jumpable).toBe(true);
+    expect(part!.box.minY).toBeCloseTo(0.6);
+  });
+
+  it('a malformed raised box is refused, so the asset keeps its built-in default', () => {
+    const raised = { minX: -1, minY: 2, minZ: -1, maxX: 1, maxY: 1.5, maxZ: 1 };
+    expect(parseCollisionProfile({ behavior: 'SOLID', boxes: [raised] })).toBeUndefined();
+    expect(
+      parseCollisionProfile({ behavior: 'SOLID', boxes: [{ ...raised, maxY: undefined }] }),
+    ).toBeUndefined();
   });
 });
 

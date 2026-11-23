@@ -16,7 +16,11 @@ const SHOTS = 'test-results/acceptance/realms';
 
 const VIEWPORTS = [
   { name: 'desktop-1920', width: 1920, height: 1080 },
+  { name: 'desktop-1440', width: 1440, height: 900 },
+  { name: 'tablet-1024', width: 1024, height: 768 },
   { name: 'tablet-768', width: 768, height: 1024 },
+  { name: 'mobile-390', width: 390, height: 844 },
+  { name: 'mobile-375', width: 375, height: 812 },
   { name: 'mobile-360', width: 360, height: 780 },
   { name: 'mobile-320', width: 320, height: 640 },
 ] as const;
@@ -72,9 +76,13 @@ test.describe.serial('Realm Explorer (AP-03)', () => {
           ? page.getByRole('navigation', { name: 'Island' })
           : page.getByRole('banner');
       await expect(brandHolder.getByText(/Learning Adventure Island/)).toBeVisible();
-      const home = page.getByRole('article', { name: 'Learning Adventure Island' });
       const cove = page.getByRole('article', { name: 'Creature Care Cove' });
-      const [a, b] = [await home.boundingBox(), await cove.boundingBox()];
+      // The first two cards in reading order, whatever the catalog holds (GE-090-D7: the export
+      // gained North Pole, so Creature Care Cove is now third and correctly wraps at 768px).
+      const cards = page.locator('[data-realm]');
+      expect(await cards.count()).toBeGreaterThanOrEqual(2);
+      await expect(cards.first()).toHaveAttribute('data-realm', 'learning-adventure-island');
+      const [a, b] = [await cards.nth(0).boundingBox(), await cards.nth(1).boundingBox()];
       expect(a && b).toBeTruthy();
       if (a && b) {
         // Two columns from tablet up (three from 1280px), one on phones.
@@ -134,6 +142,10 @@ test.describe.serial('Realm Explorer (AP-03)', () => {
       /Science/,
       /Creativity/,
     ]);
+    // How many Realms the seeded catalog publishes (it grows: North Pole joined in GE-090-D7).
+    const total = await page.locator('[data-realm]').count();
+    expect(total).toBeGreaterThanOrEqual(2);
+    await expect(page.getByText(`Showing all ${total} Realms`)).toBeVisible();
     // A full reload would drop this marker; filtering must keep it.
     await page.evaluate(() => {
       (window as unknown as { realmMarker?: number }).realmMarker = 1;
@@ -142,14 +154,14 @@ test.describe.serial('Realm Explorer (AP-03)', () => {
     await subjects.getByRole('button', { name: 'Creativity' }).click();
     await expect(page).toHaveURL(/\?subject=CREATIVITY$/);
     await expect(page.getByRole('article', { name: 'Creature Care Cove' })).toHaveCount(0);
-    await expect(page.getByText('Showing 1 of 2 Realms')).toBeVisible();
+    await expect(page.getByText(`Showing 1 of ${total} Realms`)).toBeVisible();
 
     await subjects.getByRole('button', { name: 'Science' }).click();
     await expect(page.getByRole('article', { name: 'Creature Care Cove' })).toBeVisible();
     await page.screenshot({ path: `${SHOTS}/explorer-filter-science.png`, fullPage: true });
 
     await subjects.getByRole('button', { name: 'All Realms' }).click();
-    await expect(page.getByText('Showing all 2 Realms')).toBeVisible();
+    await expect(page.getByText(`Showing all ${total} Realms`)).toBeVisible();
     expect(
       await page.evaluate(() => (window as unknown as { realmMarker?: number }).realmMarker),
     ).toBe(1);
