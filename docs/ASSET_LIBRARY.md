@@ -1105,7 +1105,9 @@ class Usage:
 
 UsageProvider = Callable[[ContentAsset, AssetVersion | None], Iterable[Usage]]
 
-def register_usage_provider(source: str, provider: UsageProvider) -> None: ...  # idempotent
+RefusalBuilder = Callable[[ContentAsset, AssetVersion | None, list[Usage]], AssetActionRefused]
+
+def register_usage_provider(source, provider, *, refusal: RefusalBuilder | None = None): ...
 def usages_for(asset, version=None) -> list[Usage]: ...      # every provider, stable order
 def retirement_guard(asset, version=None) -> None: ...       # raises AssetActionRefused
 ```
@@ -1120,12 +1122,16 @@ Rules:
    version, plus any consumer that would lose it (for example an unpinned avatar served the
    default). A provider is called inside the retirement transaction with the asset row locked.
 3. **One refusal lists every blocker.** If only one source blocks, the guard raises that source's
-   `code` with its existing message. The NPC and avatar refusal codes and texts are unchanged, and
+   refusal. A source that registers a `refusal` builder keeps its existing code and message word
+   for word. Without one, the default refusal is the first blocking usage's `code` with
+   `<what> is used by: <labels>.` The NPC and avatar refusal codes and texts are unchanged, and
    their tests still pass. If several sources block, it raises `asset_in_use` with one line per
    blocker and `details={"blockers": {source: details}}`.
 4. **Fail closed.** If a provider raises, retirement is refused (`dependency_check_failed`, naming
    the source). The failure is logged with ids only. The guard never assumes "no usages".
 5. **Read-only.** Providers only query. No migration; everything is a query over existing rows.
+   The registry imports nothing from processing, artifacts or jobs code, so it merges with the
+   Lambda stack in either order (LAI 05, 2026-11-22).
 6. **Existing guards.** The NPC and avatar guards stay registered until their providers pass a
    parity test (25.5). Then, with each owner's agreement, the provider replaces the guard. The
    refusal is the same either way.
@@ -1139,6 +1145,7 @@ Rules:
 | `avatars` (avatars owner) | AVAILABLE avatars served the model asset or version (unchanged, from `avatars_using`) | Draft and disabled avatars; an AVAILABLE avatar's **thumbnail** | Should the thumbnail block? **Recommendation: list only**, because the served description already drops a missing thumbnail. |
 | `regions` (realm owners; engine-facing, LAI 06) | Asset-level only: a placement or chest in a PUBLISHED `WorldRegion` | DRAFT and RETIRED regions' placements | Should a PUBLISHED placement block? **Recommendation: block** (LAI 06 agrees, 2026-11-22). The placeholder is a resilience path, not a retirement outcome, and Treasure Cove's ids are mostly not in the bundled manifest. Collision also follows the served profile: without it a placement falls back to the built-in footprint, or to no collider for an unknown id. So retiring would silently change what blocks the child or what they can jump on. This is a behaviour change, so it needs the owner. |
 | `catalog` (catalog owner) | None | `LocationAsset` rows (first use per place) | None |
+| `assets` derived artifacts (Lambda owner) | None (retirement keeps the files) | Live `DerivedArtifact` rows for the version (`source_version`, `promoted_version`) | Add after the Lambda stack is reconciled: the model is not on `main` |
 
 Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,
 `Sound release 12, cue sfx.chest.open`, `3D Area treasure-cove, placement palm-03`. Labels never
@@ -1148,7 +1155,7 @@ contain child data.
 
 - **Retire refusals** list every blocker (25.2, rule 3). This uses the existing admin message path
   (`AssetVersionAdmin._run`, `catalog` `retire_assets`), so no admin code changes.
-- **`manage.py asset_usage <asset_id> [--version N] [--json]`**: a read-only report of
+- **`manage.py asset_usage <asset_id> [--number N] [--json]`**: a read-only report of
   `usages_for`. It is new and lives only in `apps/assets`.
 - **"Used by" panel** on the asset version and content asset change pages. This is deferred to
   after the Lambda stack is reconciled: those branches rewrite `assets/admin.py` (+560 lines), and
@@ -1180,8 +1187,13 @@ contain child data.
 | Step | Scope | Files | Gate |
 |---|---|---|---|
 | W2-0 | This contract | `docs/ASSET_LIBRARY.md` | — |
-| W2-1 | Registry, aggregate guard, `asset_usage` | `apps/assets/dependencies.py`, `apps/assets/apps.py`, `apps/assets/management/commands/asset_usage.py`, tests | Contract agreed (LAI 05) |
+| W2-1 | Registry, aggregate guard, `asset_usage` | `apps/assets/dependencies.py`, `apps/assets/apps.py`, `apps/assets/management/commands/asset_usage.py`, tests | Contract agreed by LAI 05, 2026-11-22. Implemented on the W2 branch, not merged. |
 | W2-2 | Audio provider; correct `asset-standard.md` section 2 | `apps/audio/dependencies.py`, `apps/audio/apps.py`, tests | Sound Manager owner |
 | W2-3 | Regions and catalog providers | `apps/regions/dependencies.py`, `apps/catalog/dependencies.py`, their `apps.py`, tests | Realm and catalog owners; LAI 06 on placements |
 | W2-4 | NPC and avatar providers, parity, then guard replacement | `apps/npcs/dependencies.py`, `apps/avatars/dependencies.py`, their `apps.py`, tests | NPC Manager and avatars owners |
 | W2-5 | "Used by" admin panel | `apps/assets/admin.py`, `apps/catalog/admin.py` | Lambda stack reconciled; catalog owner |
+
+Merge notes from LAI 05: the Lambda stack also edits `ready()` in `apps/assets/apps.py` (adds
+`optimize.register()`, W2-1) and `apps/audio/apps.py` (adds `transcoding.register()`, W2-2).
+Resolve both by keeping both. No owner is named in the standards for `apps/regions` or
+`apps/catalog`; the project owner assigns one before W2-3.
