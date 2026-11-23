@@ -480,6 +480,24 @@ engine lead's migration-ready SHA on `core/gameengine`.
 
 ## The Heart of Firepeak (FPV-01 to FPV-24); on `main`, owner QA pending, not owner-accepted, not deployed
 
+**Curriculum, ADR and acceptance check (2026-11-23, LAI 03, `main` `1b0a50a3` merged in).**
+- ADR-073 matches the code: separate Place, one seven-zone Area with six gates, generic
+  `CHOOSE_ANSWER` (7) and `ORDER_SEQUENCE` (4), a no-jump required route, jumping still on,
+  no lives or timers, and two Firepeak Places. The amendment records that hazards now run through
+  the engine bridge and that rocks and steam are built. Accepted (architecture) is prepared in
+  PR #66 and takes effect on the owner's merge. Gameplay acceptance (FPV-24) stays separate.
+- Curriculum: `docs/firepeak/CURRICULUM_AUDIT.md`, agreed with LAI 06. 10 of 11 skill ids are
+  not objectives; there are per-variant overrides and 8 new objectives (authored by LAI 06).
+  The content re-tag waits for LAI 06's contract commit (FPV-D10).
+- Regression on the merged tree:
+  - Django (PostgreSQL 18.7): 419 passed (Firepeak and North Pole layout, seed, play, import,
+    security, and the changed asset collision profiles).
+  - React: 51 files, 628 passed.
+  - Engine: platform hazards and checkpoint state, 36 passed.
+  - `npm run typecheck`: pass.
+  - `engine:validate` on both scenes with the standard registry: 0 issues.
+- Open: FPV-D10 (completion blocker, LAI 06); owner QA (FPV-24); FPV-22 owner decisions.
+
 **Release-readiness check (2026-11-23, LAI 03, `main` `aa8adb33`).** Firepeak is on `main`
 (GE-090 step 17, PR #44). Checked on this SHA, unit level only:
 - Engine: `npm run engine:validate` on `firepeak_heart_scene.json` with the standard capability
