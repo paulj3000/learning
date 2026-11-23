@@ -431,3 +431,67 @@ def test_the_admin_help_text_states_the_raised_solid_rule():
     assert "Jumpable profile for a surface to stand on" in (
         CollisionProfile._meta.get_field("boxes").help_text
     )
+
+
+# --- W3a: model assets only, and only the chosen asset's versions ------------------------------
+
+
+@pytest.mark.parametrize(
+    ("kind", "category"), [("image", "image"), ("texture", "texture"), ("audio", "sound")]
+)
+def test_clean_refuses_a_profile_on_an_asset_that_is_not_a_3d_model(kind, category):
+    asset = make_definition("splash", kind=kind, category=category)
+    with pytest.raises(ValidationError) as error:
+        collision.clean_profile(CollisionProfile(asset=asset, width=1, height=1, depth=1))
+    assert "3D models only" in error.value.message_dict["asset"][0]
+
+
+def test_the_form_offers_only_the_chosen_assets_model_versions():
+    from apps.assets.admin import CollisionProfileForm
+
+    crate = make_definition("crate", kind="prop", category="prop")
+    crate_v1 = published(crate)
+    rock_v1 = published(make_definition("rock", kind="kit-piece", category="scenery"))
+
+    unbound = CollisionProfileForm()
+    assert set(unbound.fields["version"].queryset) == {crate_v1, rock_v1}
+
+    bound = CollisionProfileForm(data={"asset": crate.pk})
+    assert list(bound.fields["version"].queryset) == [crate_v1]
+
+    row = profile(crate, width=1, height=1, depth=1)
+    assert list(CollisionProfileForm(instance=row).fields["version"].queryset) == [crate_v1]
+
+    garbage = CollisionProfileForm(data={"asset": "not-a-key"})
+    assert set(garbage.fields["version"].queryset) == {crate_v1, rock_v1}
+
+
+def test_the_admin_refuses_another_assets_version_and_a_non_model_asset(roles):
+    crate = make_definition("crate", kind="prop", category="prop")
+    published(crate)
+    rock_v1 = published(make_definition("rock", kind="kit-piece", category="scenery"))
+    splash = make_definition("splash", kind="image", category="image")
+    publisher = staff("pub", "Asset publishers")
+    form = {
+        "version": "",
+        "shape": "BOX",
+        "behavior": "SOLID",
+        "axis": "Y",
+        "width": "1",
+        "height": "1",
+        "depth": "1",
+        "offset_y": "0",
+        "boxes": "[]",
+        "notes": "",
+    }
+
+    wrong_version = publisher.post(
+        f"{PROFILES}add/", {**form, "asset": crate.pk, "version": rock_v1.pk}
+    )
+    assert wrong_version.status_code == 200
+    assert "Select a valid choice" in wrong_version.content.decode()
+
+    not_a_model = publisher.post(f"{PROFILES}add/", {**form, "asset": splash.pk})
+    assert not_a_model.status_code == 200
+    assert "Collision profiles are for 3D models only." in not_a_model.content.decode()
+    assert not CollisionProfile.objects.exists()

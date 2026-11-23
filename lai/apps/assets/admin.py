@@ -35,6 +35,7 @@ from apps.catalog.models import AssetStatus, ContentAsset
 from apps.core.exceptions import error_body
 
 from . import collision, preview, services
+from .formats import KIND_FAMILY, MODEL
 from .models import AssetVersion, CollisionProfile, VersionStatus
 from .storage import StorageError, get_storage, sha256_of
 from .validation import largest_upload_bytes, max_bytes_for
@@ -503,6 +504,9 @@ def done_message(done: str, version) -> str:
 
 # --- collision profiles (`docs/ASSET_COLLISION_PROFILES.md`) ------------------------------------
 
+#: Definition kinds whose files are 3D models; only these get collision profiles.
+MODEL_KINDS = sorted(kind for kind, family in KIND_FAMILY.items() if family == MODEL)
+
 
 class CollisionProfileForm(forms.ModelForm):
     class Meta:
@@ -512,9 +516,25 @@ class CollisionProfileForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if "version" in self.fields:
-            self.fields["version"].queryset = AssetVersion.objects.filter(
-                status__in=[VersionStatus.VALIDATED, VersionStatus.PUBLISHED]
+            # Only versions of 3D models, and once the asset is known only that asset's
+            # (LAI-07 W3a). `collision.clean_profile` still refuses a mismatch.
+            versions = AssetVersion.objects.filter(
+                status__in=[VersionStatus.VALIDATED, VersionStatus.PUBLISHED],
+                asset__kind__in=MODEL_KINDS,
             ).select_related("asset")
+            asset = self._chosen_asset()
+            if asset is not None:
+                versions = versions.filter(asset=asset)
+            self.fields["version"].queryset = versions
+
+    def _chosen_asset(self):
+        """The asset this form is about: the submitted choice, else the saved row's."""
+        if self.is_bound and "asset" in self.fields:
+            try:
+                return self.fields["asset"].clean(self.data.get(self.add_prefix("asset")))
+            except forms.ValidationError:
+                return None
+        return self.instance.asset if self.instance.asset_id else None
 
     def clean(self):
         cleaned = super().clean()
