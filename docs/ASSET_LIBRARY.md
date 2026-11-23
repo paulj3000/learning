@@ -60,8 +60,10 @@ AssetReference = "npc-pip" (follows the default) or "npc-pip@1" (pinned)
 upload (checksum + validate) -> VALIDATED -> publish (re-verify) -> PUBLISHED -> retire -> RETIRED
                                                    \-> REJECTED (stored bytes or definition changed)
 A file that fails validation at upload is never stored and makes no row: the admin sees the
-findings on the form. DRAFT exists in the schema for a future asynchronous validation step; no
-code path creates it today (upload and import both validate synchronously).
+findings on the form. DRAFT is created only by asynchronous model validation (section 26):
+with LAI_ASSET_ASYNC_VALIDATION=on a GLB upload is stored as DRAFT, and its background job moves
+it to VALIDATED or REJECTED. With the flag off (the default) upload and import validate
+synchronously as above.
 ```
 
 | Action | Who (permission) | Effect |
@@ -96,7 +98,10 @@ The type comes from the file's content (GLB magic or a glTF JSON document), neve
 One service, used by upload, import and publish. Reads at most the configured limits, never
 executes anything, never follows a URI. Each finding is `{code, severity, message, path}`;
 any `error` means `REJECTED`. Checks: identity (id pattern, definition active), format by
-signature, size (`LAI_ASSET_MAX_UPLOAD_BYTES`, default 50 MB; JSON chunk 16 MB), GLB header,
+signature, size (`LAI_ASSET_MAX_UPLOAD_BYTES`, default 50 MiB = 52,428,800 bytes, and for a GLB
+`LAI_ASSET_MAX_GLB_BYTES`, section 13; JSON chunk 16 MB, and before parsing at most 64 levels
+of nesting and 1,000,000 structural elements, `docs/processing/GLB_VALIDATION.md` section 3),
+GLB header,
 length and chunk layout, glTF `asset.version == "2.0"`, buffer, buffer-view and accessor
 bounds, embedded-only resources with allowed image types (PNG or JPEG; embedded WebP is refused
 until end-to-end compatibility is demonstrated, owner 2026-11-22), supported extensions only, mesh,
@@ -223,6 +228,15 @@ next load asks again. Treasure Cove uses it (TR-10, section 15).
   one-off container task against production storage (section 19).
 - `--dry-run` reports without writing. Nothing is deleted in S3, and no gameplay reference
   changes.
+- Each import goes through `services.upload_version`, and the report lists every imported file
+  with its version's status (for example `rock version 1: Imported (VALIDATED) from
+  /models/rock.glb`; `--json` adds `status` to each imported entry). With
+  `LAI_ASSET_ASYNC_VALIDATION=on` (section 26) an imported GLB is a `DRAFT` with a queued
+  `asset.validate_model` job, reported as `Imported (DRAFT, background validation queued)`, and
+  it becomes `VALIDATED` or `REJECTED` only when the background validator's result arrives (with
+  the inline jobs backend, before the command returns). `.gltf` files stay synchronous. A rerun
+  skips a draft like any other version of the same bytes; a `REJECTED` one does not count, so the
+  file would be imported again as a new version.
 
 ## 12. AWS storage (`infra/`, synthesized, not deployed)
 
@@ -255,7 +269,8 @@ live AWS call: `infra/lib/assetStorageStack.test.ts` asserts on the synthesized 
 | `LAI_ASSET_BUCKET`, `LAI_ASSET_REGION` | none | Required for `s3`; never hard-coded |
 | `LAI_ASSET_DELIVERY` | `django` | `django` or `s3` |
 | `LAI_ASSET_URL_TTL_SECONDS` | 3600 | Delivery URL lifetime (60 to 43200) |
-| `LAI_ASSET_MAX_UPLOAD_BYTES` | 52428800 | Upload limit (also the largest file the admin preview shows) |
+| `LAI_ASSET_MAX_UPLOAD_BYTES` | 52428800 (50 MiB) | Model upload limit, `.glb` and `.gltf` (also the largest model the admin preview shows) |
+| `LAI_ASSET_MAX_GLB_BYTES` | 52428800 (50 MiB) | GLB processing and inspection limit, 1,048,576 (1 MiB) to 52,428,800 (50 MiB); anything else refuses to start. See below |
 
 Production (`config.settings.production`) refuses to start unless `LAI_ASSET_STORAGE=s3` and both
 `LAI_ASSET_BUCKET` and `LAI_ASSET_REGION` are set, so a container can never fall back to its own
@@ -264,6 +279,44 @@ disk. The key prefixes (`assets/models/`, `assets/images/`, `assets/audio/`, one
 nothing new: `VITE_DJANGO_API_BASE` (only for a non-same-origin API) is the whole client
 configuration (Django is the only backend; `VITE_BACKEND` was removed); no bucket name, key or credential ever
 reaches Vite.
+
+**GLB limit (owner decision 2026-11-17).** `LAI_ASSET_MAX_GLB_BYTES` is one number for every GLB
+step: the Admin upload of a `.glb`, the `asset.validate_model` request's `limits.max_input_bytes`
+(min of the `glb-default` profile and the setting) and the `asset.inspect` payload's `max_bytes`,
+which the media worker enforces. The effective limit is min(`LAI_ASSET_MAX_GLB_BYTES`,
+`LAI_ASSET_MAX_UPLOAD_BYTES`) (`apps.assets.validation.max_glb_bytes`), so lowering the model
+upload limit still lowers it. Bounds, checked in settings with `ImproperlyConfigured`: a whole
+number of bytes, at least 1 MiB, at most `LAI_ASSET_GLB_CEILING_BYTES` (50 MiB, a constant, not an
+environment variable). The ceiling is the GLB validator profile's own input limit (`glb-default`
+v1, 50 MiB), which is below the 64 MiB `asset.inspect` hard ceiling: a larger GLB could be
+uploaded but never validated in the background, so raising the ceiling needs a new profile version
+first. `.gltf`, images and audio are unaffected (they keep `LAI_ASSET_MAX_UPLOAD_BYTES`,
+`LAI_ASSET_MAX_IMAGE_BYTES` and `LAI_ASSET_MAX_AUDIO_BYTES`).
+
+- *Upload.* A GLB above the limit is refused from its size and 12-byte header, before it is
+  hashed or stored, with the `too_large` finding ("The file is N bytes; the limit for GLB models
+  is M bytes."), as `invalid_file`; nothing is stored, no version or job is created. The upload
+  page lists the GLB limit beside the others.
+- *Validate in background.* A GLB above the limit gets no job: the request is refused with
+  `resource_limit_exceeded` before anything is written, and the action says the file is larger
+  than the limit. The version is unchanged.
+- *Inspect in background.* A GLB above the limit gets no job (`object_too_large`), and the action
+  goes on with the other selected versions. A worker refuses an object above the payload's
+  `max_bytes` with `object_too_large`; a payload without `max_bytes` (sent before this change, or
+  for another format) keeps the 64 MiB ceiling.
+- *Already published GLBs above a (lowered) limit* are not invalidated: they stay `PUBLISHED`,
+  resolve and are delivered as before (delivery and the resolver do not read the GLB limit).
+  Revalidating one is refused with `resource_limit_exceeded` and inspecting one with
+  `object_too_large`, with no job and no change. Publishing a `VALIDATED` GLB re-runs the upload
+  checks on the stored file, so one above the current limit is rejected (`too_large`) at publish,
+  exactly as a lowered `LAI_ASSET_MAX_UPLOAD_BYTES` always did. With the default of 50 MiB no
+  stored GLB can be above the limit, because the model upload limit was already 50 MiB.
+- *nginx.* Both templates (`deploy/native/nginx.conf.template`,
+  `deploy/ec2/nginx/default.conf.template`) set `client_max_body_size 55m` (55 MiB = 57,671,680
+  bytes): the 50 MiB file plus 5 MiB of multipart overhead, so Django, not nginx, refuses an
+  oversized file with a readable message. Django's `DATA_UPLOAD_MAX_MEMORY_SIZE` does not apply
+  to file parts; `FILE_UPLOAD_MAX_MEMORY_SIZE` (5 MiB) only moves larger uploads to a temporary
+  file. `tests/deploy/test_upload_body_limit.py` checks the templates.
 
 The admin preview (section 17) adds no variable. Its token lifetime is the constant
 `apps.assets.preview.PREVIEW_TTL_SECONDS` (600 seconds).
@@ -524,9 +577,16 @@ an approval step.
    Publishing it in a deployed environment needs TR-3's region admin, which does not exist yet:
    `publish_treasure_rush` is local-only by design (DEBUG and loopback). **Open blocker.**
 6. **Models.** `python manage.py import_assets --from-bundled --ids npc-pip,treasure-chest,ground-tile`
-   (add `--dry-run` first to see what it would do). Idempotent; publishes nothing.
+   (add `--dry-run` first to see what it would do). Idempotent; publishes nothing. The report
+   gives each imported version's status. With `LAI_ASSET_ASYNC_VALIDATION=off` (the default)
+   they are `VALIDATED`. With it `on`, each GLB is a `DRAFT` whose background validation is
+   queued (section 11): wait until the jobs worker has validated it (the version's "Background
+   validation" section in Django Admin shows the result and whether publishing is allowed).
 7. **Publish** the three versions in Django Admin (19.2, step 3). Until then the game uses its
-   bundled copies, so this step can come later.
+   bundled copies, so this step can come later. With the flag on, only a version that is
+   `VALIDATED` with a passing background validation can be published; a draft is refused with
+   `not_validated`, a missing or outdated pass with `processing_required`, and a `REJECTED` model
+   needs a fixed file.
 8. **React.** Nothing to set: every build calls Django (leave `VITE_DJANGO_API_BASE` unset for a
    same-origin API). The site is published to S3 and CloudFront by `deploy-site.yml`.
 9. **Children.** A child must exist in Django to play: real families need the child-profile
@@ -674,7 +734,7 @@ A definition's `kind` decides the family of file it accepts. The family is read 
 
 | Kind | Family | Accepted formats | Limit (setting) |
 |---|---|---|---|
-| `character`, `prop`, `collectible`, `kit-piece` | 3D model | `.glb`; `.gltf` only if self-contained (every buffer and texture embedded as a `data:` URI) | 50 MB (`LAI_ASSET_MAX_UPLOAD_BYTES`) |
+| `character`, `prop`, `collectible`, `kit-piece` | 3D model | `.glb`; `.gltf` only if self-contained (every buffer and texture embedded as a `data:` URI) | 50 MiB (`LAI_ASSET_MAX_UPLOAD_BYTES`; a `.glb` also `LAI_ASSET_MAX_GLB_BYTES`, section 13) |
 | `texture`, `image`, `sprite` | Image | PNG, JPEG, WebP | 10 MB (`LAI_ASSET_MAX_IMAGE_BYTES`), 4096 px a side, 16 M pixels |
 | `audio` | Audio | MP3 (Layer III), WAV (PCM or float, 8 to 32 bit), Ogg (Vorbis or Opus) | 20 MB (`LAI_ASSET_MAX_AUDIO_BYTES`), mono or stereo, 8 to 96 kHz, 15 minutes |
 
@@ -688,7 +748,12 @@ rejected with a finding, never published half-working. Package it as `.glb` or e
 - The family must suit the definition's kind (`wrong_file_family`).
 - Structures are walked with bounds and must end where the file ends. Extra bytes after a PNG
   `IEND`, a JPEG end marker, a WebP/WAV RIFF size, the last MP3 frame or the Ogg end page are
-  refused (`trailing_data`), so a polyglot file cannot be stored. PNG chunk CRCs are verified.
+  refused (`trailing_data`), so a polyglot file cannot be stored. PNG chunk CRCs are verified. Ogg page checksums are verified on the first 16 pages and the last
+  page (`ogg_crc`), the same sample as the background audio inspection.
+- Images that carry EXIF, GPS, XMP, IPTC or text metadata pass with the warnings
+  `image_location_present` (a GPS tag, XMP GPS or unreadable EXIF) and `image_metadata_present`.
+  The scan is bounded, reads no pixels, stores no value and never refuses a file; published bytes
+  are still delivered unchanged (section 27).
 - Dimensions, channels, sample rate and duration are limited; non-power-of-two textures get a
   warning, not a refusal.
 - A file that fails is never stored and makes no row. SHA-256 is recorded, sent to S3 as the
@@ -704,7 +769,8 @@ rejected with a finding, never published half-working. Package it as `.glb` or e
   the asset answer `duplicate_version`.
 - Published and retired versions are immutable (checksum, key, metadata); the model layer raises
   `ImmutableVersion` on any change and on deletion.
-- A new version is `VALIDATED` and invisible to games. Only **Publish** makes it servable; the
+- A new version is `VALIDATED` (a GLB with asynchronous validation on starts as `DRAFT`,
+  section 26) and invisible to games. Only **Publish** makes it servable; the
   definition's `default_version` decides what an unpinned reference gets. React never chooses a
   version: it receives what Django resolved.
 - Transitions: `DRAFT > VALIDATED | REJECTED`, `VALIDATED > PUBLISHED | REJECTED`,
@@ -787,7 +853,7 @@ needs it, with the kind check in `validate_asset_ref`. No scene editor is part o
 | Symptom | Cause and fix |
 |---|---|
 | Upload says `wrong_file_family` | The asset's kind takes another family. Create a definition of the right kind |
-| Upload says `trailing_data` or `png_crc` | The file is damaged or has data appended. Re-export it |
+| Upload says `trailing_data`, `png_crc` or `ogg_crc` | The file is damaged or has data appended. Re-export it |
 | `.gltf` rejected for an external `uri` | Pack it as `.glb` or embed buffers and textures |
 | Publish says verification failed or rejected | The stored object changed or is missing. Run "Verify the stored files", `asset_storage_audit`, re-upload |
 | Game shows the bundled fallback | The id is unpublished, retired or has no default. Check the version page |
@@ -1101,3 +1167,135 @@ yet, and no shared contract (`services.py`, Django Admin, `apps/audio`) has chan
 **Tests when built:** one test per provider for blocking and non-blocking usages, asserting the
 refusal code and message; a parity test proving the NPC and avatar providers match their existing
 guards; an admin test showing the panel only to users with view permission.
+
+## 26. Asynchronous model validation (LAI-LAMBDA-006 and 007, ADR-064)
+
+Developer-complete on `feature/serverless-processing-canonical`; not merged, not deployed. Full
+flow, outcome codes, retries and deployment order: `docs/processing/ASYNC_MODEL_VALIDATION.md`.
+
+- **Flag.** `LAI_ASSET_ASYNC_VALIDATION` (`off` by default everywhere; refused with
+  `LAI_JOBS_BACKEND=disabled`; production needs `sqs`). It applies to GLB models only; `.gltf`,
+  images and audio keep the synchronous path.
+- **Upload with the flag on.** The synchronous checks run first, as before. A passing GLB is
+  stored, then its `DRAFT` version and an `asset.validate_model` job (media queue) are created in
+  one transaction. If the job cannot be submitted, the file is deleted and the upload fails with
+  `processing_unavailable`. The background GLB validator (`docs/processing/GLB_VALIDATION.md`)
+  reads the stored bytes; its result moves the draft to `VALIDATED` (verdict `pass`) or `REJECTED`
+  (verdict `fail`), appends its findings to the validation report with `source: "processing"`,
+  and stores a summary in `metadata["model_validation"]`. A result is applied only when it matches
+  the version's stored file exactly (key, SHA-256, size, asset and version identity, profile).
+- **Django Admin.** The version page shows a read-only "Background validation" section (status,
+  outcome, verdict, findings, model information) when the flag is on or the version has a
+  validation job. The upload report separates "Upload checks" from "Background validation"
+  findings.
+- **Validate in background** (action on asset versions; staff with upload and view permission):
+  submits a validation of each selected GLB of an active asset, or reports the existing job for
+  the same file; a failed job is replaced by a new one. It never changes the version, whatever the
+  flag says: this is how an existing or published model is revalidated without rewriting its
+  metadata (published versions are immutable; the result stays on the job).
+- **Publication gate.** With the flag on, publishing a GLB is refused with `processing_required`
+  unless a completed validation job passed for exactly this version's file, by the processor
+  version this build runs. A draft is refused with `not_validated` first. No job ever publishes:
+  publishing is still the explicit staff action. Rollback, Make default and republishing during a
+  rollback are not gated. Completed validation jobs are pruned after
+  `LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90); a `VALIDATED` GLB whose passing job was pruned
+  needs Validate in background again before it can be published, and a published one is
+  unaffected. The LATEST applicable validation decides (any newer pending, running, failed,
+  rejected, invalid or superseded job blocks publication; submission and publication share the
+  asset and version row locks), and staff resubmission is bounded
+  (`LAI_ASSET_VALIDATION_MAX_ATTEMPTS`, 5): `docs/processing/ASYNC_MODEL_VALIDATION.md` sections 9
+  and 10.
+- **`asset.inspect` versus `asset.validate_model`.** "Inspect in background" (`asset.inspect`) is
+  informational: it reads structure and dimensions of a model, image or sound, keeps the result on
+  the job and never changes a version. `asset.validate_model` is the full GLB validator; its
+  applied result decides a draft's status and is what the publication gate reads.
+
+## 27. Image privacy baseline (Workstream B, 2026-11-18)
+
+**What is true today (audited, not changed).**
+
+- Asset images (PNG, JPEG, WebP; Asset Library upload, Django Admin) are stored and delivered
+  byte for byte (`delivery.py`: signed Django URL or presigned S3 GET of the stored object). Nothing
+  strips metadata. A phone photo uploaded as an asset delivers its GPS position, device, owner,
+  comment and embedded thumbnail to every player that receives the published version.
+- Since this work, upload validation WARNS (never refuses) with `image_location_present` and
+  `image_metadata_present` (`validation_media.py`, using the standard-library scanner
+  `processing/lai_processing/processors/image/metadata.py`). The scanner records presence only,
+  never a value: GPS location, EXIF device (make, model, software, lens), owner (artist,
+  copyright, camera owner), comment (description, user comment), an embedded thumbnail, XMP, IPTC
+  and text chunks.
+- Child profile photos are a different path (`apps/users/photo_validation.py`, `photos.py`): the
+  JPEG is re-assembled with every metadata segment removed before it is stored in the private
+  child photo bucket. That behaviour is unchanged by this work and is not part of this audit's
+  findings.
+- Historical images are NOT sanitized. Nothing here rewrites, removes or replaces an existing
+  object. Do not describe previously uploaded or published images as clean.
+
+**Finding existing images.** `python manage.py image_metadata_audit` (read only, staff operation;
+`--status PUBLISHED`, `--only-sensitive`, `--json`) scans every stored image version and prints, per
+version, which categories are present (location, device, owner, comment, thumbnail, xmp, iptc, text)
+and counts. It writes no row and no object, prints no metadata value, and marks a version whose
+structure could not be fully read (`structure not fully read`). Run it against dev first, then
+production when the owner asks; it reads each object once, bounded.
+
+**Remediating a published image (never a silent rewrite).** Published versions are immutable and
+their checksum is part of their identity, so the fix is a new version, not an edit:
+
+1. Produce a sanitized copy. After Workstream D's Pillow function ships, an `asset.convert_image`
+   derivative (metadata stripped by construction, `docs/processing/adr/ADR-068`) is promoted by
+   staff; until then re-export from the source with metadata removed.
+2. Upload (or promote) it as a new version of the same asset, check the audit shows it clean,
+   publish it, and make it the default. The previous version stays available for rollback and
+   is retired when staff decide.
+3. Record the replacement in the change note. The original object is kept until the owner approves
+   its removal.
+
+**IAM read prefixes (requirements for the infrastructure workstream; no CDK was changed here).**
+
+| Principal | Read | Write | Never |
+|---|---|---|---|
+| Media jobs worker role (`lai-<env>-jobs-media`) | `s3:GetObject` on `assets/*` only (the stored asset versions); `s3:GetObject` on `processing/artifacts/<env>/*` once derived artifacts are read back; `s3:ListBucket` scoped to those two prefixes | `s3:PutObject` create-only on `processing/artifacts/<env>/*` (a condition such as `s3:if-none-match: *` or no `s3:PutObjectAcl`/overwrite; never `DeleteObject`) | any other prefix of the asset bucket, `speech/*`, the child photo bucket, `children/*`, results bucket other than its own prefixes |
+
+Known defect to fix: `infra/lib/devPlatformStack.ts` (statement `ReadAssets`, near line 1125) grants
+`s3:GetObject` on `bucket/*`; it must be narrowed to `bucket/assets/*` plus
+`bucket/processing/artifacts/<env>/*`. The Python side already treats 403 and `AccessDenied` on an
+input as `access_denied` and never as a missing object (`tests/lambda/test_jobs_worker_denied_is_an_error.py`),
+so a wrong policy fails jobs visibly. The only places a 403 may mean "not stored yet" are the
+worker's own results and shared speech cache lookups, pinned by a source test.
+
+
+## 28. Image conversion (LAI-LAMBDA-013a, ADR-068; Workstream D)
+
+Staff can convert, resize or thumbnail an image version. The work is done by a separate Pillow
+function (`docs/processing/IMAGE_CONVERSION.md`); this section is what staff see and the rules
+Django applies. Module: `apps/assets/image_conversion.py` (rules, submission, display rows),
+`apps/assets/admin_image.py` (the actions and the read-only section).
+
+- **Control.** `LAI_IMAGE_CONVERSION` (default `off`) and `LAI_JOBS_IMAGE_QUEUE_URL`. While the
+  control is off every action is refused with "Image conversion is switched off." and nothing is
+  recorded, locked or queued.
+- **Who.** Staff who may upload and view versions (the "Asset editors" group), as for background
+  validation. The result section needs `assets.view_derivedartifact`; reviewing and promoting an
+  output are the derived artifact permissions (`review`, and `promote` for "Asset publishers").
+- **Which versions.** PNG, JPEG or WebP versions that are validated, published or retired. Never
+  child photos, models or audio.
+- **Actions** (version list, one version at a time): *Convert image* (format, quality, lossless,
+  purpose, power of two, JPEG background), *Resize image* (longest side 16 to 4096 plus the same
+  settings), *Generate thumbnail* (128, 256 and 512 pixel WebP, no settings). Each goes through
+  `submit_derived_job`, so the idempotency key, attempt cap and request limits are the shared
+  ones. Purpose `artwork` converts colours to sRGB; `data` (normal, roughness, metallic, ORM,
+  masks) never changes channel values and is lossless only.
+- **Result.** Outputs are private `pending_review` derived artifacts (roles `image.converted`,
+  `image.resized`, `image.thumbnail`). Thumbnails are not promotable. Every output has location
+  data, camera details, comments and other embedded metadata removed and carries at most one
+  standard sRGB colour profile; "Sanitization" on the page says whether the worker verified that.
+  The original version is never changed.
+- **Version page, "Image conversions".** For each output: original and output dimensions and
+  sizes, output format, colour handling, sanitization status, a preview streamed by the derived
+  artifact route, and a link to the artifact page where staff accept, reject or promote.
+  Promotion creates a new, unpublished version; publishing stays the existing explicit action.
+  Nothing is ever published automatically.
+- **Stale and repeated results.** A result for a replaced or rejected source records nothing
+  (`stale_source`); a delivery repeated by the queue creates nothing more; a result from an older
+  processor than this build expects is `processor_outdated`; a newer run supersedes older outputs
+  of the same source and profile.

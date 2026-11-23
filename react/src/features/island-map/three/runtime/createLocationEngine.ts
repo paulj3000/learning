@@ -37,6 +37,7 @@ import {
 } from 'three';
 import {
   createInstancedMeshFromAsset,
+  enableKtx2Textures,
   instantiateWithLod,
   loadAsset,
   type InstancePlacement,
@@ -199,6 +200,11 @@ export interface LocationEngineAssets {
    * resolver the models come from. Absent, or an id missing from the answer: built-in defaults.
    */
   collisionProfiles?(assetIds: readonly string[]): Promise<CollisionProfiles>;
+  /**
+   * Optional: gives the asset loader the live renderer (KTX2 textures pick
+   * their GPU format from it, ADR-070). Returns the detach, called on dispose.
+   */
+  attachRenderer?(renderer: unknown): () => void;
 }
 
 export interface LocationEngineDeps<R extends RendererLike> {
@@ -232,6 +238,7 @@ export const DEFAULT_LOCATION_ENGINE_DEPS: LocationEngineDeps<WebGLRenderer> = {
     loadModel: (assetId) => loadAsset(assetId),
     instanced: (assetId, placements) => createInstancedMeshFromAsset(assetId, placements),
     withLod: (assetId) => instantiateWithLod(assetId),
+    attachRenderer: (renderer) => enableKtx2Textures(renderer as WebGLRenderer),
   },
   attachControls: (renderer, controller, options) =>
     attachPointerControls(renderer, controller, options),
@@ -512,6 +519,14 @@ export function createLocationEngine<R extends RendererLike>(
     ),
   );
   renderer.setSize(parent.clientWidth, parent.clientHeight);
+  // Before any model loads, so KTX2 textures decode for this GPU (ADR-070). A failure here
+  // (for example a browser without workers) must not stop the place: it runs without KTX2.
+  let detachAssetRenderer: (() => void) | undefined;
+  try {
+    detachAssetRenderer = deps.assets.attachRenderer?.(renderer);
+  } catch (error) {
+    console.warn('KTX2 texture support is unavailable; continuing without it', error);
+  }
   parent.appendChild(renderer.domElement);
 
   // Movement: colliders (gated ones only while their requirements hold),
@@ -1854,6 +1869,11 @@ export function createLocationEngine<R extends RendererLike>(
     for (const ribbon of skyRibbons) ribbon.dispose();
     scene.fog = null;
     scene.clear();
+    try {
+      detachAssetRenderer?.(); // before the renderer goes
+    } catch (error) {
+      console.warn('KTX2 texture support did not detach cleanly', error);
+    }
     renderer.dispose();
     // Browsers cap live WebGL contexts; free this one now rather than at garbage collection.
     renderer.forceContextLoss?.();

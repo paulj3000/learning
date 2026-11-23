@@ -397,6 +397,21 @@ emitted after it joined. Callers that pass no observer behave exactly as
 before. The location engine does not pass an observer yet, so no scene shows
 per-asset progress today; a loading screen is a later task.
 
+**Compressed models (ADR-070).** Every `GLTFLoader` the app builds goes
+through `assets/gltfDecoders.ts` `configureGltfLoader`, which registers
+three's bundled `MeshoptDecoder` (WASM inline in the module; no CDN, no
+extra request). Uncompressed models never touch it, and the cache, cloning
+and animation maps above are unchanged. A model that requires
+`EXT_meshopt_compression` in a browser without WebAssembly fails with a
+typed `CompressedModelError` (`meshopt_unsupported`). KTX2 textures
+(`KHR_texture_basisu`) need the live renderer: the location engine calls
+`enableKtx2Textures(renderer)` once its `WebGLRenderer` exists (it picks the
+GPU format with `detectSupport` and bundles the Basis transcoder through Vite,
+same origin) and detaches it on dispose; without it a KTX2 model fails with
+`ktx2_unavailable`. Whether a compressed
+model can be uploaded and published is decided server side (`LAI_GLB_MESHOPT`
+and `LAI_GLB_KTX2`, default off); see `docs/processing/GLB_OPTIMIZATION.md`.
+
 ## Uploaded models (Django asset library)
 
 Models that do not come from `scripts/generate-world-assets.ts` or the

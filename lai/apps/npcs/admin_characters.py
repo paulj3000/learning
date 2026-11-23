@@ -32,7 +32,7 @@ from django.utils.html import format_html, format_html_join
 from apps.assets import preview as asset_preview
 from apps.catalog.models import SLUG_LENGTH, AssetOrigin, AssetStatus, Location, NpcDefinition
 
-from . import dependencies, publishing
+from . import admin_animation, dependencies, publishing
 from .models import (
     NpcCharacter,
     NpcDialogue,
@@ -569,13 +569,16 @@ class NpcModelVariantAdmin(AuditedAdmin):
     autocomplete_fields = ("character", "model_asset", "pinned_version", "portrait_asset")
     inlines = (VariantAssetInline,)
     fields = ("character", *VariantInline.fields)
-    readonly_fields = ("available_clips", "preview_link")
+    readonly_fields = ("available_clips", "preview_link", "animation_inspection")
+    actions = ("inspect_animations_in_background",)
 
     def get_readonly_fields(self, request, obj=None):
         return _preview_readonly(super().get_readonly_fields(request, obj), request)
 
     def get_fields(self, request, obj=None):
-        return _without_hidden_preview(super().get_fields(request, obj), request)
+        fields = _without_hidden_preview(super().get_fields(request, obj), request)
+        # LAI-LAMBDA-009: the read-only inspection section, on an existing variant only.
+        return [*fields, "animation_inspection"] if obj is not None else fields
 
     @admin.display(description="Available clips")
     def available_clips(self, obj):
@@ -584,6 +587,22 @@ class NpcModelVariantAdmin(AuditedAdmin):
     @admin.display(description="Model preview")
     def preview_link(self, obj):
         return _preview(obj)
+
+    # --- LAI-LAMBDA-009: animation inspection (admin_animation; never writes animation_map) ---
+
+    def has_inspect_animations_permission(self, request):
+        return bool(request.user.is_staff and request.user.has_perm("npcs.change_npcmodelvariant"))
+
+    @admin.action(
+        description="Inspect animations in background (read only, nothing is mapped)",
+        permissions=["inspect_animations"],
+    )
+    def inspect_animations_in_background(self, request, queryset):
+        admin_animation.run_action(self, request, queryset)
+
+    @admin.display(description="Animation inspection")
+    def animation_inspection(self, obj):
+        return admin_animation.render(obj)
 
 
 # --- placements ----------------------------------------------------------------------------------

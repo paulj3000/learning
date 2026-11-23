@@ -110,10 +110,13 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     for (const type of types) {
       for (const pattern of forbidden) expect(type).not.toMatch(pattern);
     }
-    // The two jobs workers are the only functions: no CDK-generated helper Lambda.
+    // The jobs workers and the native workers (ADR-071) are the only functions: no
+    // CDK-generated helper Lambda. The optimize worker needs the optimizeWorker flag.
     expect(resources('AWS::Lambda::Function').map((fn) => fn.Properties.FunctionName)).toEqual([
       'lai-dev-jobs-ai',
       'lai-dev-jobs-media',
+      'lai-dev-jobs-audio',
+      'lai-dev-jobs-image',
     ]);
   });
 
@@ -409,7 +412,11 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
   });
 
   it('runs arm64 Python 3.12 workers outside the VPC, from the artifacts bucket, when enabled', () => {
-    for (const fn of resources('AWS::Lambda::Function')) {
+    const jobsWorkers = resources('AWS::Lambda::Function').filter((fn) =>
+      ['lai-dev-jobs-ai', 'lai-dev-jobs-media'].includes(fn.Properties.FunctionName as string),
+    );
+    expect(jobsWorkers).toHaveLength(2);
+    for (const fn of jobsWorkers) {
       expect(fn.Condition).toBe('LambdaEnabled');
       expect(fn.Properties.Runtime).toBe('python3.12');
       expect(fn.Properties.Architectures).toEqual(['arm64']);
@@ -420,16 +427,14 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
       expect(fn.Properties.MemorySize).toEqual({ Ref: 'LambdaMemorySize' });
     }
     const timeouts = Object.fromEntries(
-      resources('AWS::Lambda::Function').map((fn) => [
-        fn.Properties.FunctionName,
-        fn.Properties.Timeout,
-      ]),
+      jobsWorkers.map((fn) => [fn.Properties.FunctionName, fn.Properties.Timeout]),
     );
     expect(timeouts).toEqual({ 'lai-dev-jobs-ai': 300, 'lai-dev-jobs-media': 120 });
-    const mappings = resources('AWS::Lambda::EventSourceMapping');
+    const mappings = resources('AWS::Lambda::EventSourceMapping').filter(
+      (mapping) => mapping.Condition === 'LambdaEnabled',
+    );
     expect(mappings).toHaveLength(2);
     for (const mapping of mappings) {
-      expect(mapping.Condition).toBe('LambdaEnabled');
       expect(mapping.Properties.BatchSize).toBe(1);
       expect(mapping.Properties.FunctionResponseTypes).toEqual(['ReportBatchItemFailures']);
       expect(mapping.Properties.ScalingConfig).toEqual({
@@ -450,13 +455,28 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
         'lai-dev-jobs-ai-dlq',
         'lai-dev-jobs-media',
         'lai-dev-jobs-media-dlq',
+        'lai-dev-jobs-audio',
+        'lai-dev-jobs-audio-dlq',
+        'lai-dev-jobs-image',
+        'lai-dev-jobs-image-dlq',
+        'lai-dev-jobs-optimize',
+        'lai-dev-jobs-optimize-dlq',
       ].sort(),
     );
     for (const queue of Object.values(queues)) expect(queue.SqsManagedSseEnabled).toBe(true);
     expect(queues['lai-dev-jobs-ai'].VisibilityTimeout).toBe(1800);
     expect(queues['lai-dev-jobs-media'].VisibilityTimeout).toBe(720);
+    expect(queues['lai-dev-jobs-audio'].VisibilityTimeout).toBe(1800);
+    expect(queues['lai-dev-jobs-image'].VisibilityTimeout).toBe(720);
+    expect(queues['lai-dev-jobs-optimize'].VisibilityTimeout).toBe(5400);
     expect(queues['lai-dev-job-results'].MessageRetentionPeriod).toBe(14 * 24 * 3600);
-    for (const name of ['lai-dev-jobs-ai', 'lai-dev-jobs-media']) {
+    for (const name of [
+      'lai-dev-jobs-ai',
+      'lai-dev-jobs-media',
+      'lai-dev-jobs-audio',
+      'lai-dev-jobs-image',
+      'lai-dev-jobs-optimize',
+    ]) {
       expect(queues[name].RedrivePolicy).toMatchObject({ maxReceiveCount: 3 });
     }
     // The consumer never receives while PostgreSQL is down (ADR-064), so five receives are
@@ -749,6 +769,75 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
     );
   });
 
+  it('lets only the media worker list the asset bucket, and only under its two prefixes', () => {
+    // The bucket ARN itself (no `/key` part), as CloudFormation renders it.
+    const assetBucket = {
+      'Fn::Join': [
+        '',
+        [
+          'arn:',
+          { Ref: 'AWS::Partition' },
+          ':s3:::lai-assets-dev-',
+          { Ref: 'AWS::AccountId' },
+          '-',
+          { Ref: 'AWS::Region' },
+        ],
+      ],
+    };
+    const media = roleStatements('MediaWorkerRole');
+    const listing = media.filter((statement) => actions(statement).includes('s3:ListBucket'));
+    const [list] = listing.filter((statement) => statement.Sid === 'ListAssetBucket');
+    expect(list).toBeDefined();
+    expect(actions(list)).toEqual(['s3:ListBucket']);
+    expect(resourcesOf(list)).toEqual([assetBucket]);
+    // IfExists keeps a missing input a 404 (owner decision 2026-11-17, ADR-071 O15).
+    expect(list.Condition).toEqual({
+      StringLikeIfExists: { 's3:prefix': ['assets/*', 'processing/artifacts/dev/*'] },
+    });
+    // The other ListBucket statements are unchanged and none of them names the asset bucket.
+    expect(listing.map((statement) => statement.Sid).sort()).toEqual([
+      'ListAssetBucket',
+      'ListResults',
+      'ListSpeech',
+    ]);
+    for (const statement of listing.filter((s) => s.Sid !== 'ListAssetBucket')) {
+      expect(JSON.stringify(statement.Resource)).not.toContain('lai-assets-');
+    }
+    // Object reads stay GetObject only, on the asset library inputs (assets/*, narrowed from
+    // the whole bucket by ADR-066); the only write is the create-only artifact statement.
+    const [read] = media.filter((statement) => statement.Sid === 'ReadAssets');
+    expect(actions(read)).toEqual(['s3:GetObject', 's3:GetObjectVersion']);
+    const join = assetBucket['Fn::Join'];
+    expect(resourcesOf(read)).toEqual([{ 'Fn::Join': [join[0], [...join[1], '/assets/*']] }]);
+    const assetText = (s: Statement) => JSON.stringify(s.Resource).includes('lai-assets-');
+    expect(
+      media
+        .filter(assetText)
+        .map((s) => s.Sid)
+        .sort(),
+    ).toEqual([
+      'CreateArtifacts',
+      'DenyStaffCaptures',
+      'ListAssetBucket',
+      'ReadArtifacts',
+      'ReadAssets',
+    ]);
+    // No wildcard S3 action, and no S3 action on every resource, for either worker.
+    for (const prefix of ['MediaWorkerRole', 'AiWorkerRole']) {
+      for (const statement of roleStatements(prefix)) {
+        if ((statement as { Effect?: string }).Effect === 'Deny') continue; // sec-6 capture deny
+        for (const action of actions(statement)) {
+          expect(action, prefix).not.toMatch(/^s3:[^:]*\*|^\*$/);
+          if (action.startsWith('s3:')) expect(resourcesOf(statement), prefix).not.toContain('*');
+        }
+      }
+    }
+    // The AI worker gains nothing on the asset bucket.
+    const ai = JSON.stringify(roleStatements('AiWorkerRole'));
+    expect(ai).not.toContain('lai-assets-');
+    expect(ai).not.toContain('ListAssetBucket');
+  });
+
   it('alarms on memory, disk, dead letters and database storage; budget only with an e-mail', () => {
     const alarms = Object.fromEntries(
       resources('AWS::CloudWatch::Alarm').map((alarm) => [
@@ -790,6 +879,8 @@ describe('DevPlatformStack', { timeout: 120_000 }, () => {
       [
         '/aws/lambda/lai-dev-jobs-ai',
         '/aws/lambda/lai-dev-jobs-media',
+        '/aws/lambda/lai-dev-jobs-audio',
+        '/aws/lambda/lai-dev-jobs-image',
         '/aws/rds/instance/lai-dev/postgresql',
         '/aws/vendedlogs/states/lai-dev-power',
         '/lai/dev/deploy',

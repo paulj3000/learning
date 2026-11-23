@@ -92,6 +92,24 @@ def test_studio_jobs_mode_needs_a_backend(monkeypatch):
         _load("config.settings.base")
 
 
+@pytest.mark.parametrize(
+    "name, default, bad",
+    [
+        ("LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS", 90, ("0", "731")),
+        ("LAI_ASSET_VALIDATION_MAX_ATTEMPTS", 5, ("0", "21")),
+    ],
+)
+def test_validation_retention_and_attempt_settings_are_bounded(monkeypatch, name, default, bad):
+    monkeypatch.delenv(name, raising=False)
+    assert getattr(_load("config.settings.base"), name) == default
+    for value in bad:
+        monkeypatch.setenv(name, value)
+        with pytest.raises(ImproperlyConfigured, match=name):
+            _load("config.settings.base")
+    monkeypatch.setenv(name, "1")
+    assert getattr(_load("config.settings.base"), name) == 1
+
+
 def test_production_jobs_settings(monkeypatch):
     from apps.core.tests.test_settings import _prod_env
 
@@ -110,3 +128,33 @@ def test_production_jobs_settings(monkeypatch):
     monkeypatch.setenv("LAI_JOBS_BACKEND", "disabled")
     with pytest.raises(ImproperlyConfigured):
         _load("config.settings.production")
+
+
+def test_async_validation_flag_is_validated_in_base(monkeypatch):
+    monkeypatch.delenv("LAI_JOBS_BACKEND", raising=False)
+    monkeypatch.setenv("LAI_ASSET_ASYNC_VALIDATION", "maybe")
+    with pytest.raises(ImproperlyConfigured, match="must be off or on"):
+        _load("config.settings.base")
+
+
+def test_production_async_validation_flag(monkeypatch):
+    from apps.core.tests.test_settings import _prod_env
+
+    _prod_env(monkeypatch)
+    monkeypatch.delenv("LAI_STUDIO_RUN_MODE", raising=False)
+    monkeypatch.delenv("LAI_ASSET_ASYNC_VALIDATION", raising=False)
+    monkeypatch.delenv("LAI_JOBS_BACKEND", raising=False)
+    assert _load("config.settings.production").LAI_ASSET_ASYNC_VALIDATION == "off"
+
+    monkeypatch.setenv("LAI_ASSET_ASYNC_VALIDATION", "on")
+    # Unset backend: production's default `disabled` is refused for the flag.
+    with pytest.raises(ImproperlyConfigured, match="LAI_ASSET_ASYNC_VALIDATION=on"):
+        _load("config.settings.production")
+    monkeypatch.setenv("LAI_JOBS_BACKEND", "inline")
+    with pytest.raises(ImproperlyConfigured):
+        _load("config.settings.production")
+
+    for name, value in SQS_ENV.items():
+        monkeypatch.setenv(name, value)
+    prod = _load("config.settings.production")
+    assert (prod.LAI_ASSET_ASYNC_VALIDATION, prod.LAI_JOBS_BACKEND) == ("on", "sqs")

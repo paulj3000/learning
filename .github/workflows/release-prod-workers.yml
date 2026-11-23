@@ -1,0 +1,271 @@
+# PROD background processing workers (ADR-071; LAI-LAMBDA-012 P6, docs/processing/PROCESSING_RELEASE.md).
+#
+#   workflow_dispatch only (never a push, schedule or pull request)
+#     gate     -> the repository variable LAI_PROD_PROCESSING_DEPLOY_ENABLED is 'true', the run is on
+#                 main, the typed confirmation matches the action; a rollback also needs the typed
+#                 statement that every processing control is off
+#     ffmpeg-layer-arm64 -> build and test the LGPL FFmpeg layer on a hosted arm64 runner (no AWS)
+#     package  -> build every worker artifact of this commit (scripts/release/build-workers.sh),
+#                 write the deterministic release manifest (SHA-256, kinds and processor versions of
+#                 every zip and the layer; created_at is the commit time; --previous from the input)
+#     publish  -> environment django-prod (required reviewers): verify every SHA-256 against the
+#                 manifest, upload create-only (an identical existing object is accepted, so a
+#                 re-dispatch of the same commit is idempotent), store the manifest, point each
+#                 existing function at its zip (absent, disabled functions are skipped) and check
+#                 the deployed CodeSha256; `upload_only` stops before any function (first release)
+#     rollback -> environment django-prod: read an earlier manifest from S3, verify each artifact,
+#                 point each function back at it
+#
+# Ordering is per kind (PROCESSING_RELEASE.md section 2): Django (migrations, result handlers,
+# consumer) normally ships first with the kind's control off; this workflow then ships the worker;
+# the control is switched on only after `processing_release.py check-enable` passes. GLB validator
+# 1.2.0 is the exception that runs the other way round for its options: with LAI_GLB_MESHOPT and
+# LAI_GLB_KTX2 off Django omits allow_meshopt/allow_ktx2, so Django may ship first and an older
+# media worker still accepts every request (verdicts become processor_outdated until it updates),
+# and the 1.2.0 media worker MUST ship (this workflow) before either control is switched on; a
+# newer worker accepts older requests that lack the options. check-enable enforces the minimum.
+#
+# The FFmpeg layer and the executable SHA-256 pins are stack parameters, never published by this
+# workflow: the job prints them for the owner's scripts/aws/provision.sh prod change set. No stored
+# AWS key: OIDC to lai-github-workers-prod (environment django-prod; see ADR-071 O16 on the shared
+# environment subject).
+name: Release PROD processing workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: release this commit of main, or roll back to an earlier manifest
+        type: choice
+        options: [release, rollback]
+        default: release
+      confirm:
+        description: 'Type exactly: release lai-prod workers (or: rollback lai-prod workers)'
+        type: string
+        required: true
+      rollback_manifest:
+        description: 'rollback only: releases/processing/<40-hex sha>.json'
+        type: string
+        default: ''
+      controls_off:
+        description: 'rollback only. Type exactly: all processing controls are off'
+        type: string
+        default: ''
+      previous_manifest:
+        description: 'release only: the manifest this release follows (releases/processing/<sha>.json), empty for the first'
+        type: string
+        default: ''
+      upload_only:
+        description: 'release only: upload and store, update no function (first release, before the stack creates them)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-prod-workers
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.LAI_AWS_REGION || 'us-west-1' }}
+
+jobs:
+  gate:
+    name: Gate and confirmation
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the typed confirmation
+        env:
+          ACTION: ${{ inputs.action }}
+          CONFIRM: ${{ inputs.confirm }}
+          TARGET: ${{ inputs.rollback_manifest }}
+          CONTROLS_OFF: ${{ inputs.controls_off }}
+          PREVIOUS: ${{ inputs.previous_manifest }}
+        run: |
+          [ "$CONFIRM" = "$ACTION lai-prod workers" ] || { echo "::error::confirmation does not match '$ACTION lai-prod workers'"; exit 1; }
+          if [ "$ACTION" = rollback ]; then
+            [[ "$TARGET" =~ ^releases/processing/[a-f0-9]{40}\.json$ ]] || { echo "::error::rollback_manifest must be releases/processing/<sha>.json"; exit 1; }
+            [ "$CONTROLS_OFF" = "all processing controls are off" ] || { echo "::error::a rollback needs every processing control off first; type: all processing controls are off"; exit 1; }
+          fi
+          if [ -n "$PREVIOUS" ]; then
+            [[ "$PREVIOUS" =~ ^releases/processing/[a-f0-9]{40}\.json$ ]] || { echo "::error::previous_manifest must be releases/processing/<sha>.json"; exit 1; }
+          fi
+
+  # The LGPL FFmpeg layer for arm64 (native/ffmpeg/README.md, ARM64 and CI): built natively on a
+  # hosted arm64 runner inside Amazon Linux 2023, tested with the native integration test, kept as
+  # a run artifact only. This job has no AWS access and publishes nothing.
+  ffmpeg-layer-arm64:
+    name: Build the arm64 FFmpeg layer (no AWS)
+    needs: gate
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'release'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    outputs:
+      built: ${{ steps.build.outputs.built }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build the layer in Amazon Linux 2023 (native arm64)
+        id: build
+        run: |
+          if [ ! -f native/ffmpeg/build.py ]; then
+            echo "built=false" >>"$GITHUB_OUTPUT"
+            echo "no native/ffmpeg in this commit; the release carries no audio worker"
+            exit 0
+          fi
+          mkdir -p build/ffmpeg-dl build/ffmpeg
+          docker build --platform linux/arm64 -t lai-ffmpeg-build native/ffmpeg
+          docker run --rm --platform linux/arm64 --user "$(id -u):$(id -g)" \
+            -v "$PWD:/src:ro" -v "$PWD/build/ffmpeg-dl:/dl" -v "$PWD/build/ffmpeg:/out" \
+            lai-ffmpeg-build --downloads /dl --jobs 2
+          ls build/ffmpeg/lai-ffmpeg-layer-aarch64.zip
+          echo "built=true" >>"$GITHUB_OUTPUT"
+
+      - name: Test the layer before it goes anywhere
+        if: steps.build.outputs.built == 'true'
+        run: |
+          mkdir -p build/ffmpeg-layer && (cd build/ffmpeg-layer && unzip -q ../ffmpeg/lai-ffmpeg-layer-aarch64.zip)
+          python -m pip install --quiet pytest==9.1.1
+          LAI_FFMPEG_BIN="$PWD/build/ffmpeg-layer/bin/ffmpeg" python -m pytest -q tests/processing_native/test_audio_ffmpeg_integration.py
+
+      - uses: actions/upload-artifact@v4
+        if: steps.build.outputs.built == 'true'
+        with:
+          name: ffmpeg-layer-arm64-${{ github.sha }}
+          path: build/ffmpeg/lai-ffmpeg-layer-aarch64.zip
+          if-no-files-found: error
+          retention-days: 90
+
+  package:
+    name: Build artifacts and manifest
+    needs: [gate, ffmpeg-layer-arm64]
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/download-artifact@v4
+        if: needs.ffmpeg-layer-arm64.outputs.built == 'true'
+        with:
+          name: ffmpeg-layer-arm64-${{ github.sha }}
+          path: build/ffmpeg
+
+      - name: Build every worker artifact of this commit
+        env:
+          LAI_OPTIMIZE_WORKER: ${{ vars.LAI_PROD_OPTIMIZE_WORKER || 'false' }}
+        run: |
+          layer=build/ffmpeg/lai-ffmpeg-layer-aarch64.zip
+          if [ -f "$layer" ]; then export LAI_FFMPEG_LAYER_ZIP="$PWD/$layer"; fi
+          scripts/release/build-workers.sh dist/workers
+
+      - name: Write the release manifest (SHA-256 of every artifact)
+        env:
+          PREVIOUS: ${{ inputs.previous_manifest }}
+        run: |
+          created_at=$(TZ=UTC git show -s --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd "$GITHUB_SHA")
+          previous=()
+          [ -z "$PREVIOUS" ] || previous=(--previous "$PREVIOUS")
+          python3 -I scripts/release/processing_release.py manifest create --env prod \
+            --git-sha "$GITHUB_SHA" --dist dist/workers --out dist/workers/manifest.json \
+            --created-at "$created_at" "${previous[@]}"
+          python3 -I scripts/release/processing_release.py manifest verify dist/workers/manifest.json --dist dist/workers
+          cat dist/workers/manifest.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prod-workers-${{ github.sha }}
+          path: dist/workers
+          if-no-files-found: error
+          retention-days: 90
+
+  publish:
+    name: Publish and update PROD workers
+    needs: package
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: django-prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: prod-workers-${{ github.sha }}
+          path: dist/workers
+
+      - name: Verify every artifact against the manifest
+        run: python3 -I scripts/release/processing_release.py manifest verify dist/workers/manifest.json --dist dist/workers
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_PROD_WORKER_RELEASE_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-prod-workers-${{ github.run_id }}
+
+      - name: Upload create-only, store the manifest, update the functions
+        env:
+          BUCKET: ${{ vars.LAI_PROD_ARTIFACT_BUCKET }}
+          UPLOAD_ONLY: ${{ inputs.upload_only }}
+        run: |
+          flags=()
+          [ "$UPLOAD_ONLY" != true ] || flags=(--upload-only)
+          scripts/release/publish-workers.sh publish dist/workers/manifest.json dist/workers "${flags[@]}"
+
+  rollback:
+    name: Roll PROD workers back to a manifest
+    needs: gate
+    if: >-
+      vars.LAI_PROD_PROCESSING_DEPLOY_ENABLED == 'true' &&
+      github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: django-prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.LAI_PROD_WORKER_RELEASE_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: lai-prod-workers-rollback-${{ github.run_id }}
+
+      - name: Verify the earlier manifest's artifacts and point the functions at them
+        env:
+          BUCKET: ${{ vars.LAI_PROD_ARTIFACT_BUCKET }}
+          TARGET: ${{ inputs.rollback_manifest }}
+        run: scripts/release/publish-workers.sh rollback "$TARGET"

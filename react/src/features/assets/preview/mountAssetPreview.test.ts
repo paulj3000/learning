@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { mountAssetPreview, previewCollision } from './mountAssetPreview';
+import { defaultKtx2, mountAssetPreview, previewCollision } from './mountAssetPreview';
 import { PreviewError } from './previewModelSource';
-import type { ModelPreviewViewer } from './modelPreviewViewer';
+import type { ModelPreviewViewer, PreviewRenderer } from './modelPreviewViewer';
+import type { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { fakeResponse, glbFile, gltfFile } from './previewFixtures';
 
 /** The markup `admin/assets/assetversion/preview.html` renders. */
@@ -32,7 +33,10 @@ function page(overrides: Record<string, string | null> = {}): HTMLElement {
   return root;
 }
 
-type FakeViewer = { [K in keyof ModelPreviewViewer]: Mock<ModelPreviewViewer[K]> };
+type ViewerMethods = Exclude<keyof ModelPreviewViewer, 'renderer'>;
+type FakeViewer = { [K in ViewerMethods]: Mock<ModelPreviewViewer[K]> } & {
+  renderer?: PreviewRenderer;
+};
 
 function fakeViewer(): FakeViewer {
   return {
@@ -219,6 +223,52 @@ describe('mountAssetPreview', () => {
     release();
     await mounted.loaded;
     expect(createViewer).not.toHaveBeenCalled();
+  });
+
+  it('creates the viewer first and gives a KTX2 loader for its renderer to the parser (ADR-070)', async () => {
+    const root = page();
+    const renderer = { domElement: document.createElement('canvas') } as unknown as PreviewRenderer;
+    const viewer = { ...fakeViewer(), renderer };
+    const ktx2 = { dispose: vi.fn() } as unknown as KTX2Loader;
+    const order: string[] = [];
+    const createViewer = vi.fn(() => {
+      order.push('viewer');
+      return viewer;
+    });
+    const createKtx2 = vi.fn((given: PreviewRenderer | undefined) => {
+      order.push('ktx2');
+      expect(given).toBe(renderer);
+      return ktx2;
+    });
+    const mounted = mountAssetPreview(root, {
+      fetchImpl: async () => fakeResponse(200, glbFile()),
+      createViewer,
+      createKtx2,
+    });
+    expect(await mounted.loaded).toBe('ready');
+    expect(order).toEqual(['viewer', 'ktx2']);
+    expect(ktx2.dispose).toHaveBeenCalledTimes(1); // workers released once the model is parsed
+    expect(viewer.showModel).toHaveBeenCalledTimes(1);
+  });
+
+  it('releases the KTX2 loader and the viewer when parsing fails', async () => {
+    const root = page();
+    const viewer = fakeViewer();
+    const ktx2 = { dispose: vi.fn() } as unknown as KTX2Loader;
+    const mounted = mountAssetPreview(root, {
+      fetchImpl: async () => fakeResponse(200, gltfFile()),
+      createViewer: () => viewer,
+      createKtx2: () => ktx2,
+    });
+    expect(await mounted.loaded).toBe('error');
+    expect(ktx2.dispose).toHaveBeenCalledTimes(1);
+    expect(viewer.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('builds no KTX2 loader without a real WebGL renderer', () => {
+    expect(defaultKtx2(undefined)).toBeNull();
+    const double = { domElement: document.createElement('canvas') } as unknown as PreviewRenderer;
+    expect(defaultKtx2(double)).toBeNull();
   });
 });
 

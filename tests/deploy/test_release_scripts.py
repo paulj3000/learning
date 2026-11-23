@@ -663,3 +663,38 @@ def test_ssm_run_writes_a_github_step_summary(box, tmp_path):
 def test_ssm_run_refuses_bad_usage(box, args):
     assert box.run(SCRIPTS / "ssm-run.sh", *args).returncode == 2
     assert "send-command" not in box.calls()
+
+
+# --- jobs consumer and sweep (ADR-071, review F14) -----------------------------------------------
+
+
+def test_django_starts_and_passes_health_before_the_jobs_services(box):
+    box.params({**GOOD_PARAMS, "LAI_JOBS_BACKEND": "sqs"})
+    result = box.deploy(1)
+    assert result.returncode == 0, box.output(result)
+    calls = box.calls().splitlines()
+    up_django = next(i for i, c in enumerate(calls) if " up -d --wait" in c)
+    assert calls[up_django].endswith("django proxy")
+    assert "--profile jobs" in calls[up_django]
+    health = next(i for i, c in enumerate(calls) if c.startswith("curl"))
+    jobs = next(i for i, c in enumerate(calls) if "up -d --no-deps jobs-consumer jobs-sweep" in c)
+    assert up_django < health < jobs
+
+
+def test_a_failing_consumer_never_rolls_back_a_healthy_django(box):
+    box.params({**GOOD_PARAMS, "LAI_JOBS_BACKEND": "sqs"})
+    box.write("jobs_up_fail")
+    result = box.deploy(1)
+    assert result.returncode == 0, box.output(result)
+    assert box.current()["status"] == "healthy"
+    assert "the jobs consumer or sweep did not start" in box.output(result)
+    assert "rolling back" not in box.output(result)
+
+
+def test_without_the_sqs_backend_the_jobs_services_are_removed_not_started(box):
+    result = box.deploy(1)
+    assert result.returncode == 0, box.output(result)
+    calls = box.calls()
+    assert "jobs-consumer jobs-sweep" in calls
+    assert "--profile jobs rm --stop --force jobs-consumer jobs-sweep" in calls
+    assert "up -d --no-deps jobs-consumer" not in calls

@@ -78,10 +78,10 @@ jobs:
             files=$(gh api "repos/$REPO/compare/$BEFORE...$SHA" --jq '.files[].filename')
             # Each pattern mirrors its workflow's push paths (tests/deploy guard both).
             if [ "$NATIVE" != true ]; then
-              if grep -qE '^(lai/|content/|react/public/models/|scripts/aws/|deploy/ec2/|tests/deploy/|requirements(-dev)?\.txt$|pyproject\.toml$|\.dockerignore$|\.github/workflows/deploy-django-ec2\.yml$)' <<<"$files"; then
+              if grep -qE '^(lai/|processing/lai_processing/|content/|react/public/models/|scripts/aws/|deploy/ec2/|tests/deploy/|requirements(-dev)?\.txt$|pyproject\.toml$|\.dockerignore$|\.github/workflows/deploy-django-ec2\.yml$)' <<<"$files"; then
                 expect=true
               fi
-            elif grep -qE '^(lai/|content/|react/public/models/|scripts/aws/native/|scripts/aws/dev-release\.sh$|scripts/aws/lib-dev\.sh$|deploy/native/|requirements(-dev)?\.txt$|pyproject\.toml$|\.github/workflows/deploy-dev-native\.yml$)' <<<"$files"; then
+            elif grep -qE '^(lai/|processing/lai_processing/|content/|react/public/models/|scripts/aws/native/|scripts/aws/dev-release\.sh$|scripts/aws/lib-dev\.sh$|deploy/native/|requirements(-dev)?\.txt$|pyproject\.toml$|\.github/workflows/deploy-dev-native\.yml$)' <<<"$files"; then
               expect=true
             fi
           fi

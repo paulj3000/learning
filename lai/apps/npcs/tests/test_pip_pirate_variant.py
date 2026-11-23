@@ -101,3 +101,60 @@ def test_in_the_cove_the_runtime_serves_the_pirate(treasure, api):
 
     again = run("add_pip_pirate_variant", "--use-in-cove", "--publish")
     assert "already uses the pirate" in again and "Publish: unchanged" in again
+
+
+# --- asynchronous model validation on (ADR-064) ---------------------------------------------------
+
+
+@pytest.fixture
+def queued(settings):
+    """The flag on with the SQS backend (fake client): an upload stays a DRAFT with a queued job."""
+    from apps.assets.tests.admin_jobs import use_fake_sqs
+    from apps.jobs import services as jobs
+
+    settings.LAI_ASSET_ASYNC_VALIDATION = "on"
+    use_fake_sqs(settings)
+    yield
+    jobs.set_aws_clients()
+
+
+def test_flag_on_a_queued_draft_stops_cleanly_and_a_rerun_publishes_after_it_passes(
+    treasure, queued
+):
+    from apps.assets import processing
+    from apps.assets.tests.admin_jobs import completed
+
+    run("seed_npc_pip")
+    out = run("add_pip_pirate_variant", "--use-in-cove", "--publish")
+    assert "Model: queued for background validation; rerun this command after it passes." in out
+    asset = ContentAsset.objects.get(asset_id=pip.PIRATE_ASSET_ID)
+    [version] = asset.versions.all()
+    assert version.status == VersionStatus.DRAFT and asset.default_version is None
+    # No half state: no variant, the placement untouched, no NPC release published.
+    assert not NpcModelVariant.objects.filter(variant_key=pip.PIRATE_VARIANT_KEY).exists()
+    assert NpcPlacement.objects.get(placement_key=pip.PLACEMENT_KEY).variant.variant_key == (
+        pip.VARIANT_KEY
+    )
+    assert "Publish:" not in out
+
+    # A rerun while it is still queued says the same and makes no second version or job.
+    again = run("add_pip_pirate_variant")
+    assert "queued for background validation" in again
+    assert asset.versions.count() == 1
+    [job] = processing.validation_jobs(version)
+
+    # The background validator passes it; the rerun then publishes and adds the variant.
+    processing.apply(completed(job))
+    version.refresh_from_db()
+    assert version.status == VersionStatus.VALIDATED
+    done = run("add_pip_pirate_variant")
+    assert "Model: existing; published version 1" in done and "Variant pirate: created." in done
+    version.refresh_from_db()
+    assert version.status == VersionStatus.PUBLISHED
+
+
+def test_flag_on_with_inline_jobs_validates_and_publishes_in_one_run(treasure, settings):
+    settings.LAI_ASSET_ASYNC_VALIDATION = "on"
+    run("seed_npc_pip")
+    out = run("add_pip_pirate_variant")
+    assert "Model: uploaded; published version 1" in out and "Variant pirate: created." in out

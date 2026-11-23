@@ -488,6 +488,94 @@ a zip-packaged arm64 Lambda does the work, writes the result to S3 and sends it 
 - **Turning it off:** `LAI_ENABLE_LAMBDA=false` then `deploy-debug.sh --execute` (the stack then
   sets `LAI_JOBS_BACKEND=disabled` and the Studio to `manual`).
 
+#### Asset processing status (2026-11-18)
+
+PR #42 (001 to 007) and PR #43 (Wave 4: NPC animation and audio header inspection) are green and
+unmerged. The owner-approved completion work is developer-complete on
+`feature/serverless-processing-completion` (stacked on Wave 4, not merged, not deployed):
+staff-only derived artifacts with explicit promotion (ADR-066), LGPL FFmpeg audio transcoding
+(ADR-067), a separate Pillow image function with metadata stripping (ADR-068), staff browser GLB
+thumbnail capture (ADR-069), Meshopt then KTX2 behind controls (ADR-070), and production
+processing infrastructure as code with a compatibility-gated release (ADR-071). Every new
+capability is off by default; no AWS resource was changed. See
+`docs/processing/COMPLETION_INTEGRATION.md` and `docs/IMPLEMENTATION_STATUS.md`.
+
+Local demonstration, no AWS: `scripts/processing/local-demo.sh` (set `LAI_FFMPEG_BIN`,
+`LAI_DEMO_PILLOW_SITE`, `LAI_GLTFPACK_PATH`, `LAI_TOKTX_PATH` to run the native steps for real;
+otherwise they print SKIPPED).
+
+#### Asynchronous model validation (LAI-LAMBDA-001 to 007, ADR-064)
+
+On `feature/serverless-processing-canonical` (PR #42; not deployed). The standard-library processing
+library (`processing/lai_processing`) and its GLB validator run as the `apps.jobs` kind
+`asset.validate_model` on the media queue, inside the existing worker zip. With
+`LAI_ASSET_ASYNC_VALIDATION=on` (default `off` everywhere; refused with `LAI_JOBS_BACKEND=disabled`,
+production needs `sqs`), a GLB upload is stored as a `DRAFT` with its job in the same transaction;
+the result moves it to `VALIDATED` or `REJECTED`, and publishing a GLB needs a passing result for
+exactly that file (`processing_required`). Nothing is published by a job. Django Admin shows a
+read-only "Background validation" section and a "Validate in background" action that revalidates
+existing or published models without changing them. PR #40 and #41 are superseded implementation
+sources (branches kept, not merged).
+
+- **Try it locally:** `LAI_JOBS_BACKEND=inline LAI_ASSET_ASYNC_VALIDATION=on make runserver`, then
+  upload a GLB in Django Admin; or `scripts/processing/local-demo.sh` (compose PostgreSQL, its own
+  database, the packaged worker zip, in-memory SQS and S3, no AWS).
+- **Tests:** `tests/processing`, `tests/lambda/test_jobs_worker_contract.py`,
+  `tests/lambda/test_jobs_worker_package.py`, `tests/lambda/test_jobs_worker_asset_errors.py`,
+  `tests/repo/test_canonical_processing_guard.py`, `tests/deploy/test_upload_body_limit.py`,
+  `lai/apps/jobs/tests/test_contract_kinds.py`, `lai/apps/jobs/tests/test_contract_storage_errors.py`,
+  `lai/apps/jobs/tests/test_migration_rollback.py`, `lai/apps/assets/tests/test_glb_limit.py`,
+  `lai/apps/assets/tests/test_model_validation_retry.py` and the `lai/apps/assets/tests` files for
+  upload, results, gate, admin and parity (list in `docs/processing/ASYNC_MODEL_VALIDATION.md`
+  section 12).
+- **Zip contents:** `jobs_worker/`, its vendored `jobs_core` (now with `contract.py`) and AI
+  providers, and `lai_processing` at the zip root without `testing/`, `cli/` and `__main__.py`
+  (about 351 KB; budget 2 MiB). The native release and the Django image ship
+  `processing/lai_processing` beside `lai/`.
+- **Decided and implemented, not deployed (owner, 2026-11-17):** scoped `s3:ListBucket` for the
+  media role (`ListAssetBucket`) and the 50 MiB GLB input ceiling (`LAI_ASSET_MAX_GLB_BYTES`).
+- **Remaining:** live acceptance (LAI-LAMBDA-011) and the owner decision on artifact writes
+  (`docs/processing/CANONICAL_PATH.md`, "Re-land status"). Release Django and the worker zip
+  together.
+
+#### Wave 4 processing (LAI-LAMBDA-008 to 013)
+
+On `feature/serverless-processing-wave4` (the reviewed PR #42 head plus the Wave 4 work; not
+merged, not deployed). Status and what remains: `docs/processing/WAVE4_HANDOFF.md`.
+
+- **NPC animation inspection (LAI-LAMBDA-009, developer-complete).** Kind `asset.analyze_animation`
+  on the media queue, standard library, in the existing worker zip. "Inspect animations in
+  background" on NPC model variants reports exact clip names (for example
+  `Armature|mixamo.com|Layer0`), durations, channels, keyframes, skins and joints, with a
+  suggestion-only mapping helper. It never writes `animation_map`, publishes nothing and never
+  changes a published version. `docs/processing/NPC_ANIMATION_INSPECTION.md`.
+- **Audio inspection (LAI-LAMBDA-008 phase 1, developer-complete).** Kind `asset.process_audio`:
+  WAV, MP3 and Ogg header facts (format, codec, sample rate, channels, duration exact or
+  estimated) from "Inspect audio in background" on Sound Manager audio files and cues
+  (`audio.inspect_audiofile`). Results stay on the job; nothing is published or rewritten.
+  Transcoding and loudness (phase 2) are not authorized. `docs/processing/AUDIO_INSPECTION.md`.
+- **One migration:** `jobs.0004_wave4_inspection_kinds` adds both kinds. Rollout is consumer
+  first: the worker zip and Django ship together before either action is used.
+- **Feasibility only:** GLB and texture optimization (LAI-LAMBDA-010,
+  `docs/processing/feasibility/LAI-LAMBDA-010-glb-optimization.md`) and image conversion and
+  thumbnails (LAI-LAMBDA-013, `docs/processing/feasibility/LAI-LAMBDA-013-*.md`), with offline
+  bench scripts in `scripts/processing/bench/`. No dependency was added and nothing is enabled.
+- **Native-runtime proposals (not accepted, unnumbered):** `docs/processing/proposals/`
+  (`ADR-PROPOSED-glb-optimization.md`, `ADR-PROPOSED-image-conversion-and-thumbnails.md`,
+  `ADR-PROPOSED-native-audio-transcoding.md`). They change nothing until the owner accepts one.
+- **Readiness (documentation only, not executed):** the DEV live-acceptance checklist
+  `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (section 5 covers the Wave 4 kinds) and the
+  production rollout plan `docs/processing/LAI-LAMBDA-012-production-rollout.md`.
+- **Try it locally:** `scripts/processing/local-demo.sh` (set `LAI_DEMO_DB=lai_processing_demo_<x>`
+  to choose the database) now also runs NPC and audio inspection through the packaged worker zip
+  and the failure paths: invalid media, a duplicate result, a stale version, an unauthorized
+  admin action and a transient S3 503. Tests: `tests/processing/test_processing_animation_inspection.py`,
+  `tests/processing/test_processing_audio_inspector.py`, `tests/lambda/test_jobs_worker_contract.py`,
+  `lai/apps/npcs/tests/test_animation_inspection.py`, `lai/apps/audio/tests/test_audio_inspection.py`.
+- **Restrictions:** no deployment, AWS change, native tool, container image or artifact write
+  without explicit owner approval (`WAVE4_HANDOFF.md` section 6, W4-1 to W4-8). Child audio,
+  photos and text are never processed.
+
 ### React deployment
 
 `install-debug.sh` builds the React app with the Cognito ids and publishes it to the private web
@@ -794,6 +882,6 @@ hardened systemd units with the real gunicorn.
 Live AWS deployment and the checklist above are owner gates and have not been run. Known
 limitations: GLB optimization (LAI-LAMBDA-010), audio transcoding (LAI-LAMBDA-008), thumbnails
 and image conversion (LAI-LAMBDA-013) are not on Lambda yet and do not block the first
-deployment; the PR #40/#41 contract kinds and GLB validator re-land on the canonical path later
-(`docs/processing/CANONICAL_PATH.md`); deploys restart gunicorn, so dev has a few seconds of 502s
-per release.
+deployment; the PR #40/#41 contract kinds and GLB validator are re-landed on the canonical path
+(`docs/processing/CANONICAL_PATH.md`, "Re-land status"), not yet verified live
+(LAI-LAMBDA-011); deploys restart gunicorn, so dev has a few seconds of 502s per release.

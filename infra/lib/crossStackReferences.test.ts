@@ -53,7 +53,7 @@ function resolve(value: Json, region: string): Json {
   return value;
 }
 
-function synthesize(envName: 'dev' | 'prod') {
+function synthesize(envName: 'dev' | 'prod', processing = false) {
   const app = new App();
   const base = { synthesizer: new BootstraplessSynthesizer() };
   const env = { account: ACCOUNT, region: REGION };
@@ -63,6 +63,7 @@ function synthesize(envName: 'dev' | 'prod') {
       env,
       envName,
       allowedOrigins: [],
+      processingArtifacts: envName === 'dev' || processing,
     }),
     new ChildPhotoStorageStack(app, `LaiChildPhotos-${envName}`, {
       ...base,
@@ -91,6 +92,7 @@ function synthesize(envName: 'dev' | 'prod') {
             env,
             envName,
             githubRepository: REPO,
+            processing: processing ? { optimizeWorker: true, budgetUsd: 10 } : undefined,
           }),
         ]),
     new AiGuardrailStack(app, `LaiAiGuardrail-${envName}`, { ...base, env, envName }),
@@ -149,8 +151,12 @@ function referenced(stacks: ReturnType<typeof synthesize>, pattern: RegExp): Set
   return names;
 }
 
-describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
-  const stacks = synthesize(envName);
+describe.each([
+  ['dev', false],
+  ['prod', false],
+  ['prod', true],
+] as const)('cross-stack names (%s, processing %s)', (envName, processing) => {
+  const stacks = synthesize(envName, processing);
 
   it('puts every stack in its intended region', () => {
     const regions = Object.fromEntries(stacks.map((stack) => [stack.name, stack.region]));
@@ -188,8 +194,19 @@ describe.each(['dev', 'prod'] as const)('cross-stack names (%s)', (envName) => {
       stacks,
       /"Type":"AWS::Logs::MetricFilter","Properties":\{[^}]*?"LogGroupName":"([^"]+)"/g,
     );
-    expect(filtered).toEqual(new Set([`/lai/${envName}/django`]));
-    for (const name of filtered) expect(logGroups, name).toContain(name);
+    if (processing) {
+      // ADR-071 monitoring also filters the deploy and worker log groups (same stack, so a Ref).
+      expect(filtered).toContain(`/lai/${envName}/django`);
+    } else {
+      expect(filtered).toEqual(new Set([`/lai/${envName}/django`]));
+    }
+    const platform = stacks.find((stack) => stack.name === platformStack(envName))!.template;
+    const ownGroups = Object.keys(platform.findResources('AWS::Logs::LogGroup'));
+    for (const name of filtered) {
+      // `{LogicalId}`: a Ref to a log group of the same stack.
+      if (name.startsWith('{')) expect(ownGroups, name).toContain(name.slice(1, -1));
+      else expect(logGroups, name).toContain(name);
+    }
     const alarmed = referenced(stacks, /arn:aws:sns:us-west-1:123456789012:([a-z0-9-]+)/g);
     expect(alarmed).toContain(`lai-django-alarms-${envName}`);
     for (const name of alarmed) expect(topics, name).toContain(name);

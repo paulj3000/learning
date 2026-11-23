@@ -8,8 +8,11 @@ import {
 import {
   createModelPreviewViewer,
   type ModelPreviewViewer,
+  type PreviewRenderer,
   type ViewerDependencies,
 } from './modelPreviewViewer';
+import { createKtx2Loader } from '../../island-map/three/assets/gltfDecoders';
+import type { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 
 import { ASSET_MANIFEST } from '../../island-map/three/assets/manifest';
 import { parseCollisionProfile } from '../../island-map/three/runtime/collisionProfile';
@@ -80,6 +83,21 @@ export interface MountDependencies {
   fetchImpl?: typeof fetch;
   viewer?: ViewerDependencies;
   createViewer?: (host: HTMLElement, dependencies?: ViewerDependencies) => ModelPreviewViewer;
+  /** Builds the KTX2 loader for the viewer's renderer (null: no KTX2 support). */
+  createKtx2?: (renderer: PreviewRenderer | undefined) => KTX2Loader | null;
+}
+
+/** A KTX2 loader matched to a real WebGL renderer, or null (no renderer, or a test double). */
+export function defaultKtx2(renderer: PreviewRenderer | undefined): KTX2Loader | null {
+  // Off in the committed Django static bundle, which ships no Basis transcoder
+  // (vite.admin-preview.config.ts); on wherever the transcoder is served.
+  if (import.meta.env.VITE_LAI_ADMIN_KTX2 === 'off') return null;
+  if (!renderer || !('extensions' in renderer)) return null;
+  try {
+    return createKtx2Loader(renderer as unknown as Parameters<typeof createKtx2Loader>[0]);
+  } catch {
+    return null;
+  }
 }
 
 export interface MountedPreview {
@@ -153,10 +171,19 @@ export function mountAssetPreview(
         signal: abort.signal,
       });
       if (disposed) return 'loading';
-      const { scene, clipNames } = await parsePreviewModel(data, format);
-      if (disposed) return 'loading';
+      // The viewer (and so its renderer) comes first: a KTX2 texture is
+      // transcoded for the GPU that will draw it (ADR-070).
       const create = dependencies.createViewer ?? createModelPreviewViewer;
       viewer = create(stage, dependencies.viewer);
+      const ktx2 = (dependencies.createKtx2 ?? defaultKtx2)(viewer.renderer);
+      let parsed;
+      try {
+        parsed = await parsePreviewModel(data, format, ktx2 ? { ktx2 } : {});
+      } finally {
+        ktx2?.dispose(); // textures are decoded by now; only the workers go
+      }
+      if (disposed) return 'loading';
+      const { scene, clipNames } = parsed;
       viewer.showModel(scene);
       viewer.setCollision(collision.boxes, collision.kind);
       if (collisionStatus) {

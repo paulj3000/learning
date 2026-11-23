@@ -275,9 +275,102 @@ def test_sweep_fails_stale_jobs_and_prunes_old_completed(recorder, settings):
     fresh.refresh_from_db()
     assert fresh.status == JobStatus.PENDING
     assert not ProcessingJob.objects.filter(pk=old_done.pk).exists()
-    assert ProcessingJob.objects.filter(pk=old_failed.pk).exists()
+    assert not ProcessingJob.objects.filter(pk=old_failed.pk).exists()  # unkeyed, 90 days old
     assert {status for _id, status, _r in recorder.applied} == {"failed"}
     assert len(recorder.applied) == 2
+
+
+STAMP = now().replace(microsecond=500_000)
+
+
+def finished(kind, days, *, status=JobStatus.COMPLETED, extra=timedelta(0)):
+    """A finished job of `kind` that finished exactly `days` days (plus `extra`) before STAMP."""
+    return ProcessingJob.objects.create(
+        kind=kind,
+        queue=envelope.KIND_QUEUE[kind],
+        backend="sqs",
+        payload={},
+        status=status,
+        created_at=STAMP - timedelta(days=days) - extra - timedelta(minutes=1),
+        finished_at=STAMP - timedelta(days=days) - extra,
+    )
+
+
+def kept(*jobs):
+    return {job.pk for job in jobs} & set(ProcessingJob.objects.values_list("pk", flat=True))
+
+
+def test_validation_jobs_have_their_own_retention_and_the_boundary_is_kept(
+    recorder, settings, monkeypatch
+):
+    """Completed `asset.validate_model` jobs live LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS (90);
+    one that finished exactly 90 days ago is kept, a microsecond older is pruned."""
+    settings.LAI_JOBS_RETENTION_DAYS = 30
+    settings.LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS = 90
+    monkeypatch.setattr(services, "now", lambda: STAMP)
+    validate = envelope.ASSET_VALIDATE_MODEL
+    young = finished(validate, 89)
+    boundary = finished(validate, 90)
+    older = finished(validate, 90, extra=timedelta(microseconds=1))
+    ancient = finished(validate, 400)
+    failed_old = finished(validate, 400, status=JobStatus.FAILED)
+
+    assert services.sweep(dry_run=True)["pruned"] == 2
+    assert kept(young, boundary, older, ancient, failed_old) == {
+        young.pk,
+        boundary.pk,
+        older.pk,
+        ancient.pk,
+        failed_old.pk,
+    }
+    services.sweep()
+    # The failed job (no key, no subject) goes with the same 90 day retention.
+    assert kept(young, boundary, older, ancient, failed_old) == {young.pk, boundary.pk}
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [
+        envelope.ASSET_INSPECT,
+        envelope.SPEECH_SYNTHESIZE,
+        envelope.STUDIO_GENERATE_CHUNK,
+        envelope.REFERENCE_CHECKSUM,
+    ],
+)
+def test_other_kinds_keep_the_general_retention(recorder, settings, monkeypatch, kind):
+    settings.LAI_JOBS_RETENTION_DAYS = 30
+    settings.LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS = 90
+    monkeypatch.setattr(services, "now", lambda: STAMP)
+    boundary = finished(kind, 30)
+    older = finished(kind, 30, extra=timedelta(microseconds=1))
+    failed_old = finished(kind, 400, status=JobStatus.FAILED)
+    services.sweep()
+    assert kept(boundary, older, failed_old) == {boundary.pk}
+    assert services.retention_days(kind) == 30
+    assert services.retention_days(envelope.ASSET_VALIDATE_MODEL) == 90
+
+
+@pytest.mark.parametrize("status", [JobStatus.PENDING, JobStatus.RUNNING])
+def test_active_validation_jobs_are_never_pruned_whatever_their_age(
+    recorder, settings, monkeypatch, status
+):
+    """A pending or running job older than every retention period is not prunable; the sweep
+    times it out (FAILED, kept until its own retention) instead of deleting it."""
+    settings.LAI_JOBS_STALE_MINUTES = 60
+    monkeypatch.setattr(services, "now", lambda: STAMP)
+    job = ProcessingJob.objects.create(
+        kind=envelope.ASSET_VALIDATE_MODEL,
+        queue="media",
+        backend="sqs",
+        payload={},
+        status=status,
+        created_at=STAMP - timedelta(days=400),
+    )
+    assert not services.prunable(STAMP).filter(pk=job.pk).exists()
+    report = services.sweep()
+    assert report["pruned"] == 0 and report["timed_out"] == 1
+    job.refresh_from_db()
+    assert (job.status, job.error_code) == (JobStatus.FAILED, "timeout")
 
 
 @pytest.mark.parametrize("backlog, unreadable", [(3, False), (0, True)])
@@ -376,3 +469,26 @@ def test_a_database_error_mid_batch_hands_the_rest_back(settings, recorder, aws,
     monkeypatch.setattr(services, "apply_result", broken)
     call_command("jobs_consume_results", "--once", "--wait-seconds", "0")
     assert aws.sqs.deleted == [] and aws.sqs.released == handles
+
+
+def test_consumer_leaves_an_artifact_storage_fault_for_retry_not_as_a_handler_bug(
+    settings, aws, monkeypatch, caplog, capsys
+):
+    """ArtifactStorageUnavailable is retryable like ResultUnavailable: the message is left on the
+    queue (it reappears), nothing is logged as `handler_error`, and nothing is deleted."""
+    from apps.assets.artifact_storage import ArtifactStorageUnavailable
+
+    use_sqs(settings)
+    job = pending()
+    aws.sqs.queue(result(job, "succeeded", result={"n": 1}))
+
+    def unavailable(body):
+        raise ArtifactStorageUnavailable("storage")
+
+    monkeypatch.setattr(services, "apply_result", unavailable)
+    call_command("jobs_consume_results", "--once", "--max-messages", "1", "--wait-seconds", "0")
+    report = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert (report["left"], report["deleted"]) == (1, 0)
+    assert aws.sqs.deleted == []
+    assert "outcome=artifact_storage_unavailable" in caplog.text
+    assert "handler_error" not in caplog.text

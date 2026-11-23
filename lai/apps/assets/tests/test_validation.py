@@ -156,7 +156,15 @@ def test_an_embedded_webp_texture_is_refused():
     assert "image_type" in codes(result) and not result.passed
 
 
-@pytest.mark.parametrize("extension", ["KHR_draco_mesh_compression", "EXT_meshopt_compression"])
+@pytest.mark.parametrize(
+    "extension",
+    [
+        "KHR_draco_mesh_compression",
+        "EXT_meshopt_compression",
+        "KHR_meshopt_compression",
+        "KHR_texture_basisu",
+    ],
+)
 def test_compression_that_needs_a_decoder_is_rejected(extension):
     document, binary = gltf_document(
         extra={"extensionsUsed": [extension], "extensionsRequired": [extension]}
@@ -164,12 +172,15 @@ def test_compression_that_needs_a_decoder_is_rejected(extension):
     assert "needs_decoder" in codes(check(glb_bytes(document, binary)))
 
 
-def test_unknown_optional_extensions_only_warn_but_required_ones_fail():
-    document, binary = gltf_document(extra={"extensionsUsed": ["VENDOR_sparkles"]})
+@pytest.mark.parametrize(
+    "extension",
+    ["VENDOR_sparkles", "EXT_texture_webp", "EXT_texture_avif", "EXT_mesh_gpu_instancing"],
+)
+@pytest.mark.parametrize("where", ["extensionsUsed", "extensionsRequired"])
+def test_unsupported_and_unknown_extensions_are_errors_even_when_only_used(extension, where):
+    document, binary = gltf_document(extra={where: [extension]})
     result = check(glb_bytes(document, binary))
-    assert result.passed and "unknown_extension" in codes(result)
-    document["extensionsRequired"] = ["VENDOR_sparkles"]
-    assert not check(glb_bytes(document, binary)).passed
+    assert not result.passed and "unsupported_extension" in codes(result)
 
 
 def test_buffer_views_and_accessors_must_stay_in_bounds():

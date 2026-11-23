@@ -766,6 +766,245 @@ schema or infrastructure change. Baseline `main` @ 466a4972.
   conflicts found in existing documents, none edited), an owner approval checklist and worktree rollout
   steps in `docs/engineering/README.md`.
 
+## Lambda processing completion (owner approvals 2026-11-18): developer-complete on `feature/serverless-processing-completion`; NOT merged, NOT deployed, live acceptance NOT run
+
+Provisional base: Wave 4 `486d2acc`. PR #42 and PR #43 could not be merged from the development
+session (no GitHub write credentials, and the effective repository deployment variables could
+not be read), so this branch is stacked on Wave 4 and must be reconciled with `main` after both
+merge. Integration conventions and file ownership: `docs/processing/COMPLETION_INTEGRATION.md`.
+Every new server-side capability is behind a control that defaults to `off`; no flag is enabled
+anywhere; no AWS call, deploy, layer publish or workflow run was made.
+
+| Area | Card | ADR | What exists (code, tests, docs) |
+|---|---|---|---|
+| Derived artifacts (Option C) | 014 | ADR-066 | `DerivedArtifact` (`assets.0003`), kinds and queues (`jobs.0005`), verified result recording in the one consumer, create-only worker store (`lambda/jobs_worker/artifact_store.py`, `IfNoneMatch="*"`, SHA-256 re-check after 412), staff-only Admin review, streamed private preview, explicit promotion to a new unpublished `AssetVersion`, retention 90/30 days with holds, orphan reconciliation (`asset_artifact_retention`, dry run by default), release check (`processing_release_check`) and release-manifest gate (`LAI_PROCESSING_RELEASE_MANIFEST`) |
+| Security and operations | defects | (ADR-064 corrections) | latest applicable validation decides publication (newer pending/failed/outdated blocks, asset then version locks), shared GLB extension policy with sync/async parity (compression rejected unless verified and enabled; unlisted extensions rejected; publish refuses rather than rejects on policy-only changes; rollback tolerates policy-only changes), failed and non-applied completed jobs pruned without returning attempts, worker import guards per package family, image metadata audit (`image_metadata_audit`, read-only; historical images NOT sanitized), artifact media route staff-only |
+| Audio transcoding | 008b | ADR-067 | LGPL FFmpeg 7.1.5 + libopus 1.6.1 + LAME 3.100 layer build (`native/ffmpeg`, pinned SHA-256, SBOM, licence refusal of gpl/nonfree), shared native runner (`processing/lai_native/runtime`), Opus primary and MP3 alternative, per-category loudness profiles, tag verification, Lambda-deadline wiring, `audio_worker`, Sound Manager actions (`audio.0006` permission) |
+| Image conversion | 013a | ADR-068 | separate Pillow 13.0.0 function (`native/pillow`, hash-pinned, aarch64 zip 13.3 MB of a 24 MiB budget), PNG/JPEG/WebP convert, resize, thumbnails, sRGB for artwork, exact values for data textures, glTF texture profiles, metadata stripped and audited on every output, scan-bomb and ICC limits, Asset Library actions |
+| Staff GLB thumbnails | 013b | ADR-069 | Django Admin capture page (Three.js, same-origin model only), WebP with PNG fallback, CSRF-protected upload bound to version id and SHA-256, server-side format and dimension checks, private derived artifact; browser acceptance NOT run (manual checklist `GLB_THUMBNAIL_CAPTURE.md`) |
+| Meshopt then KTX2 | 010 | ADR-070 | stdlib Meshopt and KTX2 validators wired into both validators behind `LAI_GLB_MESHOPT` / `LAI_GLB_KTX2` (validator 1.2.0: unpublished drafts revalidate), publish-time compression gate, gltfpack 1.3 and KTX-Software 4.4.2 tooling (x86 only; no arm64 gltfpack, no optimize zip, so both controls stay off), optimize jobs and Admin actions, one shared renderer-bound KTX2 loader for every game loader, Meshopt decoder bundled |
+| Production infrastructure | 012 | ADR-071 | prod processing construct inside `LaiDjangoEc2-prod`, enabled only by the committed `infra/config/prod-processing.json` (currently off; default prod synth byte-identical), dev native queues and workers (off), create-only and version-read IAM, capture Deny, alarms, budget only with an owner amount, `release-prod-workers.yml` (dispatch only, gated by `LAI_PROD_PROCESSING_DEPLOY_ENABLED`), deterministic release manifest with kind versions and SHA pins, rollback plan, consumer started after Django health |
+
+Independent reviews (security and privacy, database and concurrency, native execution, game
+compatibility, infrastructure) ran on the integrated branch; every blocking or high finding was
+fixed with tests, except review F10, where the owner's 2026-11-17 `StringLikeIfExists` decision
+was kept and the residual risk recorded as ADR-071 O15.
+
+Measurements (x86 workstation only; no arm64, Lambda, device or browser evidence exists):
+FFmpeg layer 1,510,244 bytes zipped; 900 s voice in 102 s wall, 87 MB peak; Pillow 16 MP peak RSS
+224 to 366 MiB; NPC GLB 3,307,456 to 941,508 bytes with Meshopt (28.5%), KTX2 no size win but
+calculated GPU texture memory 21.33 to 5.33 MiB. Local demo (`scripts/processing/local-demo.sh`):
+zero AWS client attempts; with the native tools present all audio, image, capture and
+optimization scenarios ran for real.
+
+Remaining live work: LAI-LAMBDA-011 (dev acceptance, every tier), LAI-LAMBDA-012 deployment,
+arm64 builds, browser and tablet acceptance of capture and compressed models.
+
+## Lambda processing closure and design wave (2026-11-17, late); NOT merged, NOT deployed
+
+- **PR #42 (001 to 007):** head `4ca7363a`, CI run 44195758040 green, mergeable, still draft, not
+  merged. Deployment gates verified closed from the `main` runs at `466a4972` (every deploy, build
+  and prod job skipped); PR #42 changes only push path filters. Focused final review: no blocking
+  defect. Merge needs an owner action (this session had no GitHub write credentials).
+- **Wave 4:** `feature/serverless-processing-wave4` adds the Ogg upload checksum fix (`04bd4df4`:
+  `validation_media._check_ogg` read the page CRC and never compared it; now the first 16 pages and
+  the last page are verified, code `ogg_crc`) and the rewritten 011/012 docs. Local demo passed with
+  zero AWS client attempts; worker zip 467,111 bytes (budget 2 MiB). No Wave 4 PR exists yet.
+- **Design branches (owner review, not for merge to `main` until approved):**
+
+| Branch (stacked on Wave 4 `48c98a18`) | Card | Content |
+|---|---|---|
+| `feature/lambda-derived-artifacts-design` | shared | `proposals/ADR-PROPOSED-derived-artifacts.md` (Option C recommended), `DERIVED_ARTIFACTS_INTEGRATION.md` |
+| `feature/lambda-audio-transcoding-design` | 008b | updated `proposals/ADR-PROPOSED-native-audio-transcoding.md`, `AUDIO_TRANSCODING.md`, unwired profile model `contracts/audio_profiles.py`, offline `bench/audio_transcode_bench.py` |
+| `feature/lambda-image-processing-design` | 013a | image-only `proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`, `feasibility/LAI-LAMBDA-013-image-conversion-contract.md`, standard-library EXIF/GPS scanner and upload warnings `image_location_present` / `image_metadata_present` (warnings only) |
+| `feature/lambda-thumbnail-rendering-design` | 013b | `proposals/ADR-PROPOSED-glb-thumbnail-rendering.md`, `GLB_THUMBNAIL_SPEC.md`, `bench/thumbnail_framing.py` |
+| `feature/lambda-glb-optimization-design` | 010 | updated 010 feasibility and proposal (Three.js loader change list, measurements), `proposals/ADR-PROPOSED-heavy-workload-runtime.md`, tests pinning that compressed extensions stay unpublishable |
+| `feature/lambda-release-readiness-design` | 011, 012 | merged into Wave 4 (`0eaf75c1`) |
+
+Every native runtime, artifact write and new queue in these branches is a proposal. The decisions
+are collected in `docs/processing/WAVE4_HANDOFF.md` section 7.
+
+## Wave 4 processing (LAI-LAMBDA-008 to 013): integrated on `feature/serverless-processing-wave4` (2026-11-17); NOT merged, NOT deployed
+
+Repository only; no AWS resource was created or changed. The branch is the reviewed canonical
+PR #42 head plus the Wave 4 workstreams (`feature/w4-npc-animation`, `feature/w4-audio-inspection`,
+`feature/w4-image-feasibility`, `feature/w4-optimization-feasibility`,
+`feature/w4-release-readiness`). This entry replaces the per-workstream entries. Handoff and what
+remains: `docs/processing/WAVE4_HANDOFF.md`.
+
+| Card | Status |
+|---|---|
+| LAI-LAMBDA-009 NPC animation inspection | Developer-complete on the branch |
+| LAI-LAMBDA-008 audio | Phase 1 (header inspection) developer-complete; transcoding and loudness (phase 2) not authorized, proposal only |
+| LAI-LAMBDA-010 GLB and texture optimization | Feasibility only |
+| LAI-LAMBDA-013 image conversion and thumbnails | Feasibility only |
+| LAI-LAMBDA-011 DEV live acceptance | Documentation only (checklist, not executed) |
+| LAI-LAMBDA-012 production rollout | Documentation only (plan) |
+
+- **009, `asset.analyze_animation`** (`docs/processing/NPC_ANIMATION_INSPECTION.md`). Processor
+  `asset.animation_inspector` 1.0.0, profile `animation-default` v1, standard library in the
+  existing worker zip; reuses the GLB validator's container and JSON modules without changing its
+  version (so no version becomes `processor_outdated`). Reports exact clip names, durations,
+  channels, samplers, keyframe counts, targets, skins and joints. Handler
+  `apps.npcs.animation_inspection`: result and identity verification, a copy on never-published
+  versions only (`inspection_stored`), published versions untouched (`result_recorded`). Admin
+  (`admin_animation.py`): "Inspect animations in background" on NPC model variants
+  (`npcs.change_npcmodelvariant`), an escaped read-only section and a suggestion-only mapping
+  helper that never suggests exporter take names. `NpcModelVariant.animation_map` is never
+  written.
+- **008 phase 1, `asset.process_audio`** (`docs/processing/AUDIO_INSPECTION.md`). Processor
+  `asset.audio_inspector` 1.0.0, profile `audio-inspect` v1: WAV, MP3 and Ogg (Vorbis, Opus)
+  header inspection in the standard library, format from the bytes, declared-type mismatch as a
+  finding, exact or estimated durations, explicit limitations; 20 MiB input. Staff-triggered
+  only ("Inspect audio in background" on Audio files and Sound cues, `audio.inspect_audiofile`;
+  proxy `audio.0005_audio_file_proxy`); never on upload. Results stay on the job; no version, cue
+  or release changes. Phase 2 (FFmpeg transcoding and loudness) is a proposal only:
+  `docs/processing/proposals/ADR-PROPOSED-native-audio-transcoding.md`.
+- **One jobs migration:** `jobs.0004_wave4_inspection_kinds` (kind choices and the
+  `jobs_kind_valid` check for both kinds). Rollout is consumer first.
+- **010 feasibility** (`docs/processing/feasibility/LAI-LAMBDA-010-glb-optimization.md`; proposed,
+  unaccepted `proposals/ADR-PROPOSED-glb-optimization.md`; `scripts/processing/bench/glb_baseline.py`,
+  `optimization_bench.py`). Baseline of the repository GLBs measured; no optimization tool was
+  installed, so no saving is measured. No decoder is shipped and both validators refuse meshopt,
+  Draco and BasisU. 013 owns image resize and the derived-artifact design.
+- **013 feasibility** (`docs/processing/feasibility/LAI-LAMBDA-013-*.md`; proposed, unaccepted
+  `proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`; `measure_native_wheels.py`,
+  `image_bench.py`, `thumbnail_bench.py`). Measured: worker zip about 351 KB (budget 2 MiB), Pillow
+  arm64 wheel 6.5 MB (21.6 MB unpacked), pyvips with libvips 8.5 MB, Chrome headless shell 273 MB
+  unpacked; x86 workstation timings only, no arm64 or Lambda measurement. Finding: uploaded images
+  keep EXIF and GPS data. Blocked on owner decisions D-1 to D-12.
+- **011 and 012:** `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (rewritten in three tiers:
+  core 001 to 007, Wave 4 inspection in section 5, future native workers in section 12; section 1
+  "Deployment gate verification" records that all deploy jobs on `main` were skipped because the
+  gate variables were not `true`) and `docs/processing/LAI-LAMBDA-012-production-rollout.md`
+  (reconciled with the production CDK and workflows; owner decisions P1 to P15, P14 and P15 new).
+  Nothing executed.
+- **Integration fix (2026-11-17):** the canonical review fix made `gltf.jsonparse.parse_document`
+  take a `max_elements` bound (string-aware structural pre-scan before `json.loads`); the
+  animation inspector still called the old signature, so every inspection raised `TypeError`
+  (31 failing tests). The inspector now carries `max_json_elements` (1,000,000, not raisable, as
+  in the GLB validator); a test covers the bound.
+- **Local demo** (`scripts/processing/local-demo.sh`, own PostgreSQL database, the packaged worker
+  zip, in-memory SQS and S3, zero AWS client attempts): the core steps 1 to 9 as before, then an
+  animated GLB inspected through the packaged worker (exact clips `Armature|mixamo.com|Layer0`,
+  `Idle`; NPC Admin section rendered; `animation_map` unchanged), a synthetic WAV inspected (wav,
+  pcm, 8000 Hz, 1 channel, 16 bit, 0.5 s exact; Sound Manager panel rendered; still `VALIDATED`),
+  and the failure paths: a GLB refused for audio (`not_audio`) and a non-audio `.wav` with verdict
+  `fail`; a duplicate result ignored; a stale version refused (`checksum_mismatch`); a view-only
+  staff user refused the actions (no job made); an S3 503 on a ranged read raised retryable
+  (`throttled`) and succeeded on redelivery. The demo now keeps its asset files in its temporary
+  directory (the settings fix `LAI_ASSET_LOCAL_ROOT`, which the script's export did not change).
+- **Tests:** at `6e5cab6`, full pytest on PostgreSQL 6276 passed, 7 skipped, 0 failed; React unit
+  tests, build, typecheck, infra Vitest, offline dev and prod synth, Ruff, Prettier, oxlint,
+  content, golden, ADR and `makemigrations --check` all pass; the worker zip
+  `jobs-worker-b287c21bc908adc9.zip` (467,111 bytes) builds identically twice; the local demo
+  passes all 17 steps with 0 AWS client attempts.
+- **Not verified:** any live worker run (LAI-LAMBDA-011, owner approval). **Not done:** 008 phase 2, any 010 or 013 implementation, artifact writes,
+  native tools or container images, deployment (owner decisions W4-1 to W4-8).
+
+## Asynchronous model validation re-landed on the canonical path (LAI-LAMBDA-001 to 007, ADR-064): developer-complete on `feature/serverless-processing-canonical` (2026-11-17); owner review pending, NOT merged, NOT deployed
+
+Repository only; no AWS resource was created or changed. Re-lands the compatible parts of PR #40,
+PR #41 and `feature/serverless-processing-wave3` (all unmerged, branches kept as implementation
+references) on the one processing path. Details: `docs/processing/CANONICAL_PATH.md` ("Re-land
+status") and `docs/processing/ASYNC_MODEL_VALIDATION.md`. The earlier Wave 1, 2 and 3 status
+entries live on those branches and are superseded by ADR-064 and this entry.
+
+- **Foundation (principal).** `processing/lai_processing` and the GLB validator re-landed with the
+  Wave 2/3 review fixes, plus a comment in `core/limits.py`; `asset.validate_model` and
+  `reference.checksum` as `apps.jobs` kinds on the media queue (`envelope.KIND_QUEUE`, `JobKind`,
+  migration `jobs.0003_contract_kinds` with `idempotency_key` and `subject_outcome`,
+  `services.submit(job_id=, idempotency_key=)`); `core/contract.py` runs the ADR-061 request in the
+  schema-1 payload and returns the ADR-061 result (retryable failures redeliver through SQS,
+  permanent ones become `failed` results, no artifact writes); `lambda/build.py` vendors the library
+  into the worker zip; settings put `processing/` on `sys.path` and add `LAI_ASSET_ASYNC_VALIDATION`
+  (default `off`).
+- **Workstream 1 (upload and gate, LAI-LAMBDA-006 and 007).** Flag-on GLB upload: `DRAFT` and its
+  job in one transaction, `processing_unavailable` when submission is refused; publication gate
+  `processing_required`.
+- **Workstream 2 (result tests).** `asset.validate_model` results through `apply_result` and
+  `jobs_consume_results`: verdicts, failures, duplicates and late results, forged and mismatched
+  results, identity changes, manual revalidation, handler database errors, lock order and
+  concurrency, idempotent submission; `reference.checksum` end to end.
+- **Workstream 3 (Django Admin, LAI-LAMBDA-007).** Read-only "Background validation" section and
+  the "Validate in background" action; every value escaped.
+- **Workstream 4 (worker, zip, packaging, guard).** Contract kinds through the packaged handler;
+  zip contents, determinism, import guard and 2 MiB budget (about 351 KB); the native release and
+  `lai/Dockerfile` ship `processing/lai_processing`; workflows trigger on it;
+  `tests/repo/test_canonical_processing_guard.py`.
+- **Defects found and fixed on this branch:**
+  - the contract status was not checked: a failed or cancelled `ProcessingJobResult` inside a
+    schema-1 `succeeded` envelope rejected the draft; it is now `result_invalid`;
+  - a refused result (mismatch or invalid) blocked resubmission for good; only pending, running
+    or applied jobs are reused now;
+  - a transient S3 read during the engine's input copy was `unexpected_failure` (manual, never
+    retried); it is now `storage_failure` and retried through SQS;
+  - the `glb-default` profile's 300 s budget exceeded the media function's 120 s timeout; the
+    request now carries 90 s.
+- **Retry and retention (owner decisions 2026-11-17; `fix/can-retry-retention` merged into
+  `feature/serverless-processing-canonical`).** Staff resubmission of a failed (any code, `timeout`
+  and `cancelled` included), refused, superseded or `fail`-verdict validation job makes a new job
+  under the asset row lock (double clicks make one); pending, running and passing jobs are reused;
+  at most `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` (5) jobs per file and processor version
+  (`attempts_exhausted`). No cancelled job status: a contract cancel is `failed`/`cancelled`. A
+  result whose job is no longer the version's newest is `result_superseded` and changes nothing; the
+  gate follows the newest accepted result. A `REJECTED` version stays rejected and a published one
+  never changes. `jobs_sweep` keeps completed `asset.validate_model` jobs
+  `LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90; exactly 90 days is kept), other kinds keep
+  `LAI_JOBS_RETENTION_DAYS`; pending, running and failed jobs are never pruned. An unpublished GLB
+  whose passing job was pruned needs a new validation; published delivery is unaffected. Tests:
+  `test_model_validation_retry.py`, additions to `test_admin_validation.py`, `test_jobs_services.py`
+  and `test_jobs_admin_settings.py`. Docs: `ASYNC_MODEL_VALIDATION.md` sections 9 and 10. Open:
+  whether failed validation jobs should also expire; a compact immutable evidence record (evaluated,
+  not implemented); `.env.sample` not updated (not readable in this session).
+- **Tests:** the speech storage test that failed earlier in the full run
+  (`test_speech_storage.py::TestS3::test_presigned_urls_use_the_regional_host`, order dependent)
+  is fixed: a boto3 default session cached ambient credentials; fixed by 7e94966 plus a module
+  fixture in 2333d9e. Final suite results:
+  at `55657cb`, full pytest on PostgreSQL 6110 passed, 7 skipped; React unit tests, build,
+  typecheck, infra Vitest, offline dev and prod synth, Ruff, Prettier, oxlint (3 existing
+  warnings), content, golden, ADR and `makemigrations --check` all pass; the worker zip
+  `jobs-worker-e40163430cfccc67.zip` (361,456 bytes) builds identically twice; GitHub CI green.
+- **Local demo** (`scripts/processing/local-demo.sh`; Django with the packaged worker zip,
+  in-memory SQS and S3): a flag-on upload committed as `DRAFT` with its job on the media queue;
+  publication refused with `not_validated` (the draft) and `processing_required` (a flag-off
+  `VALIDATED` GLB); the packaged worker validated the GLB and `apply_result` recorded `running`
+  then applied the result (`VALIDATED`, exact clip names); a redelivered work message was ignored
+  as a duplicate; the Admin section rendered; explicit publish passed the gate and the resolver
+  served the version; a failing model became `REJECTED` (`invalid_json`); zero AWS calls.
+- **Not verified (live only, LAI-LAMBDA-011):** a deployed upload, worker run, DLQ redrive and
+  outage drill. **Owner decisions open:** artifact writes on this path. `s3:ListBucket` for the
+  media role: approved 2026-11-17 and done in the repository (`fix/can-s3-missing` merged into
+  `feature/serverless-processing-canonical`; not deployed): `ListAssetBucket` on the asset bucket
+  only (`StringLikeIfExists` `assets/*`), and asset read errors classified (missing: terminal
+  `object_missing`/`input_missing`; 403: terminal `access_denied`/`permission_denied`, never
+  "missing"; throttling, 5xx, transport: retried). `docs/processing/CANONICAL_PATH.md`, "Asset read
+  errors"; live 404 check in LAI-LAMBDA-011.
+- **GLB input limit decided (owner, 2026-11-17; `fix/can-glb-limit` merged into
+  `feature/serverless-processing-canonical`):** `LAI_ASSET_MAX_GLB_BYTES`, default 50 MiB =
+  52,428,800 bytes, bounds 1 MiB to 50 MiB (the `glb-default` profile limit), applied to the Admin
+  upload, the `asset.validate_model` request and the `asset.inspect` payload (`max_bytes`, enforced
+  by the worker; old payloads keep 64 MiB). nginx `client_max_body_size 55m` already covers 50 MiB
+  plus overhead. Tests: `lai/apps/assets/tests/test_glb_limit.py`,
+  `tests/deploy/test_upload_body_limit.py`, one worker test in
+  `tests/lambda/test_jobs_worker_handler.py`. Deploy the worker zip before or with Django.
+- **GLB validator memory and metadata fixes (review findings, merged into the canonical branch).**
+  A 16 MiB JSON chunk of tiny values peaked at 870 MB (`[{},{},...]`) in the 512 MB media
+  function; a linear, string-aware structural pre-scan now runs before `json.loads` in both the
+  processor (`jsonparse.scan_structure`) and Django's upload validator (`_scan_json`, mirrored,
+  parity-tested): nesting over 64 is `invalid_json`, more than 1,000,000 elements
+  (`max_json_elements`, not raisable by a request) is `too_complex`. Worst admitted 16 MiB chunk
+  measured at 235 MB peak RSS; the old worst cases are refused at 68 MB. The depth walk is gone.
+  Django now also refuses JSON nested deeper than 64 (the `deep_json` parity difference is
+  gone). Oversized extension names no longer fail the job with `resource_limit_exceeded`: the
+  extension lists and `generator` are dropped to fit, with a minimal fallback. Processor stays
+  1.0.0 (never deployed, no stored result). No infra or memory change.
+  `docs/processing/GLB_VALIDATION.md` section 3, "JSON memory budget".
+- **Worker cache lookups (review finding, `fix/can-cache-403` merged).** A 403 on the worker's
+  own stored-result lookup or speech clip HEAD now means "not stored yet" instead of a retry; it
+  kept every job's first delivery out of the DLQ when the plain `s3:prefix` ListBucket grants do
+  not apply. No IAM change; asset inputs keep 403 as `access_denied`. Pre-existing on `main`.
+
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 
 Owner decisions 1 to 8 of 2026-11-17. Repository only; no AWS resource was created or changed.
