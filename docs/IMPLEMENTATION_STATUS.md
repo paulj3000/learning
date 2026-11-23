@@ -267,6 +267,28 @@ section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
 - **Not done:** browser and device QA (models fitted to engine platform boxes, platform sounds,
   riddle bridge in a real visit, the hint and Jump layout on a phone).
 
+## North Pole: The Missing Christmas Star (SEA-04, NP-001 to NP-060, GE-074); on `main`, owner QA pending, not owner-accepted, not deployed
+
+**Release-readiness check (2026-11-23, LAI 03, `main` `aa8adb33`).** North Pole is on `main`
+(GE-090 step 22, PR #44). Unit level only:
+- Content: 9 quests `np-q01-welcome` to `np-q09-christmas-eve` in the export; layout version 5.
+- Engine: `npm run engine:validate` on `north_pole_scene.json` with the standard capability
+  registry, 0 issues. The engine bridge carries 11 checkpoints (9 zones and 2 lake banks), the
+  open-water hazard, the village snow surface (footsteps only, grip unchanged), the lake ice bank
+  (friction 0.3, 2 m clear of the water) and the engine snow weather (follows the child).
+- Django (PostgreSQL 18.7, gated): 452 passed, 0 failed (North Pole cues, NPC seed, assets,
+  layout, puzzles, seed, engine bridge, puzzle kinds, scoring realms and collectors, seasons).
+- React (gated): 21 files, 329 passed, 0 failed (North Pole region, engine bridge, definition,
+  weather parity, content export, seasonal chips, islands API, region audio, area puzzles,
+  game-engine bridge, realms).
+- `npm run typecheck`, `content:check` and `golden:check`: pass on the same tree (run in the
+  Firepeak worktree at `aa8adb33`).
+- Defects: Area puzzle solves record no `SkillEvidence` (shared, with Firepeak) and 5 puzzle
+  skill slugs are not curriculum objectives; every collectible plays the star-fragment cue.
+  Details in `docs/north-pole/NORTH_POLE_OWNER_QA.md` section 4.
+- Owner QA checklist refreshed for `main` with ids (R, W, S, P, T, E).
+- Not run (policy): Playwright, browser, device, full suites, lint, format, build.
+
 ## GE-100 to GE-110: universal scoring and progression engine (2026-11-19, `core/ge-scoring`); development complete, integration into `core/gameengine` pending, economy OFF and NOT owner-approved, NOT merged
 
 **Conflict raised, not resolved.** ADR-011 part A and the scoring standard (ADR-072, mandatory)
