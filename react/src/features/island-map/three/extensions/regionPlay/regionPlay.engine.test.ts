@@ -50,6 +50,8 @@ function cove(
     loadModel?: (assetId: string) => Promise<LoadedModel>;
     /** Set false to run the cove without `interactionAssist`, as a source region runs. */
     assist?: boolean;
+    /** The harness defaults to first-person; GE-090-D7 also needs the third-person view. */
+    cameraMode?: 'first-person' | 'third-person';
   } = {},
 ) {
   const model = toRegionSceneModel(
@@ -62,6 +64,7 @@ function cove(
       options.assist === false ? { ...built.manifest, interactionAssist: false } : built.manifest,
     extensions: [regionPlaySceneExtension],
     loadModel: options.loadModel ?? (async () => standingBox()),
+    ...(options.cameraMode ? { cameraMode: options.cameraMode } : {}),
   });
   const api = () => harness.engine.extensionApi('region-play') as RegionPlaySceneApi;
   const chestRoot = () => harness.scene().getObjectByName('Treasure chest') as Object3D;
@@ -359,5 +362,16 @@ describe('child-friendly interaction in Treasure Cove (TR-12)', () => {
     expect(frames).toHaveLength(2);
     expect(host?.isBlocked?.(0, 10)).toBe(false);
     expect(host?.isBlocked?.(18.5, 0)).toBe(true); // the region's boundary wall
+  });
+
+  it('measures NPC reach from where the child stands, not the trailing third-person camera', () => {
+    // GE-090-D7: the host read the camera, so in "Behind me" Pip's Talk prompt never appeared.
+    const { harness, api } = cove({ cameraMode: 'third-person' });
+    harness.runFrames(1);
+    const camera = harness.camera().position;
+    const pose = api().npcHostScene?.()?.playerPose();
+    expect(pose).toEqual({ x: 0, z: 10 });
+    // The camera really is elsewhere, or this test would not guard anything.
+    expect(Math.hypot(camera.x - 0, camera.z - 10)).toBeGreaterThan(1);
   });
 });

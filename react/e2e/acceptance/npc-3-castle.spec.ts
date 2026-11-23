@@ -152,7 +152,15 @@ test.describe.serial("Storykeeper's Castle: Keeper Quill from the NPC Manager", 
     await expect(dialog(page)).toHaveCount(0);
     await expect(talk).toBeFocused();
 
-    // The first meeting is once per child: the next talk is what every story needs.
+    // The first meeting is once per child. SC-R05 (lai/apps/npcs/quill_content.py) then has
+    // Quill tell the premise once, the torn Great Storybook (priority 15, until it is restored),
+    // and only after that what every story needs (priority 10). GE-090-D7: this spec predated
+    // the premise and expected the rules on the second talk.
+    await talk.click();
+    await expect(dialog(page)).toContainText('The Great Storybook was torn');
+    await dialog(page).getByRole('button', { name: 'Maybe later.' }).click();
+    await expect(dialog(page)).toHaveCount(0);
+    await expect(talk).toBeFocused();
     await talk.click();
     await expect(dialog(page)).toContainText(
       'Every good story needs three things: a hero, a problem to solve, and a happy ending.',

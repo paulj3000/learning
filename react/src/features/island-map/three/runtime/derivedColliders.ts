@@ -19,7 +19,11 @@ import type { ModelAnchor, ScaleSpec, ThreeLocationManifest, Vec3 } from './loca
  *   model, so a lying barrel or a scaled-up boulder gets the shape it is drawn with. A long piece
  *   is cut into short boxes along its length, so a log lying at an angle blocks only where it lies.
  * - A piece no taller than `JUMPABLE_MAX_HEIGHT` is jumpable: the child can hop onto or over it,
- *   and a raised piece (a hive in a tree) blocks only at its own height. Taller pieces are solid.
+ *   and a raised one (a hive in a tree) blocks only at its own height. Taller pieces are solid.
+ * - A raised Solid box keeps its authored height and is never made jumpable by its elevation
+ *   (GE-L16): the shared controller leaves the space under it open only when the gap is at least
+ *   the avatar's collision height plus the margin (`@lai/game-engine/movement` `clearance.ts`), and
+ *   otherwise blocks at every height. Ground-level Solid boxes start at `SOLID_MIN_Y` as before.
  * - Walkable and passable pieces have no footprint on purpose: ground, paths, planks, carpets,
  *   ferns, reeds, flowers, rope coils, archways, cave mouths. So do large irregular models
  *   (the shipwreck), whose locations author their colliders by hand.
@@ -325,14 +329,16 @@ export function derivedColliders(
     // One kept-clear point inside any part drops the whole piece, never half a log.
     if (boxes.some((box) => keepClear.some((point) => insideXZ(box, point.x, point.z)))) continue;
     boxes.forEach((box, part) => {
-      // A raised box has to keep its height to block (only jumpable boxes do), whatever it is.
+      // Jumpable by behaviour only, never by elevation (GE-L16).
       const jumpable =
-        box.minY > 0 ||
         collision.behavior === 'JUMPABLE' ||
         (collision.behavior === 'AUTO' && box.maxY - box.minY <= JUMPABLE_MAX_HEIGHT);
+      // A raised Solid keeps its height: the controller decides whether it is a walk-under
+      // passage or a column. A ground-level one reaches below the ground, as before.
+      const raised = box.minY > 0;
       out.push({
         id: boxes.length === 1 ? `derived:${placement.id}` : `derived:${placement.id}:${part}`,
-        box: jumpable ? box : { ...box, minY: Math.min(box.minY, SOLID_MIN_Y) },
+        box: jumpable || raised ? box : { ...box, minY: Math.min(box.minY, SOLID_MIN_Y) },
         ...(jumpable ? { jumpable: true } : {}),
       });
     });

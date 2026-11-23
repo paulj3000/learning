@@ -37,9 +37,10 @@ function clearance(controller: FirstPersonController, boxes: Box3[]): number {
 }
 
 describe('player collision footprint configuration', () => {
-  it('defaults to a 0.35 m radius and a 2 cm skin', () => {
-    expect(DEFAULT_PLAYER_COLLISION).toEqual({ radius: 0.35, skin: 0.02 });
-    expect(new FirstPersonController().collision).toEqual({ radius: 0.35, skin: 0.02 });
+  it('defaults to a 0.35 m radius, a 2 cm skin and no extra clearance margin', () => {
+    const defaults = { radius: 0.35, skin: 0.02, clearanceMargin: 0 };
+    expect(DEFAULT_PLAYER_COLLISION).toEqual(defaults);
+    expect(new FirstPersonController().collision).toEqual(defaults);
   });
 
   it('takes a location override, clamped to its range', () => {

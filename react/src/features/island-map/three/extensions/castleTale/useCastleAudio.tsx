@@ -32,7 +32,14 @@ import {
 } from './castleSounds';
 import type { CastleTaleSceneApi } from './castleTaleScene';
 
-export const CASTLE_REGION_ID = 'storykeeper-castle';
+/**
+ * The castle's sound comes from its Django **Place** manifest (Island and Place assignments plus
+ * shared cues). The castle is not a Django 3D Area: its layout is a TypeScript manifest (ADR-033,
+ * CLAUDE.md section 20) with no published `WorldRegion`, so the region manifest route answers 404
+ * for it by design and the castle was always silent (GE-090-D7). The castle's NPC host uses the
+ * same Place (`CASTLE_PLACE_SLUG`).
+ */
+export const CASTLE_AUDIO_SCOPE = { type: 'place', id: 'storykeeper-castle' } as const;
 export const AMBIENCE_FADE_MS = 1500;
 export const MUSIC_FADE_MS = 1200;
 const SCOPE_NAME = 'castle';
@@ -76,8 +83,8 @@ export function mergeRoomZones(fromManifest: readonly ZoneSpec[]): ZoneSpec[] {
  * Storykeeper Castle's sound (SC-R06-01, SC-R06-02), on the shared Sound Manager. Mounted by the
  * castle's companion for the whole visit; modelled on `useTreasureRushAudio`.
  *
- * - Loads the published audio manifest for `storykeeper-castle`. A manifest that cannot be loaded
- *   leaves the castle silent; nothing here throws or waits for it.
+ * - Loads the published audio manifest for the Place `storykeeper-castle`. A manifest that cannot
+ *   be loaded leaves the castle silent; nothing here throws or waits for it.
  * - Every sound is in one scope (`castle`), so leaving the castle stops all of it.
  * - The room bed follows the room the child stands in (read from the scene, as the castle guide
  *   does) with a 1500 ms crossfade, one bed at a time; a room whose bed has no audio falls back
@@ -100,8 +107,7 @@ export function useCastleAudio(options: UseCastleAudioOptions): CastleAudio {
     () => (options.source === undefined ? djangoAudioSourceFor(childId) : options.source),
     [childId, options.source],
   );
-  const manifestScope = useMemo(() => ({ type: 'region', id: CASTLE_REGION_ID }) as const, []);
-  const manifest = useAudioManifest(derived, manifestScope);
+  const manifest = useAudioManifest(derived, CASTLE_AUDIO_SCOPE);
 
   const zones = useMemo(
     () =>
