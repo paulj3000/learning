@@ -57,6 +57,85 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   the Sound Manager owner; W2-5 waits for the Lambda reconciliation. GE-247 (Agent 4) builds the
   catalog provider on this API once it is on `main`.
 
+## LAI 01: Treasure Rush release verification (2026-11-23, `lai-01/treasure-rush-release`, rebased onto `main` `1b0a50a3`); verification only, owner playthrough pending, NOT owner-accepted
+
+Status: the core MVP is Complete (owner-accepted 2026-11-11) and was not rebuilt. This pass
+checks `main` after Game Engine 1.0 and PR #63. Final child-facing acceptance stays open until
+the owner records the release playthrough in `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`. No
+product code changed here. No Treasure Rush-owned defect with reproducible evidence was found
+beyond D7, which is now merged.
+
+- **On `main`, by ancestry:** GE-070 (`a22b2681`), `core/ge-scoring` (`5977bed2`),
+  `core/gameengine` (`ca6ada2c`) and TR-21 (`42a06f66`, `ce20c90b`). Scoring is server-side.
+  `scoring/realms.py` maps Treasure Cove to `pips-missing-treasure` and Pirate's Leap to
+  `pirates-leap`, so the legacy `treasure-rush-cove` quest earns no score. Claims reach the visit
+  sink through `createEngineBridgeExtension` in `extensions/index.ts`.
+- **Release blocker, GE-090-D7 B:** on `main`, Pip's "Talk to" prompt measures reach from the
+  trailing third-person camera, not the child. The D7 regression test, run against `main`'s
+  `regionPlayScene.ts`, fails: it expects `{x: 0, z: 10}` and receives `{x: 0, z: 6.12}`. The fix
+  is `24add20e`, reviewed and approved by LAI 01. It is **merged to `main` in PR #63
+  (`1b0a50a3`)**. It uses the existing `NpcHostScene.playerPose` contract and changes no shared
+  engine contract. On `1b0a50a3`, `regionPlay.engine.test.ts` (with the third-person reach
+  test) and `storykeeperCastle.engine.test.ts` pass: 2 files, 37 tests, gated.
+- **PR #59 (GE-L16 raised-solid clearance, `4b949994`) compatibility:** the shared controller
+  used to ignore a solid box with `minY > 0`. Now a low raised solid blocks like a wall and a
+  high one is an overhead passage. All 83 of Treasure Cove's authored colliders start at the
+  ground (checked from `cove_layout()`), and Pirate's Leap uses platforms, not raised solids, so
+  neither changes. Derived boxes apply only to resolver-placed scenery, and the cove's layout
+  and third-person tests passed on `a17d1636`, which contains #59.
+- **Not a tablet blocker; proposed GE-090-D8, owned by LAI 05:** `portal-adult-exit:142`. At
+  375x667 in full screen, Pip's panel covers "Exit full screen". Closing the panel restores it.
+  Both of Pip's panels (the NPC Manager `NpcInteraction.module.css` and the legacy
+  `RegionPlayPanels.module.css`) offset by `--child-stage-exits-inset`, so a shell-level fix covers
+  both. LAI 01 is not changing them.
+- **Gameplay items, by evidence (code and non-browser tests; no visual check):**
+  - Start and finish, quest order, chests, key, rune puzzle, finale, persistence and another
+    child's isolation: `test_pips_treasure.py`, `test_chest_play.py`, `test_play_api.py`.
+  - Five zones with entry messages, and the gate and channel opening on
+    `TREASURE_COVE_QUEST_COMPLETE`: `cove_layout()`, `test_treasure_cove_layout.py`.
+  - Replay: Lookout spyglass `test_lookout_replay.py` (locked until done, no payout, server
+    graded). Pirate's Leap: `test_pirates_leap.py`.
+  - Jumping is on by default (`DEFAULT_JUMP_CONFIGURATION.enabled`), and so is the camera switch
+    (`DEFAULT_PLAYER_CAMERA.allowModeSwitch`). The cove doesn't override either. The HUD camera
+    button is covered by `WorldHud.test.tsx`.
+  - Camera follows and isn't left behind at walls or the world edge:
+    `treasureCoveThirdPerson.engine.test.ts` and `game/src/stabilization/cameraAvatarSync.test.ts`.
+    Footprint at walls: `playerFootprint.engine.test.ts` (castle walls and doors; it timed out
+    under load once and passed alone).
+  - Assets: all 37 asset ids in the cove layout resolve, either to a bundled model or to a Django
+    model pack. Packs need the owner's import; the feather is CC-BY-4.0 and unpublished.
+  - Sound through the Sound Manager (`useTreasureRushAudio`); Pip through the NPC Manager.
+  - Points: scoring is off by default (`LAI_SCORING_ENABLED`), so a child sees keepsakes and the
+    Explorer Badge, not points.
+- **Asset Library and collision:** cove props are extension-drawn with authored colliders, and
+  authored location colliders override any profile (`docs/ASSET_COLLISION_PROFILES.md`, "What the
+  game always protects"), so profiles cannot move Treasure Cove's gameplay boxes. Covered by
+  `regionAssets.test.ts`, `collisionProfiles.engine.test.ts` and `treasureCoveLayout.engine.test.ts`.
+- **Tests (gated, VirtualBox host):**
+  - `main` `aa8adb33` engine (`game/src` movement, camera, stabilization, components): 27 files,
+    341 passed.
+  - `main` `aa8adb33` React (regionPlay, region-play, runtime, platforms, assets, api/assets,
+    api/play, game-engine, content-export, `src/test`): 180 of 181 files, 2,248 of 2,249 passed. The
+    1 failure is a 5 s timeout in Firepeak's `AreaPuzzleLayer.test.tsx` at peak load 19.8.
+  - Candidate `a17d1636` engine: 29 files, 370 passed.
+  - Candidate `a17d1636` React: 2,255 of 2,259 passed. There were 4 non-Treasure-Rush 5 s timeouts
+    under paging; those 4 files passed 64 of 64 when rerun alone (supporting only).
+  - `main` `aa8adb33` Django on PostgreSQL 18 (`LAI_REQUIRE_POSTGRES=1`): game_sessions, quests,
+    scoring, npcs, regions, progression, assets, `audio/tests/test_treasure_rush_seed.py` and
+    `test_manifest_api.py`. 2,372 passed, 0 failed. This covers chests, NPC talk, quest
+    progression, the Lookout and Pirate's Leap replay, scoring collectors and the play-API
+    isolation matrix.
+- **Deferred expansion (Trello AuCKCbCn), all optional polish with working fallbacks:**
+  - TR-10 asset resolver: done.
+  - TR-19 sound: implemented through the Sound Manager. Audible browser check pending.
+  - TR-D27 puzzle kinds: playtest-driven.
+  - Missing art: `treasure-key`, the pedestal, rocks, ferns, coconuts, bridge and lantern.
+  - Pip `Cheer`/`Point` clips: `Wave` stands in.
+- **Open:** the owner playthrough (the checklist's release section, 22 items, not yet played),
+  D8 (LAI 05), the feather licence and the legacy-quest decisions, the GE-D9 flaky region-play hint
+  test, and the `treasureRushAudio` cascade (Trello 9OdaKlbs). Neither flaky test reproduced in
+  this pass.
+
 ## GE-090-D7: browser acceptance defects (2026-11-22, `fix/ge-090-d7-browser-acceptance` from `aa8adb33`, Trello VD4zv7WN); Development Complete, NOT merged, NOT owner-accepted
 
 The 19 desktop and tablet acceptance failures on `main` had four causes: two product defects and
