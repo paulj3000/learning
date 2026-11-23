@@ -16,7 +16,6 @@ validates but writes nothing.
 """
 
 import json
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -24,12 +23,12 @@ from django.conf import settings
 
 from apps.catalog.models import AssetCategory, AssetOrigin, AssetStatus, ContentAsset
 
-from . import services
+from . import formats, services
 from .models import VersionStatus
 from .storage import sha256_of
 from .validation import validate_upload
 
-ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+ASSET_ID = formats.ASSET_ID
 
 # Amplify `AssetCategory` to (runtime kind, browsing category).
 AMPLIFY_CATEGORIES = {

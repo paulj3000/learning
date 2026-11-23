@@ -16,7 +16,6 @@ import base64
 import hashlib
 import io
 import os
-import re
 import tempfile
 import threading
 import uuid
@@ -32,7 +31,7 @@ from django.core.exceptions import ImproperlyConfigured
 from . import formats
 
 KEY_PREFIX = "assets/"  # everything the library stores; one key directory per family (formats.py)
-ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+ASSET_ID = formats.ASSET_ID
 CHUNK = 1024 * 1024
 
 

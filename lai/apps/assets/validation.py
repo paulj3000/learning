@@ -75,7 +75,7 @@ IMAGE_TYPES = {"image/png": b"\x89PNG\r\n\x1a\n", "image/jpeg": b"\xff\xd8\xff"}
 BUFFER_URI_TYPES = ("application/octet-stream", "application/gltf-buffer")
 DATA_URI = re.compile(r"^data:([a-z0-9.+/-]+)?(;[a-z0-9=.-]+)*;base64,", re.I)
 BASE64 = re.compile(r"[A-Za-z0-9+/]*={0,2}")
-ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+ASSET_ID = formats.ASSET_ID
 
 LIMITS = {
     "json_bytes": 16 * 1024 * 1024,
