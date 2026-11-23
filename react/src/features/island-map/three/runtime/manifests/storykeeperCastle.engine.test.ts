@@ -221,6 +221,20 @@ describe('Storykeeper Castle on the generic runtime: the room answers steps', ()
     expect(quill?.rotation.y).toBeCloseTo(-Math.PI / 2);
   });
 
+  it('gives the NPC host where the child stands, not the third-person camera (GE-090-D7)', async () => {
+    const harness = castle({
+      startCheckpointId: 'storykeeper-castle:story-hall',
+      cameraMode: 'third-person',
+    });
+    await ready(harness);
+    harness.runFrames(1);
+    const pose = sceneApi(harness).npcHostScene?.()?.playerPose();
+    const camera = harness.camera().position;
+    expect(pose).not.toBeNull();
+    // The trailing camera is metres away from the child; the pose must not follow it.
+    expect(Math.hypot(camera.x - pose!.x, camera.z - pose!.z)).toBeGreaterThan(1);
+  });
+
   it('hands Keeper Quill over to the NPC Manager and gives him back (LAI-NPC-039)', async () => {
     const harness = castle({ startCheckpointId: 'storykeeper-castle:story-hall' });
     await ready(harness);

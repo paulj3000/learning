@@ -16,7 +16,7 @@ import { CASTLE_CUE_SOUNDS, CASTLE_SOUND, ROOM_AMBIENCE, SHARED_MOVEMENT } from 
 import type { CastleTaleSceneApi } from './castleTaleScene';
 import {
   AMBIENCE_FADE_MS,
-  CASTLE_REGION_ID,
+  CASTLE_AUDIO_SCOPE,
   useCastleAudio,
   type CastleAudio,
 } from './useCastleAudio';
@@ -59,7 +59,7 @@ function manifestOf(cues: readonly string[]) {
   return {
     schemaVersion: 1,
     revision: 'r1',
-    scope: { type: 'region', id: CASTLE_REGION_ID },
+    scope: CASTLE_AUDIO_SCOPE,
     sounds: cues.map((id) => ({
       id,
       assetId: assetOf(id),
@@ -178,10 +178,11 @@ async function mount(world = build(), options: { ageBand?: AgeBandValue; strict?
 }
 
 describe('manifest and beds (SC-R06-01)', () => {
-  it('loads the castle region manifest once', async () => {
+  it('loads the castle Place manifest once, never a 3D Area one (GE-090-D7)', async () => {
     const { fetchManifest } = await mount();
     expect(fetchManifest).toHaveBeenCalledTimes(1);
-    expect(fetchManifest.mock.calls[0]?.[0]).toEqual({ type: 'region', id: CASTLE_REGION_ID });
+    // The castle has no Django WorldRegion, so a region manifest is a 404 by design.
+    expect(fetchManifest.mock.calls[0]?.[0]).toEqual({ type: 'place', id: 'storykeeper-castle' });
   });
 
   it('starts the room bed and the exploration music once', async () => {

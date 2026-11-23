@@ -14,7 +14,11 @@ Everything is on the shared Sound Manager, in one scope `castle` (`useCastleAudi
 `CastleTaleCompanion` for the visit) plus the speech scope `castle-speech` (`useCastleSpeech`).
 Leaving the castle disposes both, so nothing from the castle plays after.
 
-The manifest is the published audio manifest for region `storykeeper-castle`. Cue ids are
+The manifest is the published audio manifest for the **Place** `storykeeper-castle`
+(`GET .../audio/manifests/places/storykeeper-castle/`): its Island and Place assignments plus the
+shared cues. Staff assign castle sounds to the Place, not to a 3D Area. The castle has no Django
+3D Area (its layout is a TypeScript manifest, ADR-033), so the region route answers 404 for it;
+the client asked for that route until GE-090-D7, which left the castle silent. Cue ids are
 logical (`castleSounds.ts`, Django `apps/audio/castle_cues.py`; a pytest test holds the two lists
 equal); a missing cue is silent (or plays its listed fallback) and play goes on.
 

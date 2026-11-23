@@ -37,6 +37,52 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## GE-090-D7: browser acceptance defects (2026-11-22, `fix/ge-090-d7-browser-acceptance` from `aa8adb33`, Trello VD4zv7WN); Development Complete, NOT merged, NOT owner-accepted
+
+The 19 desktop and tablet acceptance failures on `main` had four causes: two product defects and
+two kinds of stale test.
+
+- **B. Pirate Pip's "Talk to" prompt (6 tests), product defect.** The NPC scene host measured
+  reach from `context.camera.position`. Since LAI-JMP-01a (third-person by default) the camera
+  trails metres behind the child, so a managed NPC never counted as near and its prompt never
+  appeared. `regionPlayScene.ts` and `castleTaleScene.ts` now pass `context.playerPosition()`, the
+  `NpcHostScene.playerPose` contract ("where the child stands"). This fixes Keeper Quill too.
+  Regression tests in third-person: `regionPlay.engine.test.ts`,
+  `storykeeperCastle.engine.test.ts`. Both fail without the fix.
+- **C. Storykeeper audio manifest 404 (4 tests), product defect.** `useCastleAudio` asked for the
+  *region* manifest `storykeeper-castle`. Django serves region manifests only for a published
+  `WorldRegion`. The castle has none (its layout is a TypeScript manifest, ADR-033), so that route
+  is a 404 for every child and the castle had no sound. It now asks for the **Place** manifest,
+  the same Place the castle's NPC host uses. Tests: `useCastleAudio.test.tsx`, and a Django
+  contract test in `test_manifest_api.py` (castle Place 200, region 404). The existing tests for
+  failed and absent manifests still pass.
+- **A. "Exactly one action prompt" (8 tests), stale selector.** The camera button
+  (`View: ... Change view`, LAI-JMP-01a) has the same "Verb: thing" name as a gameplay prompt.
+  The camera control is kept. WorldHud marks the gameplay prompt `data-hud="action-prompt"` and
+  the camera `data-hud="camera-view"`, and `e2e/acceptance/support/cove.ts` counts only marked
+  prompts. A WorldHud unit test covers both together.
+- **D. Realm Explorer at 768 px (1 test), stale data.** The test found no horizontal overflow.
+  The content export gained North Pole (`53a7fc2f`), so Creature Care Cove is the third card and
+  correctly wraps in the two-column layout. The spec now compares the first two cards in order,
+  derives the realm count from the page, and also checks 1440, 1024, 390 and 375 px.
+- **Newly reached, test update.** `npc-3-castle:119`: SC-R05 added Quill's once-per-child
+  "Great Storybook was torn" premise ahead of "what every story needs". The spec now asserts
+  that order.
+- **Newly reached, NOT fixed (needs an owner UX decision).** `portal-adult-exit:142`: in full
+  screen at 375x667, Pip's panel covers the stage's "Exit full screen" button. The panel's
+  `--child-stage-exits-inset` (c67f520a) assumes the stage reaches the bottom of the viewport.
+  The Camera view and sprint settings (fd098f73, 99b882fc, built in parallel on the same day)
+  sit below the stage inside the full-screen wrapper and shrink it. Closing the panel makes the
+  exits reachable again.
+
+Browser evidence: full `npm run test:acceptance` on the local disposable stack (PostgreSQL 18,
+Chromium, desktop and tablet), 2026-11-22. Result: 108 passed, 1 failed (`portal-adult-exit:142`
+above), 2 skipped by design (`@thread` needs `LAI_E2E_STUDIO_RUN_MODE=thread`; touch drag is
+tablet-only), 0 did not run. Baseline was 62 passed, 19 failed, 2 skipped, 24 did not run. The
+suite grew by 4 Realm Explorer viewports. All 19 historical failures pass. Lint, format,
+typecheck, docs check and the related Vitest suites (136 files, 1720 tests) pass. No AWS call and
+no deployment.
+
 ## Storykeeper Castle reconciled with `main` (LAI 02, 2026-11-23, `main` @ `aa8adb33`); in `main`, NOT owner-accepted
 
 This supersedes the "NOT merged" wording in the older castle entries below. Details are in
@@ -134,7 +180,7 @@ Merged to `main` with merge commits (none squashed), in this order:
 7. then this PR (#48), #55 (the RDS PostgreSQL 18 plan, plan only) and #58 (host tools).
 
 Open items:
-- P1 GE-090-D7, desktop and tablet browser acceptance. 19 tests fail, and they also fail on the old `main` `678b77ce`. The owner is fixing it.
+- P1 GE-090-D7, desktop and tablet browser acceptance. 19 tests fail, and they also fail on the old `main` `678b77ce`. Development Complete on `fix/ge-090-d7-browser-acceptance` (see the GE-090-D7 section above); not merged.
 - The deployed RDS stays on PostgreSQL 16 until the separate plan runs.
 
 No deployment was made. The 2026-11-21 retest record follows.
