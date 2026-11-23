@@ -14,11 +14,9 @@ import io
 import json
 import os
 import platform
-import resource
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,7 +40,9 @@ def make_source(fmt: str, width: int, height: int) -> bytes:
     from PIL import Image, ImageFilter
 
     seed = Image.effect_noise((256, 256), 40).convert("RGB")
-    base = seed.resize((width, height), Image.Resampling.BICUBIC).filter(ImageFilter.GaussianBlur(2))
+    base = seed.resize((width, height), Image.Resampling.BICUBIC).filter(
+        ImageFilter.GaussianBlur(2)
+    )
     gradient = Image.linear_gradient("L").resize((width, height))
     image = Image.composite(base, Image.new("RGB", (width, height), (30, 90, 160)), gradient)
     buffer = io.BytesIO()
@@ -84,16 +84,23 @@ def main() -> int:
             path.write_bytes(data)
             for label, names in PROFILE_SETS.items():
                 script = CHILD.format(
-                    processing=str(ROOT / "processing"), path=str(path), names=names, repeat=args.repeat
+                    processing=str(ROOT / "processing"),
+                    path=str(path),
+                    names=names,
+                    repeat=args.repeat,
                 )
-                out = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=True)
+                out = subprocess.run(  # noqa: S603 - this interpreter and a script built here
+                    [sys.executable, "-c", script], capture_output=True, text=True, check=True
+                )
                 result = json.loads(out.stdout)
                 rows.append(
                     {
                         "source": f"{fmt} {width}x{height} ({len(data) / 1e6:.1f} MB)",
                         "profiles": label,
                         "best_s": round(min(result["seconds"]), 3),
-                        "median_s": round(sorted(result["seconds"])[len(result["seconds"]) // 2], 3),
+                        "median_s": round(
+                            sorted(result["seconds"])[len(result["seconds"]) // 2], 3
+                        ),
                         "peak_rss_mib": round(result["peak_rss_mib"], 1),
                         "outputs": result["outputs"],
                     }

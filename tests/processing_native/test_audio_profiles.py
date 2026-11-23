@@ -74,7 +74,9 @@ def test_output_rules():
         replace(opus, channels=6),
     ):
         assert ap.validate_profile(replace(base, outputs=(bad, mp3))), bad
-    assert ap.validate_profile(replace(base, outputs=(opus, replace(mp3, sample_rate=48_000, channels=1))))
+    assert ap.validate_profile(
+        replace(base, outputs=(opus, replace(mp3, sample_rate=48_000, channels=1)))
+    )
     dup = replace(base, outputs=(opus, replace(opus, label="other")))
     assert any("container" in x.reason for x in ap.validate_profile(dup))
     assert ap.validate_profile(replace(base, outputs=(replace(opus, codec="pcm16"),)))  # no PCM
@@ -86,7 +88,13 @@ def test_from_mapping_strict():
         "version": 1,
         "category": "sfx",
         "outputs": [
-            {"label": "opus", "codec": "opus", "sample_rate": 48000, "channels": 1, "quality": "low"}
+            {
+                "label": "opus",
+                "codec": "opus",
+                "sample_rate": 48000,
+                "channels": 1,
+                "quality": "low",
+            }
         ],
         "loudness": {"mode": "peak", "peak_dbfs": -3.0},
         "max_input_seconds": 10,

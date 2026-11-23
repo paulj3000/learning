@@ -53,6 +53,7 @@ def main() -> int:
         print(json.dumps({"skipped": "set LAI_FFMPEG_BIN to the built ffmpeg"}))
         return 0
     from audio_synth import make_wav
+
     from lai_native.audio.processor import AudioTranscoder
     from lai_native.audio.profiles import DEFAULT_PROFILES
     from lai_native.runtime import ToolSpec, run_tool, sha256_file
@@ -99,13 +100,19 @@ def main() -> int:
                 row["loudness_error_lu"] = round(after["integrated_lufs"] - ld.integrated_lufs, 2)
             else:
                 row["peak_error_db"] = round(after["sample_peak_dbfs"] - ld.peak_dbfs, 2)
-            row["true_peak_margin_db"] = round((ld.true_peak_dbtp or -1.0) - after["true_peak_dbtp"], 2)
+            row["true_peak_margin_db"] = round(
+                (ld.true_peak_dbtp or -1.0) - after["true_peak_dbtp"], 2
+            )
             rows.append(row)
     print(
         json.dumps(
             {
-                "host": {"arch": platform.machine(), "cpu": cpu_model(), "cpus": os.cpu_count(),
-                         "label": "workstation, NOT Lambda"},
+                "host": {
+                    "arch": platform.machine(),
+                    "cpu": cpu_model(),
+                    "cpus": os.cpu_count(),
+                    "label": "workstation, NOT Lambda",
+                },
                 "ffmpeg": version,
                 "ffmpeg_version_call_ms": cold_ms,
                 "rows": rows,

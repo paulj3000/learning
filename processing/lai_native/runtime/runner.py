@@ -12,8 +12,8 @@ only module under `lai_native` that starts a process (a guard test enforces it).
   never resolved from `PATH`, never taken from a job. Its SHA-256 can be pinned.
 * `argv` is a list; `shell=False`; the child gets a scrubbed environment (no AWS credentials,
   queue URLs or `PATH`) and a private working directory.
-* RLIMIT_CPU, RLIMIT_AS, RLIMIT_FSIZE, RLIMIT_NOFILE (and RLIMIT_NPROC when configured) are set on the child; the
-  child is its own session so a timeout kills the whole group.
+* RLIMIT_CPU, RLIMIT_AS, RLIMIT_FSIZE, RLIMIT_NOFILE (and RLIMIT_NPROC when configured) are set
+  on the child; the child is its own session so a timeout kills the whole group.
 * stdout and stderr are read incrementally into bounded buffers (excess is dropped and counted),
   and the workspace size is watched while the tool runs.
 * A wall-clock timeout, a deadline (`Deadline`: the Lambda context's
@@ -34,7 +34,6 @@ import subprocess
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Final
 
 from .errors import NativeToolError
@@ -69,6 +68,10 @@ class ToolLimits:
     #: RLIMIT_NPROC counts every process and thread of the user, so a low value breaks FFmpeg's
     #: worker threads on a busy host. Off by default; set it only for a tool run as its own user.
     max_processes: int | None = None
+
+
+#: The limits a run gets when the caller names none (immutable, so one shared instance is safe).
+DEFAULT_TOOL_LIMITS = ToolLimits()
 
 
 @dataclass(frozen=True)
@@ -184,7 +187,7 @@ def run_tool(
     spec: ToolSpec,
     args: Sequence[str],
     workspace: Workspace,
-    limits: ToolLimits = ToolLimits(),
+    limits: ToolLimits = DEFAULT_TOOL_LIMITS,
     *,
     deadline: Deadline | None = None,
     cancelled: Callable[[], bool] | None = None,
@@ -234,7 +237,8 @@ def run_tool(
     buffers = {"out": bytearray(), "err": bytearray()}
     caps = {"out": limits.max_stdout_bytes, "err": limits.max_stderr_bytes}
     dropped = {"out": 0, "err": 0}
-    assert proc.stdout is not None and proc.stderr is not None
+    if proc.stdout is None or proc.stderr is None:
+        raise RuntimeError("native tool started without its output pipes")
     for name, stream in (("out", proc.stdout), ("err", proc.stderr)):
         os.set_blocking(stream.fileno(), False)
         selector.register(stream, selectors.EVENT_READ, name)
@@ -299,7 +303,8 @@ def run_tool(
 
     if failure:
         raise NativeToolError(failure)
-    assert status is not None and rusage is not None
+    if status is None or rusage is None:
+        raise RuntimeError("native tool finished without an exit status")
     if os.WIFSIGNALED(status):
         sig = os.WTERMSIG(status)
         if sig in (signal.SIGXCPU,):

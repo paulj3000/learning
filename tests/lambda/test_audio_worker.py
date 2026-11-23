@@ -104,7 +104,9 @@ def submit(worker, fakes, registry, data, normalize=True):
 def test_ffmpeg_config_defaults_and_validates_the_pin(audio):
     handler = audio[0]
     assert handler.ffmpeg_config({}) == ("/opt/bin/ffmpeg", None)
-    assert handler.ffmpeg_config({"LAI_FFMPEG_PATH": "/x/ffmpeg", "LAI_FFMPEG_SHA256": "A" * 64}) == (
+    assert handler.ffmpeg_config(
+        {"LAI_FFMPEG_PATH": "/x/ffmpeg", "LAI_FFMPEG_SHA256": "A" * 64}
+    ) == (
         "/x/ffmpeg",
         "a" * 64,
     )
@@ -137,13 +139,19 @@ def test_a_job_runs_end_to_end_through_the_real_artifact_store(worker, fakes, au
     assert all(p.get("IfNoneMatch") == "*" and p.get("ChecksumSHA256") for p in puts)
     # Nothing but artifacts and the stored result was written; the input is untouched.
     assert {p["Key"] for p in fakes.s3.puts} == set(keys) | {f"jobs/results/{job_id}.json"}
-    assert not [p for p in fakes.s3.puts if p["Bucket"] == ASSET_BUCKET and not p["Key"].startswith("processing/")]
+    assert not [
+        p
+        for p in fakes.s3.puts
+        if p["Bucket"] == ASSET_BUCKET and not p["Key"].startswith("processing/")
+    ]
 
 
 def test_normalize_false_reaches_the_processor(worker, fakes, audio, context):
     handler, registry, fake = audio
     runtime = make_runtime(worker, handler, fakes)
-    _job_id, body = submit(worker, fakes, registry, ab.wav(seconds=6.0, rate=44_100, channels=2), normalize=False)
+    _job_id, body = submit(
+        worker, fakes, registry, ab.wav(seconds=6.0, rate=44_100, channels=2), normalize=False
+    )
     assert worker.handler.process(body, context, runtime) == "succeeded"
     result = fakes.sqs.sent[-1]["Body"]["result"]
     assert result["metadata"]["normalize"] is False
@@ -151,7 +159,9 @@ def test_normalize_false_reaches_the_processor(worker, fakes, audio, context):
     assert encodes and all("volume=" not in c[c.index("-af") + 1] for c in encodes)
 
 
-def test_redelivery_resends_the_stored_result_without_running_ffmpeg_again(worker, fakes, audio, context):
+def test_redelivery_resends_the_stored_result_without_running_ffmpeg_again(
+    worker, fakes, audio, context
+):
     handler, registry, fake = audio
     runtime = make_runtime(worker, handler, fakes)
     _job_id, body = submit(worker, fakes, registry, ab.wav(seconds=6.0, rate=44_100, channels=2))
@@ -161,17 +171,23 @@ def test_redelivery_resends_the_stored_result_without_running_ffmpeg_again(worke
     assert len(fake.calls) == calls and artifact_keys(fakes) == keys
 
 
-def test_a_retried_attempt_with_the_same_bytes_is_idempotent_and_other_bytes_conflict(worker, fakes, audio, context):
+def test_a_retried_attempt_with_the_same_bytes_is_idempotent_and_other_bytes_conflict(
+    worker, fakes, audio, context
+):
     handler, registry, fake = audio
     runtime = make_runtime(worker, handler, fakes)
     job_id, body = submit(worker, fakes, registry, ab.wav(seconds=6.0, rate=44_100, channels=2))
     assert worker.handler.process(body, context, runtime) == "succeeded"
     # Lose the stored result so the same attempt runs again: identical bytes are a success.
-    fakes.s3.objects.pop((worker.aws.Settings(audio_env()).results_bucket, f"jobs/results/{job_id}.json"))
+    fakes.s3.objects.pop(
+        (worker.aws.Settings(audio_env()).results_bucket, f"jobs/results/{job_id}.json")
+    )
     assert worker.handler.process(body, context, runtime) == "succeeded"
     assert len(artifact_keys(fakes)) == 3
     # A different encoder output under an existing key is refused, never overwritten.
-    fakes.s3.objects.pop((worker.aws.Settings(audio_env()).results_bucket, f"jobs/results/{job_id}.json"))
+    fakes.s3.objects.pop(
+        (worker.aws.Settings(audio_env()).results_bucket, f"jobs/results/{job_id}.json")
+    )
     key = next(k for k in artifact_keys(fakes) if k.endswith("opus.ogg"))
     original = fakes.s3.objects[(ASSET_BUCKET, key)] = b"OggS-different-bytes-from-an-earlier-run"
     worker.handler.process(body, context, runtime)
@@ -231,11 +247,20 @@ def test_the_zip_is_deterministic_and_has_no_binaries(tmp_path):
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
     assert names == sorted(names)
-    assert {"audio_worker/handler.py", "jobs_worker/handler.py", "lai_native/runtime/runner.py",
-            "lai_native/audio/processor.py", "lai_processing/__init__.py"} <= set(names)
+    assert {
+        "audio_worker/handler.py",
+        "jobs_worker/handler.py",
+        "lai_native/runtime/runner.py",
+        "lai_native/audio/processor.py",
+        "lai_processing/__init__.py",
+    } <= set(names)
     assert not [n for n in names if n.endswith((".so", ".exe", ".bin")) or "bin/" in n]
-    assert not [n for n in names if n.startswith("lai_native/") and not n.startswith(
-        ("lai_native/runtime/", "lai_native/audio/", "lai_native/__init__"))]
+    assert not [
+        n
+        for n in names
+        if n.startswith("lai_native/")
+        and not n.startswith(("lai_native/runtime/", "lai_native/audio/", "lai_native/__init__"))
+    ]
     assert path.name.startswith("audio-worker-") and len(path.stem) == len("audio-worker-") + 16
 
 
@@ -267,7 +292,9 @@ def test_layer_check_accepts_a_valid_layer_and_refuses_gpl_or_tampering(tmp_path
         build.check_layer(make(binary=b"tampered"))
 
 
-def test_worker_ports_carry_the_invocation_remaining_time_into_the_engine(worker, fakes, audio, context):
+def test_worker_ports_carry_the_invocation_remaining_time_into_the_engine(
+    worker, fakes, audio, context
+):
     handler, registry, fake = audio
     runtime = make_runtime(worker, handler, fakes)
     ports = runtime.ports(KIND, context)
@@ -287,11 +314,11 @@ def test_the_cold_start_sweeps_leftover_workspaces(worker, fakes, audio, monkeyp
     import lai_native.runtime as native
 
     swept = []
-    monkeypatch.setattr(native, "sweep_stale", lambda base="/tmp": swept.append(base) or 2)
+    monkeypatch.setattr(native, "sweep_stale", lambda base: swept.append(base) or 2)
     runtime = handler.AudioRuntime(
         worker.aws.Settings(audio_env()), clients={"s3": fakes.s3, "sqs": fakes.sqs}
     )
-    assert swept == ["/tmp"] and runtime.swept == 2
+    assert swept == [handler.LAMBDA_TMP] and runtime.swept == 2
 
 
 def test_the_worker_build_runs_the_import_policy_audit(monkeypatch):

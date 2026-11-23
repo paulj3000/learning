@@ -1,6 +1,7 @@
 """Build the audio worker zip deterministically, and check the FFmpeg layer zip beside it.
 
-    python3 lambda/audio_worker/build.py --out build/lambda [--layer build/ffmpeg/lai-ffmpeg-layer-aarch64.zip]
+    python3 lambda/audio_worker/build.py --out build/lambda \
+        [--layer build/ffmpeg/lai-ffmpeg-layer-aarch64.zip]
 
 The function zip holds everything `lambda/build.py` puts in the jobs worker zip (`jobs_worker/`
 with its vendored core, and `lai_processing`), plus `audio_worker/` and the two packages of

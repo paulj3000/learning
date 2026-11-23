@@ -26,6 +26,7 @@ from jobs_worker.vendor.jobs_core.tasks import RUNNERS, TaskError
 
 KIND = envelope.ASSET_TRANSCODE_AUDIO
 DEFAULT_FFMPEG_PATH = "/opt/bin/ffmpeg"
+LAMBDA_TMP = "/tmp"  # noqa: S108 - the only writable directory in AWS Lambda
 
 _registry = None
 
@@ -49,7 +50,7 @@ class AudioRuntime(aws.Runtime):
         # A warm container's /tmp survives killed invocations: clear their leftovers once.
         from lai_native.runtime import sweep_stale
 
-        self.swept = sweep_stale("/tmp")
+        self.swept = sweep_stale(LAMBDA_TMP)
 
     def ports(self, kind: str, context):
         if kind != KIND:
@@ -82,7 +83,7 @@ def engine_registry(environ=None):
         registry.register(
             AudioTranscodeProcessor(
                 ToolSpec("ffmpeg", path, sha256=pin),
-                workspace_base="/tmp",
+                workspace_base=LAMBDA_TMP,
                 tool_version=env.get("LAI_FFMPEG_VERSION", "").strip() or None,
             )
         )
@@ -117,7 +118,7 @@ def run_transcode(payload: dict, ports) -> dict:
         registry=registry,
         storage=storage,
         namespace=request.namespace,
-        workspace_root=Path("/tmp"),
+        workspace_root=Path(LAMBDA_TMP),
     )
     processors = registry.processors()
     for processor in processors:  # the Lambda deadline reaches the runner (one job at a time)

@@ -83,7 +83,9 @@ def make_request(
         attempt_number=1,
         submitted_at=stamp - timedelta(minutes=1),
         input=source,
-        asset=AssetContext(asset_id="coin-clink", asset_version_id=version_id, asset_version_number=1),
+        asset=AssetContext(
+            asset_id="coin-clink", asset_version_id=version_id, asset_version_number=1
+        ),
         expires_at=stamp + timedelta(hours=72),
         options=options,
         limits=profile.limits,

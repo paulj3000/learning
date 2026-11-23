@@ -792,7 +792,10 @@ class AudioFileAdmin(admin.ModelAdmin):
     )
     def transcode_audio(self, request, queryset):
         submit_transcodes(
-            self, request, [(v, None) for v in queryset.select_related("asset")[:50]], normalize=False
+            self,
+            request,
+            [(v, None) for v in queryset.select_related("asset")[:50]],
+            normalize=False,
         )
 
     @admin.action(
@@ -802,7 +805,10 @@ class AudioFileAdmin(admin.ModelAdmin):
     )
     def normalize_audio(self, request, queryset):
         submit_transcodes(
-            self, request, [(v, None) for v in queryset.select_related("asset")[:50]], normalize=True
+            self,
+            request,
+            [(v, None) for v in queryset.select_related("asset")[:50]],
+            normalize=True,
         )
 
     @admin.display(description="File", ordering="asset__asset_id")
@@ -856,7 +862,9 @@ def submit_transcodes(modeladmin, request, pairs, *, normalize: bool) -> None:
                 version, normalize=normalize, user=request.user, channel=channel
             )
         except WorkloadUnavailable as error:
-            modeladmin.message_user(request, f"{what} is not available: {error.message}", messages.ERROR)
+            modeladmin.message_user(
+                request, f"{what} is not available: {error.message}", messages.ERROR
+            )
             return
         except JobsDisabled:
             modeladmin.message_user(
@@ -933,7 +941,8 @@ def transcoding_html(version):
     kind = "Normalised to the channel target" if data["normalize"] else "Converted, level kept"
     source = (
         f"{data['source_format']} {data['source_codec']}, "
-        f"{_fmt(data['source_duration_seconds'], ' s')}, {_fmt(data['source_sample_rate_hz'], ' Hz')}, "
+        f"{_fmt(data['source_duration_seconds'], ' s')}, "
+        f"{_fmt(data['source_sample_rate_hz'], ' Hz')}, "
         f"{_fmt(data['source_channels'], ' ch')}"
     )
     out_rows = []
@@ -955,8 +964,10 @@ def transcoding_html(version):
                 _fmt(o.duration_seconds, " s"),
                 _fmt(o.bitrate_kbps, " kbit/s"),
                 _fmt(o.size_bytes, " bytes"),
-                f"{_fmt(o.before.get('integrated_lufs'))} to {_fmt(o.after.get('integrated_lufs'), ' LUFS')}",
-                f"{_fmt(o.before.get('true_peak_dbtp'))} to {_fmt(o.after.get('true_peak_dbtp'), ' dBTP')}",
+                f"{_fmt(o.before.get('integrated_lufs'))} to "
+                f"{_fmt(o.after.get('integrated_lufs'), ' LUFS')}",
+                f"{_fmt(o.before.get('true_peak_dbtp'))} to "
+                f"{_fmt(o.after.get('true_peak_dbtp'), ' dBTP')}",
                 _fmt(o.gain_db, " dB"),
                 link,
             )
@@ -984,10 +995,7 @@ def transcoding_html(version):
         format_html_join(
             "",
             "<tr>{}</tr>",
-            (
-                (format_html_join("", "<td>{}</td>", ((c,) for c in row)),)
-                for row in out_rows
-            ),
+            ((format_html_join("", "<td>{}</td>", ((c,) for c in row)),) for row in out_rows),
         ),
     )
     findings = data["findings"]
@@ -1009,8 +1017,7 @@ def transcoding_html(version):
         else format_html("<p>{}</p>", "No findings.")
     )
     return format_html(
-        "{}<p><strong>{}</strong> {} | {} | {}</p><p>{}</p>{}<p><strong>{}</strong></p>{}"
-        "<p>{}</p>",
+        "{}<p><strong>{}</strong> {} | {} | {}</p><p>{}</p>{}<p><strong>{}</strong></p>{}<p>{}</p>",
         head,
         kind,
         data["profile"],

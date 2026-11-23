@@ -179,9 +179,14 @@ def choose_gain(
     if mode == "none":
         return "none", 0.0, False
     if mode == "peak":
-        if sample_peak_dbfs is None or not math.isfinite(sample_peak_dbfs) or sample_peak_dbfs < -70.0:
+        if (
+            sample_peak_dbfs is None
+            or not math.isfinite(sample_peak_dbfs)
+            or sample_peak_dbfs < -70.0
+        ):
             raise TranscodeError("silent_source")
-        assert peak_target is not None
+        if peak_target is None:
+            raise RuntimeError("audio transcode: peak mode without a peak target")
         return "peak", peak_target - sample_peak_dbfs, False
     if (
         integrated_lufs is None
@@ -191,7 +196,8 @@ def choose_gain(
         or integrated_lufs <= -70.0
     ):
         raise TranscodeError("silent_source")
-    assert ld.integrated_lufs is not None and ld.true_peak_dbtp is not None
+    if ld.integrated_lufs is None or ld.true_peak_dbtp is None:
+        raise RuntimeError("audio transcode: integrated mode without its targets")
     gain = ld.integrated_lufs - integrated_lufs
     return "integrated", gain, true_peak_dbtp + gain > ld.true_peak_dbtp
 
@@ -202,7 +208,8 @@ def _gain_chain(gain_db: float, limit_dbtp: float | None) -> str:
         # alimiter limits sample peaks with look-ahead; one dB under the true-peak ceiling leaves
         # room for inter-sample peaks. The output is re-measured and retried regardless.
         limit_linear = 10 ** ((limit_dbtp - 1.0) / 20.0)
-        chain += f",alimiter=limit={ffmpeg.num(max(0.0625, min(1.0, limit_linear)))}:level=disabled:latency=1"
+        limit = ffmpeg.num(max(0.0625, min(1.0, limit_linear)))
+        chain += f",alimiter=limit={limit}:level=disabled:latency=1"
     return chain
 
 
@@ -299,7 +306,15 @@ class AudioTranscoder:
                 for spec in specs:
                     try:
                         out, before, gain, extra = self._one_output(
-                            ws, input_path, fmt, source, profile, spec, max_seconds, deadline, cancelled
+                            ws,
+                            input_path,
+                            fmt,
+                            source,
+                            profile,
+                            spec,
+                            max_seconds,
+                            deadline,
+                            cancelled,
                         )
                     except NativeToolError as error:
                         error = TranscodeError(error.code, error.retryable)  # noqa: PLW2901
@@ -353,9 +368,7 @@ class AudioTranscoder:
         fmt = sniff(data[:16])
         if fmt is None:
             raise TranscodeError("unsupported_input")
-        inspection = inspect_audio(
-            io.BytesIO(data), len(data), _FORMAT_TYPES[fmt], AudioSettings()
-        )
+        inspection = inspect_audio(io.BytesIO(data), len(data), _FORMAT_TYPES[fmt], AudioSettings())
         meta = inspection.metadata
         if inspection.report.has_errors:
             raise TranscodeError("input_refused")
@@ -392,7 +405,8 @@ class AudioTranscoder:
     ) -> ffmpeg.Measurement:
         ld = profile.loudness
         if ld.mode == "integrated" and duration >= SHORT_AUDIO_SECONDS:
-            assert ld.integrated_lufs is not None and ld.true_peak_dbtp is not None
+            if ld.integrated_lufs is None or ld.true_peak_dbtp is None:
+                raise RuntimeError("audio transcode: integrated mode without its targets")
             args = ffmpeg.build_measure_loudnorm_args(
                 input_path,
                 fmt,
@@ -466,9 +480,7 @@ class AudioTranscoder:
         ceiling = ld.true_peak_dbtp if ld.true_peak_dbtp is not None else -1.0
         peak_target = None
         if mode == "peak":
-            peak_target = (
-                ld.peak_dbfs if ld.mode == "peak" else ceiling - SHORT_CLIP_MARGIN_DB
-            )
+            peak_target = ld.peak_dbfs if ld.mode == "peak" else ceiling - SHORT_CLIP_MARGIN_DB
         if limited:
             findings.append(Finding("true_peak_limited", "info", label))
         output_name = f"out-{label}.{'ogg' if spec.codec == 'opus' else 'mp3'}"
@@ -514,9 +526,14 @@ class AudioTranscoder:
                 limited = mode == "integrated"
             else:
                 findings.append(Finding("true_peak_over_ceiling", "warning", label))
-        assert after is not None
+        if after is None:
+            raise RuntimeError("audio transcode: the output was never measured")
 
-        if mode == "integrated" and after.integrated_lufs is not None and ld.integrated_lufs is not None:
+        if (
+            mode == "integrated"
+            and after.integrated_lufs is not None
+            and ld.integrated_lufs is not None
+        ):
             if abs(after.integrated_lufs - ld.integrated_lufs) > ld.tolerance_lu and not limited:
                 findings.append(Finding("loudness_target_missed", "warning", label))
             elif limited and after.integrated_lufs < ld.integrated_lufs - ld.tolerance_lu:
@@ -544,7 +561,9 @@ class AudioTranscoder:
         )
 
     @staticmethod
-    def _overshoot(after: ffmpeg.Measurement, mode: str, peak_target: float | None, ceiling: float) -> float:
+    def _overshoot(
+        after: ffmpeg.Measurement, mode: str, peak_target: float | None, ceiling: float
+    ) -> float:
         """dB by which the decoded output is over its limit (0 when within). Integrated and
         peak profiles are both held under the true-peak ceiling; a peak profile is also held
         within `PEAK_RETRY_DB` of its sample-peak target, because a lossy encode can overshoot."""
@@ -617,7 +636,9 @@ class AudioTranscoder:
         if isinstance(seconds, (int, float)):
             if abs(seconds - src_seconds) > tolerance:
                 findings.append(
-                    Finding("loop_length_drift" if profile.loop else "duration_drift", "warning", label)
+                    Finding(
+                        "loop_length_drift" if profile.loop else "duration_drift", "warning", label
+                    )
                 )
         else:
             findings.append(Finding("duration_unavailable", "warning", label))

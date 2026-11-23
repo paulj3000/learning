@@ -9,8 +9,9 @@ import pytest
 from lai_native.audio import ffmpeg as ff
 from lai_native.audio.profiles import DEFAULT_PROFILES
 
-IN = Path("/tmp/j/input.wav")
-OUT = Path("/tmp/j/out-opus.ogg")
+# Argument-building only: these paths are never created.
+IN = Path("/tmp/j/input.wav")  # noqa: S108
+OUT = Path("/tmp/j/out-opus.ogg")  # noqa: S108
 
 
 def _encode(profile_id, idx=0, channels=None, gain="volume=1.5dB"):
@@ -18,8 +19,16 @@ def _encode(profile_id, idx=0, channels=None, gain="volume=1.5dB"):
     spec = p.outputs[idx]
     ch = channels or spec.channels or 1
     return ff.build_encode_args(
-        IN, "wav", OUT, spec, ch, 31, gain, ff.prefix_filter(spec, ch),
-        voice=p.category == "voice", max_output_bytes=p.max_output_bytes,
+        IN,
+        "wav",
+        OUT,
+        spec,
+        ch,
+        31,
+        gain,
+        ff.prefix_filter(spec, ch),
+        voice=p.category == "voice",
+        max_output_bytes=p.max_output_bytes,
     )
 
 
@@ -47,11 +56,16 @@ def test_every_profile_output_builds_a_safe_argv():
 def test_opus_flags_voice_vs_music():
     voice = _encode("audio-voice", 0)
     assert voice[voice.index("-c:a") + 1] == "libopus"
-    assert voice[voice.index("-b:a") + 1] == "48k" and voice[voice.index("-application") + 1] == "voip"
+    assert (
+        voice[voice.index("-b:a") + 1] == "48k" and voice[voice.index("-application") + 1] == "voip"
+    )
     assert voice[voice.index("-ac") + 1] == "1" and voice[voice.index("-ar") + 1] == "48000"
     assert voice[-3:-1] == ["-f", "ogg"]
     music = _encode("audio-music", 0, channels=2)
-    assert music[music.index("-b:a") + 1] == "96k" and music[music.index("-application") + 1] == "audio"
+    assert (
+        music[music.index("-b:a") + 1] == "96k"
+        and music[music.index("-application") + 1] == "audio"
+    )
 
 
 def test_mp3_flags_cbr_vbr_and_no_tags():
@@ -75,9 +89,14 @@ def test_measure_commands():
     spec = DEFAULT_PROFILES["audio-voice"].outputs[0]
     prefix = ff.prefix_filter(spec, 1)
     assert prefix == "aresample=48000,aformat=sample_rates=48000:channel_layouts=mono"
-    assert ff.prefix_filter(spec, 1, 2) == "aresample=48000,pan=mono|c0=0.5*c0+0.5*c1,aformat=sample_rates=48000:channel_layouts=mono"
+    assert (
+        ff.prefix_filter(spec, 1, 2) == "aresample=48000,pan=mono|c0=0.5*c0+0.5*c1,"
+        "aformat=sample_rates=48000:channel_layouts=mono"
+    )
     assert "pan" not in ff.prefix_filter(spec, 1, 1)
-    ln = ff.build_measure_loudnorm_args(IN, "wav", 901, prefix, target_i=-16, target_tp=-1, target_lra=12)
+    ln = ff.build_measure_loudnorm_args(
+        IN, "wav", 901, prefix, target_i=-16, target_tp=-1, target_lra=12
+    )
     assert f"{prefix},loudnorm=I=-16:TP=-1:LRA=12:print_format=json" in ln
     assert ln[-3:] == ["-f", "null", "-"]
     eb = ff.build_measure_ebur128_args(IN, "wav", 31, prefix)
@@ -90,7 +109,18 @@ def test_paths_must_be_absolute(bad):
     with pytest.raises(ValueError):
         ff.build_measure_ebur128_args(bad, "wav", 5, ff.prefix_filter(spec, 1))
     with pytest.raises(ValueError):
-        ff.build_encode_args(IN, "wav", bad, spec, 1, 5, "", ff.prefix_filter(spec, 1), voice=False, max_output_bytes=10)
+        ff.build_encode_args(
+            IN,
+            "wav",
+            bad,
+            spec,
+            1,
+            5,
+            "",
+            ff.prefix_filter(spec, 1),
+            voice=False,
+            max_output_bytes=10,
+        )
 
 
 def test_input_format_is_a_closed_set():
@@ -105,7 +135,9 @@ def test_num_formats_plain_decimals():
         ff.num(float("nan"))
 
 
-LOUDNORM = b"""[Parsed_loudnorm_0 @ 0x55] 
+LOUDNORM = (
+    b"[Parsed_loudnorm_0 @ 0x55] "
+    + b"""
 {
 \t"input_i" : "-26.10",
 \t"input_tp" : "-9.80",
@@ -116,12 +148,17 @@ LOUDNORM = b"""[Parsed_loudnorm_0 @ 0x55]
 \t"target_offset" : "0.30"
 }
 """
+)
 
 
 def test_parse_loudnorm_json():
     m = ff.parse_loudnorm_json(b"noise {brace} before\n" + LOUDNORM)
     assert (m.input_i, m.input_tp, m.input_lra, m.input_thresh, m.target_offset) == (
-        -26.1, -9.8, 1.2, -36.5, 0.3,
+        -26.1,
+        -9.8,
+        1.2,
+        -36.5,
+        0.3,
     )
     assert m.normalization_type == "linear"
 
@@ -129,7 +166,13 @@ def test_parse_loudnorm_json():
 def test_parse_loudnorm_accepts_silence_and_refuses_garbage():
     silent = LOUDNORM.replace(b'"-26.10"', b'"-inf"')
     assert ff.parse_loudnorm_json(silent).input_i == float("-inf")
-    for bad in (b"", b"{", b'{"input_i": 1}', LOUDNORM.replace(b"-9.80", b"evil;rm"), b"x" * 10 + b"{" + b"y" * 9000 + b"}"):
+    for bad in (
+        b"",
+        b"{",
+        b'{"input_i": 1}',
+        LOUDNORM.replace(b"-9.80", b"evil;rm"),
+        b"x" * 10 + b"{" + b"y" * 9000 + b"}",
+    ):
         with pytest.raises(ValueError):
             ff.parse_loudnorm_json(bad)
 
@@ -156,7 +199,12 @@ EBUR = b"""[Parsed_ebur128_0 @ 0x5] Summary:
 
 def test_parse_ebur128_summary():
     m = ff.parse_ebur128(b"earlier chatter\n" + EBUR)
-    assert (m.integrated_lufs, m.lra_lu, m.sample_peak_dbfs, m.true_peak_dbtp) == (-16.2, 3.1, -3.4, -2.9)
+    assert (m.integrated_lufs, m.lra_lu, m.sample_peak_dbfs, m.true_peak_dbtp) == (
+        -16.2,
+        3.1,
+        -3.4,
+        -2.9,
+    )
     assert m.as_facts()["true_peak_dbtp"] == -2.9
     silent = EBUR.replace(b"-16.2", b"-inf").replace(b"-3.4", b"-inf")
     s = ff.parse_ebur128(silent)

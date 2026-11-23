@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import replace
 
-import pytest
-
 import audio_builder as ab
+import pytest
 from audio_synth import ogg_opus_tagged
+
 from lai_native.audio import processor as proc
 from lai_native.audio.profiles import DEFAULT_PROFILES, LoudnessSpec
 from lai_native.runtime import NativeToolError, ToolResult, ToolSpec
@@ -35,8 +34,17 @@ def ebur_text(i, lra, sample, true):
 class FakeFfmpeg:
     """Stands in for `run_tool`: answers by looking at the argv the processor built."""
 
-    def __init__(self, *, before=(-30.0, -20.0, 2.0), after=None, after_seq=None, fail=None,
-                 out_bytes=None, version="7.1.5", seconds=6.0):
+    def __init__(
+        self,
+        *,
+        before=(-30.0, -20.0, 2.0),
+        after=None,
+        after_seq=None,
+        fail=None,
+        out_bytes=None,
+        version="7.1.5",
+        seconds=6.0,
+    ):
         self.seconds = seconds
         self.before = before
         self.after = after or [(-18.0, 2.0, -12.0, -12.0)]
@@ -50,7 +58,9 @@ class FakeFfmpeg:
         assert tool is TOOL and "-hide_banner" in args
         self.calls.append(list(args))
         if "-version" in args:
-            return ToolResult(0, f"ffmpeg version {self.version} Copyright".encode(), b"", False, 0, 1)
+            return ToolResult(
+                0, f"ffmpeg version {self.version} Copyright".encode(), b"", False, 0, 1
+            )
         kind = self._kind(args)
         if kind in self.fail:
             exc = self.fail[kind]
@@ -58,15 +68,28 @@ class FakeFfmpeg:
                 raise exc
             return ToolResult(exc, b"", b"boom /secret/path", False, 0.1, 1)
         if kind == "loudnorm":
-            return ToolResult(0, b"", loudnorm_text(self.before[0], self.before[1], self.before[2]), False, 0.1, 5)
+            return ToolResult(
+                0, b"", loudnorm_text(self.before[0], self.before[1], self.before[2]), False, 0.1, 5
+            )
         if kind == "before":
-            return ToolResult(0, b"", ebur_text(self.before[0], 0.0, self.before[1] - 1, self.before[1]), False, 0.1, 5)
+            return ToolResult(
+                0,
+                b"",
+                ebur_text(self.before[0], 0.0, self.before[1] - 1, self.before[1]),
+                False,
+                0.1,
+                5,
+            )
         if kind == "encode":
             out = args[-1]
             if "libopus" in args:
-                data = self.out_bytes or ogg_opus_tagged(seconds=self.seconds, channels=self._channels(args))
+                data = self.out_bytes or ogg_opus_tagged(
+                    seconds=self.seconds, channels=self._channels(args)
+                )
             else:
-                data = self.out_bytes or ab.mp3_cbr(frames=int(self.seconds / 0.026122), kbps=128, tag=False)
+                data = self.out_bytes or ab.mp3_cbr(
+                    frames=int(self.seconds / 0.026122), kbps=128, tag=False
+                )
             with open(out, "wb") as handle:
                 handle.write(data)
             return ToolResult(0, b"", b"", False, 0.2, 9)
@@ -112,14 +135,19 @@ def test_integrated_profile_runs_measure_encode_measure_for_each_output():
     kinds = [FakeFfmpeg._kind(c) for c in fake.calls]
     assert kinds == ["loudnorm", "encode", "after", "loudnorm", "encode", "after"]
     assert [o.label for o in out.outputs] == ["opus", "mp3"]
-    assert out.outputs[0].content_type == "audio/ogg" and out.outputs[1].content_type == "audio/mpeg"
+    assert (
+        out.outputs[0].content_type == "audio/ogg" and out.outputs[1].content_type == "audio/mpeg"
+    )
     # One linear gain: target -18 minus measured -30.
-    assert fake.af() .endswith("volume=12dB") and "alimiter" not in fake.af()
+    assert fake.af().endswith("volume=12dB") and "alimiter" not in fake.af()
     assert out.facts["gain_db"] == {"opus": 12.0, "mp3": 12.0}
     assert out.facts["measured_before"]["opus"]["integrated_lufs"] == -30.0
     assert out.outputs[0].facts["measured_after"]["integrated_lufs"] == -18.1
     assert out.facts["tool"] == {
-        "name": "ffmpeg", "version": "7.1.5", "license_class": "lgpl", "binary_sha256": "a" * 64
+        "name": "ffmpeg",
+        "version": "7.1.5",
+        "license_class": "lgpl",
+        "binary_sha256": "a" * 64,
     }
     assert out.facts["source"]["format"] == "wav" and len(out.facts["source"]["sha256"]) == 64
     assert out.findings == []
@@ -140,23 +168,31 @@ def test_true_peak_headroom_shortfall_uses_the_limiter():
     fake = FakeFfmpeg(before=(-30.0, -3.0, 2.0), after=[(-18.0, 2.0, -3.0, -2.0)])
     out = transcoder(fake).transcode(stereo_wav(), only("audio-music"))
     assert "alimiter=limit=" in fake.af()
-    assert {"code": "true_peak_limited", "severity": "info", "label": "opus"} in out.facts["findings"]
+    assert {"code": "true_peak_limited", "severity": "info", "label": "opus"} in out.facts[
+        "findings"
+    ]
 
 
 def test_short_clip_is_peak_normalised_not_loudness_normalised():
     fake = FakeFfmpeg(before=(-70.0, -12.0, 0.0), after=[(-30.0, 0.0, -3.0, -2.6)])
-    out = transcoder(fake).transcode(ab.wav(seconds=1.0, rate=44_100, channels=1), only("audio-voice"))
+    out = transcoder(fake).transcode(
+        ab.wav(seconds=1.0, rate=44_100, channels=1), only("audio-voice")
+    )
     kinds = [FakeFfmpeg._kind(c) for c in fake.calls]
     assert kinds[0] == "before"  # ebur128 pass, no loudnorm
     # Voice ceiling -1 dBTP minus 2 dB margin: peak target -3 dBFS from a sample peak of -13.
     assert out.facts["gain_db"]["opus"] == 10.0
     assert out.outputs[0].facts["mode"] == "peak"
-    assert {"code": "short_clip_peak_normalised", "severity": "info", "label": "opus"} in out.facts["findings"]
+    assert {"code": "short_clip_peak_normalised", "severity": "info", "label": "opus"} in out.facts[
+        "findings"
+    ]
 
 
 def test_peak_profile_gain():
     fake = FakeFfmpeg(before=(-20.0, -10.0, 0.0), after=[(-15.0, 0.0, -3.0, -2.5)])
-    out = transcoder(fake).transcode(ab.wav(seconds=1.0, rate=44_100, channels=1), only("audio-sfx"))
+    out = transcoder(fake).transcode(
+        ab.wav(seconds=1.0, rate=44_100, channels=1), only("audio-sfx")
+    )
     assert out.facts["gain_db"]["opus"] == 8.0  # sample peak -11 to -3
     assert fake.af().endswith("volume=8dB")
 
@@ -195,7 +231,9 @@ def test_persistent_overshoot_is_flagged_after_two_retries():
 def test_loudness_miss_is_a_finding_not_a_failure():
     fake = FakeFfmpeg(after=[(-21.0, 2.0, -12.0, -11.0)])
     out = transcoder(fake).transcode(stereo_wav(), only("audio-music"))
-    assert {"code": "loudness_target_missed", "severity": "warning", "label": "opus"} in out.facts["findings"]
+    assert {"code": "loudness_target_missed", "severity": "warning", "label": "opus"} in out.facts[
+        "findings"
+    ]
 
 
 def test_optional_output_failure_does_not_fail_the_job_but_required_does():
@@ -220,7 +258,11 @@ def test_optional_output_failure_does_not_fail_the_job_but_required_does():
 
 @pytest.mark.parametrize(
     ("kind", "exit_code", "code"),
-    [("loudnorm", 1, "decode_failed"), ("encode", 1, "encode_failed"), ("after", 1, "output_reinspection_failed")],
+    [
+        ("loudnorm", 1, "decode_failed"),
+        ("encode", 1, "encode_failed"),
+        ("after", 1, "output_reinspection_failed"),
+    ],
 )
 def test_tool_exit_codes_map_to_stable_error_codes(kind, exit_code, code):
     with pytest.raises(proc.TranscodeError) as caught:
@@ -250,7 +292,9 @@ def test_garbage_output_fails_reinspection():
 def test_duration_drift_is_a_warning():
     fake = FakeFfmpeg(out_bytes=ogg_opus_tagged(seconds=9.0, channels=2))
     out = transcoder(fake).transcode(stereo_wav(6.0), only("audio-music"))
-    assert {"code": "duration_drift", "severity": "warning", "label": "opus"} in out.facts["findings"]
+    assert {"code": "duration_drift", "severity": "warning", "label": "opus"} in out.facts[
+        "findings"
+    ]
 
 
 def test_loop_profiles_use_a_tighter_drift_tolerance():
@@ -336,9 +380,30 @@ def test_channel_policy_never_upmixes_and_keeps_dialogue_mono(wanted, source, re
 
 def test_choose_gain_cases():
     voice = DEFAULT_PROFILES["audio-voice"]
-    assert proc.choose_gain(voice, duration_seconds=10, integrated_lufs=-26, true_peak_dbtp=-12, sample_peak_dbfs=None) == ("integrated", 10.0, False)
-    assert proc.choose_gain(voice, duration_seconds=10, integrated_lufs=-26, true_peak_dbtp=-5, sample_peak_dbfs=None) == ("integrated", 10.0, True)
-    assert proc.choose_gain(voice, duration_seconds=2.9, integrated_lufs=-40, true_peak_dbtp=-9, sample_peak_dbfs=-10.0) == ("peak", 7.0, False)
-    assert proc.choose_gain(DEFAULT_PROFILES["audio-ui"], duration_seconds=1, integrated_lufs=None, true_peak_dbtp=None, sample_peak_dbfs=-20.0) == ("peak", 14.0, False)
+    assert proc.choose_gain(
+        voice, duration_seconds=10, integrated_lufs=-26, true_peak_dbtp=-12, sample_peak_dbfs=None
+    ) == ("integrated", 10.0, False)
+    assert proc.choose_gain(
+        voice, duration_seconds=10, integrated_lufs=-26, true_peak_dbtp=-5, sample_peak_dbfs=None
+    ) == ("integrated", 10.0, True)
+    assert proc.choose_gain(
+        voice, duration_seconds=2.9, integrated_lufs=-40, true_peak_dbtp=-9, sample_peak_dbfs=-10.0
+    ) == ("peak", 7.0, False)
+    assert proc.choose_gain(
+        DEFAULT_PROFILES["audio-ui"],
+        duration_seconds=1,
+        integrated_lufs=None,
+        true_peak_dbtp=None,
+        sample_peak_dbfs=-20.0,
+    ) == ("peak", 14.0, False)
     # Loudening beyond the source is allowed; cutting is too (a loud source comes down).
-    assert proc.choose_gain(voice, duration_seconds=10, integrated_lufs=-10, true_peak_dbtp=-1, sample_peak_dbfs=None)[1] == -6.0
+    assert (
+        proc.choose_gain(
+            voice,
+            duration_seconds=10,
+            integrated_lufs=-10,
+            true_peak_dbtp=-1,
+            sample_peak_dbfs=None,
+        )[1]
+        == -6.0
+    )

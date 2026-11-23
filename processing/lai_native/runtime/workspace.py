@@ -85,8 +85,13 @@ class Workspace:
 WORKSPACE_PREFIXES = ("lai-native-", "lai-proc-")
 
 
+#: Where Lambda workspaces live (the only writable directory in AWS Lambda).
+DEFAULT_SWEEP_BASE = "/tmp"  # noqa: S108
+
+
 def sweep_stale(
-    base: str | os.PathLike[str] = "/tmp", prefixes: tuple[str, ...] = WORKSPACE_PREFIXES
+    base: str | os.PathLike[str] = DEFAULT_SWEEP_BASE,
+    prefixes: tuple[str, ...] = WORKSPACE_PREFIXES,
 ) -> int:
     """Remove leftover workspaces under `base`; returns how many. Call once at worker init: a
     Lambda container runs one invocation at a time, so any such directory found then belongs to an

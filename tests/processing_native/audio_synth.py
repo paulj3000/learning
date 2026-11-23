@@ -32,7 +32,7 @@ def make_wav(
     sample sits at `peak_dbfs`. Deterministic."""
     frames = int(seconds * rate)
     amp = 32767 * 10 ** (peak_dbfs / 20.0)
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311 - a seeded test signal, not a secret
     out: list[int] = []
     for n in range(frames):
         t = n / rate
@@ -57,7 +57,9 @@ def make_wav(
     return _wav(out, rate, channels)
 
 
-def opus_tags(vendor: bytes = b"ffmpeg", comments: tuple[bytes, ...] = (b"encoder=Lavc libopus",)) -> bytes:
+def opus_tags(
+    vendor: bytes = b"ffmpeg", comments: tuple[bytes, ...] = (b"encoder=Lavc libopus",)
+) -> bytes:
     import struct
 
     body = b"OpusTags" + struct.pack("<I", len(vendor)) + vendor + struct.pack("<I", len(comments))

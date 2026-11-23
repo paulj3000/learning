@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import os
 
-import pytest
-
 import audio_builder as ab
 import audio_jobs as jobs
+import pytest
 from audio_synth import make_wav
+from test_audio_processor import TOOL, FakeFfmpeg
+
 from lai_native.audio import engine as audio_engine
 from lai_native.runtime import ToolSpec, sha256_file
 from lai_processing.contracts.common import ObjectRef
@@ -17,7 +18,6 @@ from lai_processing.contracts.results import ResultStatus
 from lai_processing.core.execution import ExecutionEngine
 from lai_processing.core.registry import ProcessorRegistry
 from lai_processing.testing.fakes import MemoryObjectStorage
-from test_audio_processor import TOOL, FakeFfmpeg
 
 KEY = "assets/audio/coin-clink/00000000-0000-4000-8000-000000000001/audio.wav"
 
@@ -34,7 +34,12 @@ def build(monkeypatch, runner, tool=TOOL):
 
 
 def submit(registry, processor, storage, data, profile_id="audio-music", content_type="audio/wav"):
-    _p, profile = registry.resolve(jobs.KIND, __import__("lai_processing.contracts.common", fromlist=["ProfileRef"]).ProfileRef(profile_id, 1))
+    _p, profile = registry.resolve(
+        jobs.KIND,
+        __import__("lai_processing.contracts.common", fromlist=["ProfileRef"]).ProfileRef(
+            profile_id, 1
+        ),
+    )
     storage.seed(ObjectRef("assets", KEY, None, jobs.NAMESPACE), data)
     return jobs.make_request(KEY, data, content_type, profile_id, processor, profile)
 
@@ -43,7 +48,10 @@ def test_profiles_are_registered_with_the_engine(monkeypatch):
     processor, registry, *_ = build(monkeypatch, FakeFfmpeg())
     ids = {(p.profile_id, p.version) for p in registry.profiles()}
     assert ids == {(f"audio-{c}", 1) for c in ("sfx", "ui", "ambient", "music", "voice")}
-    assert all(p.job_type == jobs.KIND and p.limits.max_input_bytes == 20 * 1024 * 1024 for p in registry.profiles())
+    assert all(
+        p.job_type == jobs.KIND and p.limits.max_input_bytes == 20 * 1024 * 1024
+        for p in registry.profiles()
+    )
 
 
 def test_the_job_type_is_declared_with_the_roles_the_processor_writes(monkeypatch):
@@ -111,7 +119,14 @@ def test_permanent_input_problems_become_classified_failures(monkeypatch, data, 
     assert result.status is ResultStatus.FAILED
     assert result.errors[0].code.value == code and result.errors[0].retry_class.value == "permanent"
     assert not any(a for a in result.artifacts)
-    assert storage.keys(__import__("lai_processing.contracts.identifiers", fromlist=["StoreName"]).StoreName.ARTIFACTS) == []
+    assert (
+        storage.keys(
+            __import__(
+                "lai_processing.contracts.identifiers", fromlist=["StoreName"]
+            ).StoreName.ARTIFACTS
+        )
+        == []
+    )
 
 
 def test_tool_timeout_is_retryable_and_a_missing_tool_is_manual(monkeypatch):

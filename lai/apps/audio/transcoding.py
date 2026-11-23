@@ -1,7 +1,8 @@
 """Audio transcoding and normalising in the background (`asset.transcode_audio`, ADR-067).
 
 Staff trigger this from the Sound Manager (Django Admin) on one stored audio version. It is the
-Sound Manager side of the derived-artifact foundation (ADR-066, docs/processing/DERIVED_ARTIFACTS.md):
+Sound Manager side of the derived-artifact foundation (ADR-066,
+docs/processing/DERIVED_ARTIFACTS.md):
 
 - `submit_transcode(version, normalize=, user=, channel=)` builds the request with
   `apps.assets.artifact_jobs.submit_derived_job` (so namespace, input identity, idempotency key,
@@ -84,7 +85,9 @@ def channels_for(version) -> list[str]:
     from .models import SoundCue
 
     return sorted(
-        SoundCue.objects.filter(asset_id=version.asset_id).values_list("channel", flat=True).distinct()
+        SoundCue.objects.filter(asset_id=version.asset_id)
+        .values_list("channel", flat=True)
+        .distinct()
     )
 
 
@@ -116,12 +119,12 @@ def latest_job(version):
 def submit_transcode(version, *, normalize: bool, user, channel: str | None = None):
     """Submit (or return) the transcode job for `version`. Never changes the version.
 
-    Raises `TranscodeRefused` (not audio, no single channel), `apps.jobs.services.WorkloadUnavailable`
-    (`LAI_AUDIO_TRANSCODING` off or no queue: nothing recorded), `JobsDisabled`, or `JobsError`
-    (a contract code, `attempts_exhausted`)."""
+    Raises `TranscodeRefused` (not audio, no single channel),
+    `apps.jobs.services.WorkloadUnavailable` (`LAI_AUDIO_TRANSCODING` off or no queue: nothing
+    recorded), `JobsDisabled`, or `JobsError` (a contract code, `attempts_exhausted`)."""
     from apps.assets.artifact_jobs import submit_derived_job
-    from lai_native.audio.engine import AUDIO_TRANSCODE_LIMITS
     from apps.jobs import services as jobs
+    from lai_native.audio.engine import AUDIO_TRANSCODE_LIMITS
 
     if version.format not in AUDIO_FORMATS:
         raise TranscodeRefused("not_audio")
@@ -140,7 +143,7 @@ def submit_transcode(version, *, normalize: bool, user, channel: str | None = No
     return job
 
 
-# --- results (for display; every value is rendered escaped by the admin) ----------------------------
+# --- results (for display; every value is rendered escaped by the admin) --------------------------
 
 
 @dataclass(frozen=True)

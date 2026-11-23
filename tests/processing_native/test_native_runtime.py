@@ -177,8 +177,11 @@ def test_invalid_arguments_are_refused(bad):
 
 
 def test_executable_must_be_a_configured_absolute_existing_file(tmp_path, ws):
-    for path, code in (("", "tool_not_configured"), ("ffmpeg", "tool_not_configured"),
-                       (str(tmp_path / "nope"), "tool_missing")):
+    for path, code in (
+        ("", "tool_not_configured"),
+        ("ffmpeg", "tool_not_configured"),
+        (str(tmp_path / "nope"), "tool_missing"),
+    ):
         with pytest.raises(NativeToolError) as caught:
             run_tool(ToolSpec("x", path), [], ws)
         assert caught.value.code == code
@@ -237,6 +240,15 @@ def test_only_the_runner_module_starts_processes():
         if path.name == "runner.py" and path.parent.name == "runtime":
             continue
         text = path.read_text()
-        if any(token in text for token in ("import subprocess", "from subprocess", "os.system", "os.popen", "os.exec")):
+        if any(
+            token in text
+            for token in (
+                "import subprocess",
+                "from subprocess",
+                "os.system",
+                "os.popen",
+                "os.exec",
+            )
+        ):
             offenders.append(path.name)
     assert not offenders

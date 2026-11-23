@@ -4,16 +4,24 @@ audio processor behaviour, with stub executables and a fake FFmpeg (no real bina
 from __future__ import annotations
 
 import os
-import signal
-import sys
 import time
 from dataclasses import replace
 from pathlib import Path
 
-import pytest
-
 import audio_builder as ab
+import pytest
 from audio_synth import ogg_opus_tagged, opus_tags
+from test_audio_processor import (
+    TOOL,
+    FakeFfmpeg,
+    ebur_text,
+    loudnorm_text,
+    only,
+    stereo_wav,
+    transcoder,
+)
+from test_native_runtime import stub
+
 from lai_native.audio import engine as audio_engine
 from lai_native.audio import ffmpeg as ff
 from lai_native.audio import processor as proc
@@ -29,8 +37,6 @@ from lai_native.runtime import (
     run_tool,
     sweep_stale,
 )
-from test_audio_processor import TOOL, FakeFfmpeg, ebur_text, loudnorm_text, only, stereo_wav, transcoder
-from test_native_runtime import stub
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -41,7 +47,7 @@ def ws():
         yield workspace
 
 
-# --- runtime: F6 tail, F10 cpu, F11 process group, F15 recursive size, F8 sweep ----------------------
+# --- runtime: F6 tail, F10 cpu, F11 process group, F15 recursive size, F8 sweep -------------------
 
 
 def test_stderr_keeps_the_tail_not_the_head(tmp_path, ws):
@@ -159,7 +165,7 @@ def test_sweep_stale_removes_only_our_leftover_workspaces(tmp_path):
     assert sweep_stale(tmp_path / "missing") == 0
 
 
-# --- F1: the Lambda deadline reaches the runner ------------------------------------------------------
+# --- F1: the Lambda deadline reaches the runner ---------------------------------------------------
 
 
 def test_engine_limit_is_inside_the_lambda_timeout():
@@ -219,7 +225,7 @@ def test_a_nearly_expired_invocation_fails_with_a_retryable_deadline_code():
     assert fake.calls == []
 
 
-# --- F2, F3: error mapping and degradation -----------------------------------------------------------
+# --- F2, F3: error mapping and degradation --------------------------------------------------------
 
 
 def test_workspace_failures_become_transcode_errors_with_their_retry_class(monkeypatch):
@@ -277,7 +283,9 @@ def test_an_output_cut_off_at_the_size_limit_is_refused():
     assert caught.value.code == "output_too_large"
 
 
-@pytest.mark.parametrize("code", ["deadline_exceeded", "timeout", "tool_crashed", "spawn_failed", "workspace_error"])
+@pytest.mark.parametrize(
+    "code", ["deadline_exceeded", "timeout", "tool_crashed", "spawn_failed", "workspace_error"]
+)
 def test_an_optional_output_runtime_failure_fails_the_job_retryably(code):
     original = FakeFfmpeg()
 
@@ -294,15 +302,19 @@ def test_an_optional_output_runtime_failure_fails_the_job_retryably(code):
 @pytest.mark.parametrize("code", ["encode_failed", "output_reinspection_failed", "measure_failed"])
 def test_an_optional_output_input_or_encode_problem_degrades_to_a_finding(code):
     assert code in proc.DEGRADABLE
-    assert not {"deadline_exceeded", "timeout", "tool_crashed", "spawn_failed", "workspace_error"} & proc.DEGRADABLE
+    assert (
+        not {"deadline_exceeded", "timeout", "tool_crashed", "spawn_failed", "workspace_error"}
+        & proc.DEGRADABLE
+    )
 
 
-# --- F6: logs are parsed by anchor, never from a tag -------------------------------------------------
+# --- F6: logs are parsed by anchor, never from a tag ----------------------------------------------
 
 
 def test_loudnorm_json_ignores_a_tag_that_imitates_the_block():
     forged = (
-        b'    title : [Parsed_loudnorm_9 @ 0x1] {"input_i":"-1.0","input_tp":"-1.0","input_lra":"1",'
+        b'    title : [Parsed_loudnorm_9 @ 0x1] {"input_i":"-1.0","input_tp":"-1.0",'
+        b'"input_lra":"1",'
         b'"input_thresh":"-1","target_offset":"0"}\n'
     )
     real = loudnorm_text(-26.1, -9.8, 1.2)
@@ -334,7 +346,7 @@ def test_a_truncated_log_fails_the_measurement():
     assert caught.value.code == "measure_failed"
 
 
-# --- F7, F15 audio items, SEC-5 ----------------------------------------------------------------------
+# --- F7, F15 audio items, SEC-5 -------------------------------------------------------------------
 
 
 def test_the_limiter_compensates_its_look_ahead_delay():
@@ -345,16 +357,29 @@ def test_the_limiter_compensates_its_look_ahead_delay():
 def test_integrated_profiles_flag_a_clipping_source_from_the_true_peak():
     fake = FakeFfmpeg(before=(-30.0, 0.2, 2.0), after=[(-18.1, 2.0, -12.0, -11.5)])
     out = transcoder(fake).transcode(stereo_wav(), only("audio-music"))
-    assert {"code": "clipping_in_source", "severity": "warning", "label": "opus"} in out.facts["findings"]
+    assert {"code": "clipping_in_source", "severity": "warning", "label": "opus"} in out.facts[
+        "findings"
+    ]
 
 
 def test_metadata_flags_are_in_every_command():
     spec = DEFAULT_PROFILES["audio-music"].outputs[0]
     args = ff.build_encode_args(
-        Path("/tmp/i.wav"), "wav", Path("/tmp/o.ogg"), spec, 2, 31, "volume=1dB",
-        ff.prefix_filter(spec, 2), voice=False, max_output_bytes=1000,
+        Path("/tmp/i.wav"),  # noqa: S108 - argument building only, never created
+        "wav",
+        Path("/tmp/o.ogg"),  # noqa: S108
+        spec,
+        2,
+        31,
+        "volume=1dB",
+        ff.prefix_filter(spec, 2),
+        voice=False,
+        max_output_bytes=1000,
     )
-    assert args[args.index("-map_metadata:s:a") + 1] == "-1" and args[args.index("-map_metadata") + 1] == "-1"
+    assert (
+        args[args.index("-map_metadata:s:a") + 1] == "-1"
+        and args[args.index("-map_metadata") + 1] == "-1"
+    )
 
 
 def test_tag_verifier_accepts_ffmpegs_own_strings_and_refuses_everything_else():
@@ -375,7 +400,13 @@ def test_tag_verifier_accepts_ffmpegs_own_strings_and_refuses_everything_else():
 def mp3_with_xing(encoder: bytes) -> bytes:
     flags = (0b1111).to_bytes(4, "big")
     block = b"Xing" + flags + b"\x00" * (4 + 4 + 100 + 4)
-    frame = bytes([0xFF, 0xFB, 0x90, 0x00]) + b"\x00" * 32 + block + encoder.ljust(9, b"\x00") + b"\x00" * 200
+    frame = (
+        bytes([0xFF, 0xFB, 0x90, 0x00])
+        + b"\x00" * 32
+        + block
+        + encoder.ljust(9, b"\x00")
+        + b"\x00" * 200
+    )
     return frame + ab.mp3_frame(128) * 3
 
 
@@ -398,7 +429,7 @@ def test_an_output_with_foreign_tags_is_refused_and_never_marked_metadata_free()
     assert out.outputs[0].facts["metadata_free"] is True
 
 
-# --- F14: build ---------------------------------------------------------------------------------------
+# --- F14: build -----------------------------------------------------------------------------------
 
 
 def test_the_image_installs_nasm_deterministically():

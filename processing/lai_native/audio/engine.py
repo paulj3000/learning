@@ -94,7 +94,9 @@ def profile_for(profile: AudioTranscodeProfile) -> ProcessingProfile:
         profile_id=profile.profile_id,
         version=profile.version,
         job_type=JOB_TYPE,
-        description=f"Transcode and loudness-normalise {profile.category} audio: {profile.description}",
+        description=(
+            f"Transcode and loudness-normalise {profile.category} audio: {profile.description}"
+        ),
         options={"normalize": OptionSpec("bool", default=True)},
         limits=AUDIO_TRANSCODE_LIMITS,
     )
@@ -141,11 +143,13 @@ class AudioTranscodeProcessor(Processor):
             raise ProcessingError(ErrorCode.INVALID_INPUT, {"field": "input"})
 
     def process(self, context: ProcessingContext) -> ProcessorOutput:
-        assert context.input_path is not None
+        if context.input_path is None:
+            raise RuntimeError("audio transcode: the runner gave no input path")
         profile = self._by_ref.get((context.profile.profile_id, context.profile.version))
         if profile is None:
             raise ProcessingError(ErrorCode.INVALID_PROCESSING_PROFILE, {"field": "profile"})
         data = context.input_path.read_bytes()
+
         def remaining_ms() -> float:
             left = max(0.0, context.deadline - context.clock.monotonic()) * 1000.0
             outer = self._remaining_ms
@@ -182,9 +186,7 @@ class AudioTranscodeProcessor(Processor):
             extension="json",
         )
         metadata = dict(outcome.facts)
-        metadata["outputs"] = [
-            {**o.facts, "artifact_logical_id": o.label} for o in outcome.outputs
-        ]
+        metadata["outputs"] = [{**o.facts, "artifact_logical_id": o.label} for o in outcome.outputs]
         metadata["tool_versions"] = {"ffmpeg": str(outcome.facts["tool"]["version"] or "unknown")}
         metadata["artifact_facts"] = {o.label: _artifact_facts(o.facts) for o in outcome.outputs}
         findings = tuple(
@@ -223,14 +225,20 @@ def _artifact_facts(facts: dict) -> dict:
 
 #: Authored finding text (never derived from the file).
 _FINDING_TEXT: Final = {
-    "short_clip_peak_normalised": "The clip is short, so its peak level was set instead of its loudness.",
+    "short_clip_peak_normalised": (
+        "The clip is short, so its peak level was set instead of its loudness."
+    ),
     "clipping_in_source": "The source already reaches full scale.",
     "true_peak_limited": "A limiter held the true peak under the ceiling.",
-    "true_peak_retry": "The encoded peak was too high, so the output was encoded again with less gain.",
+    "true_peak_retry": (
+        "The encoded peak was too high, so the output was encoded again with less gain."
+    ),
     "true_peak_over_ceiling": "The encoded true peak is still above the ceiling.",
     "loudness_target_missed": "The measured loudness is outside the target tolerance.",
     "peak_target_missed": "The measured peak is outside the target tolerance.",
-    "loudness_range_above_target": "The source loudness range is wider than the profile target; it was not compressed.",
+    "loudness_range_above_target": (
+        "The source loudness range is wider than the profile target; it was not compressed."
+    ),
     "duration_drift": "The output length differs from the source by more than the tolerance.",
     "loop_length_drift": "The looping output length differs from the source; check the loop point.",
     "duration_unavailable": "The output length could not be read.",

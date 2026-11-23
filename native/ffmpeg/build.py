@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Reproducible LGPL FFmpeg audio layer build (LAI-LAMBDA-008b, ADR-067).
 
-    python3 native/ffmpeg/build.py --work /tmp/ffwork --out build/ffmpeg [--downloads DIR] [--jobs 2]
+    python3 native/ffmpeg/build.py --work /tmp/ffwork --out build/ffmpeg \
+        [--downloads DIR] [--jobs 2]
 
 Builds, from the pinned and checksum-verified sources in `sources.lock.json`:
 
@@ -11,7 +12,8 @@ Builds, from the pinned and checksum-verified sources in `sources.lock.json`:
 
 with `$ORIGIN`-relative runpaths, stripped, and packages a Lambda layer zip whose layout is
 
-    bin/ffmpeg   lib/*.so.N   share/lai-ffmpeg/{NOTICE.txt,licenses/*,sbom.cdx.json,build-record.json}
+    bin/ffmpeg   lib/*.so.N
+    share/lai-ffmpeg/{NOTICE.txt,licenses/*,sbom.cdx.json,build-record.json}
 
 Lambda extracts a layer to /opt, so the executable is /opt/bin/ffmpeg. Nothing is downloaded
 without a pinned SHA-256, and a mismatch stops the build. The layer zip is deterministic given the
@@ -96,7 +98,9 @@ def run(argv, cwd, env, log):
     )
     tail = done.stdout.decode("utf-8", "replace")
     if done.returncode != 0:
-        raise BuildError(f"command failed ({done.returncode}): {' '.join(argv[:3])}\n{tail[-3000:]}")
+        raise BuildError(
+            f"command failed ({done.returncode}): {' '.join(argv[:3])}\n{tail[-3000:]}"
+        )
     return tail
 
 
@@ -105,7 +109,9 @@ def fetch(component: dict, downloads: Path, log) -> Path:
     if not target.exists():
         log(f"download {component['url']}")
         tmp = target.with_suffix(target.suffix + ".part")
-        request = urllib.request.Request(
+        if not component["url"].startswith("https://"):
+            raise BuildError(f"refusing a non-HTTPS source URL for {component['filename']}")
+        request = urllib.request.Request(  # noqa: S310 - pinned HTTPS URL, checked above
             component["url"], headers={"User-Agent": "lai-native-build/1"}
         )
         with urllib.request.urlopen(request, timeout=120) as response, open(tmp, "wb") as out:  # noqa: S310
@@ -226,9 +232,19 @@ def main(argv=None) -> int:
     # --- LAME ---
     lame_env = dict(env, CFLAGS=cflags, LDFLAGS="-Wl,-z,relro -Wl,-z,now")
     run(
-        ["./configure", f"--prefix={LAYER_PREFIX}", "--enable-shared", "--disable-static",
-         "--disable-frontend", "--disable-gtktest", "--disable-decoder", "--disable-dependency-tracking"],
-        trees["lame"], lame_env, log,
+        [
+            "./configure",
+            f"--prefix={LAYER_PREFIX}",
+            "--enable-shared",
+            "--disable-static",
+            "--disable-frontend",
+            "--disable-gtktest",
+            "--disable-decoder",
+            "--disable-dependency-tracking",
+        ],
+        trees["lame"],
+        lame_env,
+        log,
     )
     run(["make", jobs], trees["lame"], lame_env, log)
     run(["make", "install", f"DESTDIR={stage}"], trees["lame"], lame_env, log)
@@ -236,9 +252,18 @@ def main(argv=None) -> int:
     # --- Opus ---
     opus_env = dict(env, CFLAGS=cflags, LDFLAGS="-Wl,-z,relro -Wl,-z,now")
     run(
-        ["./configure", f"--prefix={LAYER_PREFIX}", "--enable-shared", "--disable-static",
-         "--disable-doc", "--disable-extra-programs", "--disable-dependency-tracking"],
-        trees["opus"], opus_env, log,
+        [
+            "./configure",
+            f"--prefix={LAYER_PREFIX}",
+            "--enable-shared",
+            "--disable-static",
+            "--disable-doc",
+            "--disable-extra-programs",
+            "--disable-dependency-tracking",
+        ],
+        trees["opus"],
+        opus_env,
+        log,
     )
     run(["make", jobs], trees["opus"], opus_env, log)
     run(["make", "install", f"DESTDIR={stage}"], trees["opus"], opus_env, log)
@@ -261,7 +286,10 @@ def main(argv=None) -> int:
     ]
     if arch in ("x86_64", "AMD64") and shutil.which("nasm") is None:
         if os.environ.get("LAI_FFMPEG_ALLOW_NO_NASM") != "1":
-            raise BuildError("nasm is required for x86_64 (set LAI_FFMPEG_ALLOW_NO_NASM=1 to build slow, assembly-free code)")
+            raise BuildError(
+                "nasm is required for x86_64 "
+                "(set LAI_FFMPEG_ALLOW_NO_NASM=1 to build slow, assembly-free code)"
+            )
         configure.append("--disable-x86asm")
         log("nasm not found: building without x86 assembly (slower, x86 only)")
     run(configure, trees["ffmpeg"], pc_env, log)
@@ -304,7 +332,7 @@ def main(argv=None) -> int:
     for path in sorted((layer / "lib").iterdir()):
         run([patchelf, "--set-rpath", "$ORIGIN", str(path)], layer, env, log)
     for path in [layer / "bin" / "ffmpeg", *(layer / "lib").iterdir()]:
-        os.chmod(path, 0o755)
+        os.chmod(path, 0o755)  # noqa: S103 - the layer's binary and libraries must be executable
 
     readelf = shutil.which("readelf")
     if readelf:
@@ -314,7 +342,11 @@ def main(argv=None) -> int:
 
     # Smoke test and the licence the binary itself reports.
     version_text, licence_text = run_checked_version(layer / "bin" / "ffmpeg", {"PATH": "/usr/bin"})
-    if "--enable-gpl" in version_text or "--enable-nonfree" in version_text or "--enable-version3" in version_text:
+    if (
+        "--enable-gpl" in version_text
+        or "--enable-nonfree" in version_text
+        or "--enable-version3" in version_text
+    ):
         raise BuildError("built binary reports a non-LGPL configuration")
 
     # --- Licences, notice, SBOM, build record ---
@@ -327,7 +359,7 @@ def main(argv=None) -> int:
     (share / "NOTICE.txt").write_text(notice, encoding="utf-8")
 
     hashes = {
-        f"bin/ffmpeg": sha256_file(layer / "bin" / "ffmpeg"),
+        "bin/ffmpeg": sha256_file(layer / "bin" / "ffmpeg"),
         **{f"lib/{n}": sha256_file(layer / "lib" / n) for n in sorted(shipped)},
     }
     sbom = render_sbom(lock, hashes, arch, epoch)
@@ -364,7 +396,8 @@ def render_notice(lock: dict, version_text: str) -> str:
         "",
         "This layer contains FFmpeg built WITHOUT --enable-gpl, --enable-nonfree and",
         "--enable-version3, so it is licensed under the GNU Lesser General Public License,",
-        "version 2.1 or later. It also contains libopus (BSD 3-clause) and LAME (LGPL 2.0 or later).",
+        "version 2.1 or later. It also contains libopus (BSD 3-clause) and LAME "
+        "(LGPL 2.0 or later).",
         "",
         "FFmpeg, libavcodec, libavformat, libavfilter, libavutil, libswresample and LAME are",
         "shipped as shared libraries under lib/ so that you can replace them with your own",
