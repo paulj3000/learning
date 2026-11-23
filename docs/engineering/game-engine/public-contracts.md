@@ -98,7 +98,8 @@ together.
 | Contract | File | Summary |
 |---|---|---|
 | `PlayerTransform`, `PlayerTransformComponent` | `contracts/player.ts` | Canonical transform; movement writes, everything else reads. Platform carry is in it the same simulation step (GE-L10: the carry system calls the movement system's `syncTransform()`); `velocity` stays the child's own, so being carried is not walking |
-| `PhysicsProvider`, `ColliderSpec`, `PhysicsProviderService` | `contracts/physics.ts` | AABB collider list; `SOLID`, `JUMPABLE`, `TRIGGER`; gates never jumpable; raycast for camera; `cameraIgnores` for boundaries |
+| `PhysicsProvider`, `ColliderSpec`, `PhysicsProviderService` | `contracts/physics.ts` | AABB collider list; `SOLID`, `JUMPABLE`, `TRIGGER`; gates never jumpable; raycast for camera; `cameraIgnores` for boundaries; a raised `SOLID` keeps a walk-under gap only with clearance (GE-L16) |
+| `classifySolidBox`, `requiredClearance`, `groundUnderBox`, `DEFAULT_CLEARANCE_MARGIN`; `PlayerCollisionConfiguration.clearanceMargin` | `movement/clearance.ts`, `movement/playerCollision.ts` (`@lai/game-engine/movement`) | GE-L16, additive: raised Solid classes (`BELOW_GROUND`, `COLUMN`, `OVERHEAD`); clearance = `bodyHeight` + margin (default 0, 0 to 0.5 m, `movement.collision.clearanceMargin`) |
 | `EnvironmentQuery`, `SurfaceProfile`, `ExternalForce`, `ClimbableInfo`, `EnvironmentQueryService` | `contracts/physics.ts` | Surface friction and speed, forces, water, climbables |
 
 ## 5. Core APIs

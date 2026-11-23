@@ -112,6 +112,11 @@ its ceilings (optional work; the castle does not need jumping).
 
 - **Solid by default.** A collider blocks at every height unless authored `jumpable: true` with
   `minY`/`maxY`.
+- **Raised solids keep a walk-under gap only with clearance** (GE-L16). A solid whose bottom is
+  at least the avatar's collision height (1.7 m for the standard avatar) plus
+  `movement.collision.clearanceMargin` above the ground leaves the space under it open and blocks
+  from its underside up; a lower one blocks down to the ground. Elevation never makes a collider
+  jumpable, and a solid is never stepped or jumped onto.
 - **Gates are never jumpable.** A collider with `requirements` (a locked door, quest gate,
   boundary, broken bridge) rejects `jumpable` in validation and the runtime ignores it.
 - **Trigger zones are ground-plane areas.** Checkpoints, walk-in interactions, hazards and audio
