@@ -240,6 +240,10 @@ def test_the_collision_profile_page_says_shipped_scenes_change_with_it(tmp_path)
     assert profile_admin.shipped_scenes(unused) == "No shipped scene uses this asset."
 
 
+def test_the_latest_release_ordering_matches_the_model():
+    assert list(scene_usage.NEWEST_FIRST) == list(ContentRelease._meta.ordering)
+
+
 # --- engine-reserved ids --------------------------------------------------------------------
 
 

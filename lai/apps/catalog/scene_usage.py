@@ -61,11 +61,15 @@ class LatestRelease:
     without_place: object = None
 
 
+#: Newest release first, as `ContentRelease.Meta.ordering`; every "latest release" lookup uses it.
+NEWEST_FIRST = ("-imported_at", "-id")
+
+
 def latest_release() -> LatestRelease | None:
     """The newest release (ContentRelease orders newest first), or None before any import."""
     row = (
         ContentRelease.objects.values_list("pk", f"report__{SCENE_ASSETS_WITHOUT_PLACE}")
-        .order_by("-imported_at", "-id")
+        .order_by(*NEWEST_FIRST)
         .first()
     )
     return None if row is None else LatestRelease(pk=row[0], without_place=row[1])

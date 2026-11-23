@@ -44,7 +44,7 @@ CATALOG_FIELDS = ("active", "sort_order")
 
 
 def _latest_release():
-    return ContentRelease.objects.order_by("-imported_at", "-id").values("pk")[:1]
+    return ContentRelease.objects.order_by(*scene_usage.NEWEST_FIRST).values("pk")[:1]
 
 
 class InLatestReleaseFilter(admin.SimpleListFilter):
@@ -443,7 +443,7 @@ class ContentAssetAdmin(CatalogModelAdmin):
 
     def get_queryset(self, request):
         # The latest release for `used_by`, in this query rather than once per listed row.
-        latest = ContentRelease.objects.order_by("-imported_at", "-id")
+        latest = ContentRelease.objects.order_by(*scene_usage.NEWEST_FIRST)
         return (
             super()
             .get_queryset(request)
