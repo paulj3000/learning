@@ -37,6 +37,43 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## FPV-D10: Area puzzle skill evidence (2026-11-23, `fix/FPV-D10-puzzle-skill-evidence` rebased onto `main` `bf622901`, Trello P1S0CXpL); Development Complete, NOT merged, NOT owner-accepted
+
+Area puzzles (Heart of Firepeak, North Pole) were graded and rewarded but recorded no
+`SkillEvidence`, so the parent dashboard showed no skill activity for them. This blocks Firepeak
+and North Pole completion. It does not block owner playthroughs.
+
+- **Persistence.** `education.services.record_puzzle_evidence` is called by
+  `game_sessions.play.solve_puzzle` inside its transaction, for every graded attempt, right or
+  wrong. It writes one row per attempt. The row is keyed by the new nullable one-to-one
+  `SkillEvidence.puzzle_attempt` (migration `education 0009`), so repeat practice creates rows
+  and a duplicate submission does not.
+  - It folds the row into `SkillProgress` once.
+  - The objective is the answered variant's `skill`, else the band's (`regions.puzzles.skill_for`).
+  - Mechanical kinds record nothing.
+  - An objective code the catalog does not hold is skipped with a content-only warning. The solve
+    and its reward are kept.
+  - Any other failure propagates, and the attempt, world change and reward roll back together.
+- **Schema.** A check constraint requires exactly one of the four sources per row. Chest
+  (challenge) and step evidence are unchanged.
+- **Support level.** Puzzles store no hint use, so the level is derived: a correct answer after an
+  earlier wrong one in the same visit counts as supported (1); otherwise 0. Needs owner review.
+- **Curriculum.** There are 12 new learning objectives and one retitle (`cause-and-effect`). The
+  mapping table is in [docs/regions/PUZZLE_SKILL_MAPPING.md](regions/PUZZLE_SKILL_MAPPING.md),
+  agreed with LAI 03; owner review is pending. Content changes are on LAI 03's branches.
+  - Puzzles also gained an optional per-variant `skill` override.
+  - `manage.py puzzle_skill_report [--strict]` lists published puzzle skills that are not in the
+    catalog.
+- **Not done.** There is no backfill of historical attempts. That needs separate authorization;
+  an idempotent dry-run command is proposed in the PR. Deployed environments need `load_content`
+  for the new objectives.
+- **Tests.**
+  - Django on PostgreSQL 18: `apps/education/tests/test_puzzle_evidence.py` (16 tests) and
+    `TestVariantSkill` in `test_puzzle_kinds.py`. The focused regression run (education, regions puzzle suites, game_sessions, scoring, catalog, progression, tenant isolation) gave 1485 passed, 0 failed.
+  - Vitest (adventures content, parent dashboard, mastery, area puzzles): 18 files, 283 passed.
+  - `npm run typecheck`, `content:check` and `golden:check` pass, and so does `makemigrations --check`.
+  - Deferred to merge readiness: full suites, lint and build gates, browser tests.
+
 ## LAI 01: Treasure Rush release verification (2026-11-23, `lai-01/treasure-rush-release`, rebased onto `main` `1b0a50a3`); verification only, owner playthrough pending, NOT owner-accepted
 
 Status: the core MVP is Complete (owner-accepted 2026-11-11) and was not rebuilt. This pass
@@ -115,6 +152,7 @@ beyond D7, which is now merged.
   D8 (LAI 05), the feather licence and the legacy-quest decisions, the GE-D9 flaky region-play hint
   test, and the `treasureRushAudio` cascade (Trello 9OdaKlbs). Neither flaky test reproduced in
   this pass.
+
 ## GE-090-D7: browser acceptance defects (2026-11-22, `fix/ge-090-d7-browser-acceptance` from `aa8adb33`, Trello VD4zv7WN); Development Complete, NOT merged, NOT owner-accepted
 
 The 19 desktop and tablet acceptance failures on `main` had four causes: two product defects and
