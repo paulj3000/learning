@@ -59,7 +59,10 @@ Check = Callable[[], None]
 
 # Mirrors react/src/features/island-map/three/assets/animationVocabulary.ts.
 CLIP_VOCABULARY: Final = frozenset(
-    "Idle Walk Talk Wave Point Celebrate ReactHappy ReactConcerned Open Close Activate".split()
+    (
+        "Idle Walk Talk Wave Point Celebrate ReactHappy ReactConcerned Open Close Activate"
+        " Run Jump Fall Land"
+    ).split()
 )
 # Exporter default take names (Mixamo, Blender): flagged with a warning, never interpreted.
 GENERIC_TAKE_NAME: Final = re.compile(

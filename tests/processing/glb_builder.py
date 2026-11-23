@@ -481,12 +481,11 @@ def _corpus() -> list[ParityCase]:
             E({"invalid_json"}),
             "NaN and Infinity are refused by the strict parser; Django accepts them.",
         ),
+        # Both now require byteStride 4..252, a multiple of 4 (Django since LAI-07 W1 A1).
         ParityCase(
             "odd_byte_stride",
             mutated(_set("bufferViews.0.byteStride", 2)),
-            E(),
             E({"invalid_buffer_view"}),
-            "Django does not check byteStride; the processor requires 4..252, a multiple of 4.",
         ),
         ParityCase(
             "huge_png_dimensions",
