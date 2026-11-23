@@ -105,6 +105,17 @@ This supersedes the "NOT merged" wording in the older castle entries below. Deta
   `docs/regions/storykeeper_castle_acceptance.md` section 4.4 (Q-1 to Q-18). It is unblocked
   now that D7 is in `main`. For sound, staff first assign the castle cues to the Place
   `storykeeper-castle` and publish a sound release.
+- **SC-R12 against `main` `1b0a50a3` (2026-11-23):**
+  - **Criteria:** each criterion (A-1 to A-21 and SC-R12-02) has its implementation, the PR that
+    brought it to `main`, automated evidence, the manual acceptance still needed and any open defect,
+    in integration doc section 12.
+  - **Owner playthrough:** P-1 to P-16, by castle area, with expected outcomes and known limitations,
+    in acceptance guide section 4.5. None of it has been played.
+  - **Docs corrected:** `sound_prep.md` (Place manifest route; as-built differences) and the release
+    notes draft (now in `main`; ADR-065 Accepted; audio files missing; GE-090-D8). The
+    `STORYKEEPER_CASTLE_AUDIO.md` status line is current.
+  - **Code:** no castle code defect found. One stale code comment was corrected: Keeper Quill does
+    have a collider.
 
 ## LAI-07 Asset Library streamlining, W1 correctness (2026-11-22, `feature/asset-library-streamlining` rebased onto `ed6b0afc`, Trello #244); Development Complete, unit-tested on PostgreSQL 18.7, NOT merged
 

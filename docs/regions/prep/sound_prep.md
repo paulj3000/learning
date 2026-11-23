@@ -1,5 +1,24 @@
 # SC-R06 castle sound: implementation contract (prep)
 
+Status: historical prep contract, written before SC-R06 was built. Where it differs from the
+code, the code and `docs/audio/STORYKEEPER_CASTLE_AUDIO.md` (canonical) win. Reconciled with
+`main` `1b0a50a3` on 2026-11-23 (SC-R12, LAI 02). The as-built differences:
+
+- The manifest is the **Place** manifest (`GET /api/v1/children/<id>/audio/manifests/places/storykeeper-castle/`),
+  never a region manifest. The castle has no `WorldRegion`, so the region route answers 404 for
+  it; the client asked for it until GE-090-D7 (PR #63), which left the castle silent.
+- One scope, `castle`, holds the beds, music and cues; speech is the separate scope
+  `castle-speech`. There is no `castle-ambience` scope.
+- The hook is `useCastleAudio.tsx`, mounted by `CastleTaleCompanion` (not by
+  `castleTaleViewExtension.tsx`).
+- Ducking uses the shared default (voice ducks music to 0.3; ambience is not ducked). No
+  castle-specific `setDucking` call was added.
+- Cooldowns as built (`lai/apps/audio/castle_cues.py`): 400 ms on `sfx.castle.npc_greet`,
+  `sfx.castle.hint_chime` and `ui.castle.door`. Effects have `max_concurrent` 4, and `ui.castle.door` has 2.
+
+Nothing in this file is evidence that any castle sound has been heard: no castle audio files
+exist yet, and no browser or device listening check has been run.
+
 ## 1. Reuse and the pattern to copy
 - Engine: `react/src/audio/` SoundManager, AudioRegistry (`replaceOwned`), AudioChannels (music 60, ambient 40, sfx 20, voice 80, ui 30), `reducedIntensity` (halves music+ambient), DEFAULT_DUCKING (voice ducks music to 0.3 only, NOT ambient; add `targets:['music','ambient']` via `manager.setDucking` for the castle scope or keep ambience under music).
 - `react/src/audio/music/musicStates.ts` (`createMusicStates`, gap-free crossfade), `react/src/audio/world/AudioZones.ts` (`createAudioZones`, priority beds), `react/src/audio/manifest/AudioManifestSync.ts`, `react/src/audio/react` (`useAudioManifest`, `useSoundScope`), child prefs `react/src/audio/preferences/` (mounted in App; add `<ManagerAudioControls />` to castle settings).
@@ -29,7 +48,7 @@ Max concurrent 4 for sfx; cooldown 400 ms on `hint_chime`, `npc_greet`.
 ## 3. Registry, seed, release
 - New `react/src/features/island-map/three/extensions/castleTale/castleSounds.ts` (CASTLE_SOUND, ROOM_AMBIENCE: Record<CastleRoomId,string>, ROOM_PRIORITY, POSITIONAL_CUES, CUE_SOUNDS per event) and `useCastleAudio.ts` modelled on `useTreasureRushAudio`: `useSoundScope('castle')`, `useAudioManifest` with the Place scope `{ type: 'place', id: 'storykeeper-castle' }` (as built, GE-090-D7; the castle has no `WorldRegion`, so a region manifest is a 404), createAudioZones keyed by room floor rects, createMusicStates, Sprouts: `setSettings({reducedIntensity:true})` only as a session default when the child has no saved pref, skip `retry`. Mount in `castleTaleViewExtension.tsx`; cleanup on room change = replace bed, on unmount = `scope.dispose()`, `speech.stop()`, zones/emitters dispose.
 - Django: `lai/apps/audio/castle_cues.py` (CueSpec table, import `CueSpec` from `treasure_rush_cues`), `management/commands/seed_castle_sound.py` (copy of seed_treasure_rush_sound, same asset-id rule `ambient-castle-hall`, never publishes), `tests/test_castle_seed.py`. Staff attach castle `SoundAssignment`s to the Place `storykeeper-castle` (zone overrides keyed by room id); there is no region scope for the castle. Canonical: `docs/audio/STORYKEEPER_CASTLE_AUDIO.md`.
-- Publishing: seed creates shared SoundCue rows only; staff publish a `SoundRelease` in Django Admin; client reads `GET /api/v1/children/<id>/audio/manifests/region/...`. Never auto-publish; deploy needs owner approval.
+- Publishing: seed creates shared SoundCue rows only; staff publish a `SoundRelease` in Django Admin; client reads the Place manifest `GET /api/v1/children/<id>/audio/manifests/places/storykeeper-castle/` (as built; this line said `.../region/...` before GE-090-D7). Never auto-publish; deploy needs owner approval.
 
 ## 4. Narration (existing Django speech only)
 Client: `useCastleSpeech` + `speakLine`/`speakNpcNode`/`speakCompanionTurn` (`react/src/audio/speech/adapters.ts`). One `SpeechPlayer` per scope guarantees one utterance at a time: `speak()` must stop/replace the current one; add a guard dropping a repeat of the same reference within the current playback.

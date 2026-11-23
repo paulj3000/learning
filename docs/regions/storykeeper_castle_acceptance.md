@@ -21,18 +21,18 @@ means a target tablet or Chromebook. "Playtest" means a child, under
 | A-1 | Every existing interaction still works (ids, actions, gates) | `castleRebootContracts` C-1; `storykeeperCastleParity` | Walk each one | |
 | A-2 | Card and 3D choices are equivalent | `castleHudEquivalence`; contract C-4 | Choose by walking and by card in one session | |
 | A-3 | Room connectivity: every room reachable from spawn; no sealed archway | `storykeeperCastleRegion.test` flood fill; `storykeeperCastle.engine.test` walls | Walk every archway | |
-| A-4 | Puzzle states deterministic: same inputs, same visual state | Engine tests with a stub renderer; seating-puzzle tests | Replay each beat twice | |
+| A-4 | Puzzle states deterministic: same inputs, same visual state | Engine tests with a stub renderer; seating and binding-lectern tests (`storykeeperCastle.engine`, `castleBindingLectern`) | Replay each beat twice | |
 | A-5 | No additional progress records (ADR-027) | Story and adventure engine tests; contract C-4 (scene writes nothing) | Inspect records after a 3D chapter and a card chapter | |
 | A-6 | Existing story chapters reachable for their band | Contract C-3; `libraryArcAdventures.test` | Explorer plays chapters 1 to 3 | |
 | A-7 | Age-band rules preserved; no cross-band claims | Contracts C-2, C-3 | One child per band | Sprouts playtest (SC-R11-02) |
 | A-8 | No missing-asset crashes | `missingModelPlaceholders.engine.test`; surface fallback tests (SC-R02-01) | Delete a model file locally and load | |
 | A-9 | No unhandled renderer errors | Engine tests assert no rejected tracked work | Console clean through a full visit | |
 | A-10 | Reduced motion respected | Unit tests on the motion policy (SC-R02-05) | OS setting on: no sway, no drifting motes, instant state | |
-| A-11 | Keyboard: WASD/arrows, E/Enter, Tab through the HUD | `pointerControls` tests; `WorldHud`/`WorldActionPanel` tests | Full visit without a mouse | |
+| A-11 | Keyboard: WASD/arrows, E/Enter, Tab through the HUD | `game/src/input/pointerControls.test`; `WorldHud`, `worldHudAccessibility` and `WorldActionPanel` tests | Full visit without a mouse | |
 | A-12 | Touch: two-zone drag; the "Things to do" list reaches every objective | `ThreeLocationWorldView` tests | iPad Safari full visit | Tablet |
 | A-13 | Model and texture budgets (art direction section 7) | Static budget tests (SC-R02-08) | | |
 | A-14 | Tablet performance: 30 fps in the Great Library at MEDIUM; under 8 s to first walkable frame (provisional; not measured, not results) | Diagnostics exist (`runtime/diagnostics/`, `?lai-diag=1`) and are unit-tested; they measure nothing by themselves | Profile a release build on the target tablet (PILOT_READINESS 5b); results blank until measured | **Device (SC-R11-01)** |
-| A-15 | Save / resume: an open session resumes in the room with its choices | `CastleTaleCompanion` resume path (to be unit-covered) | Leave mid-tale, return next day | |
+| A-15 | Save / resume: an open session resumes in the room with its choices | `CastleTaleCompanion.npc.test` ("a session left open resumes as before") | Leave mid-tale, return next day | |
 | A-16 | Storybook pages derived correctly per band (SC-R04) | Pure-function tests | Page appears after the source world change | |
 | A-17 | Artifacts displayed, never granted, by the castle (SC-R07) | Display-requirement tests | Earned artifact on a pedestal | |
 | A-18 | Sound settings respected (SC-R06) | Cue tests with a fake sink | Mute persists | |
@@ -214,8 +214,8 @@ captions still appear.
 - [ ] Q-8 Quill, Ember and Orion lines before and after restoring a page, in third-person view (O-7;
       D7 reach fix).
 - [ ] Q-9 Sound: room beds crossfade, mute and volume persist, captions stay when speech is
-      turned off (O-8, O-9; needs
-      the Place assignment above).
+      turned off (O-8, O-9; needs the
+      Place assignment above).
 - [ ] Q-10 Leave mid-tale and return: the tale resumes in its room with its choices (A-15).
 
 **Touch (iPad Safari, or Chrome's tablet emulation as a first pass only)**
@@ -241,3 +241,34 @@ captions still appear.
       back tomorrow" (O-2, O-13).
 
 **Device and playtest (unchanged, SC-R11):** D-1 tablet profiling and D-2 Sprouts playtest.
+
+### 4.5 Owner playthrough by area (P-1 to P-16, SC-R12-01)
+
+This is the same pass as 4.4, ordered by castle area, for the owner playthrough on `main`
+`1b0a50a3`. Each row says what you should see and what is a known limitation, not a defect.
+Every "Expected" line is backed only by unit tests (section 1 and `tasks/TASK_TRACKER.md`).
+**None of these rows has been played in a browser, on a device or with a child.** Leave
+"Result" blank until you have played the row yourself. Anything that differs from "Expected"
+becomes a defect card linked to SC-R12.
+
+Setup: section 4.0 data, the Place sound assignment from 4.4, one child profile per band
+(Sprout, Pathfinder, Explorer), and `/island/:childId/explore/storykeeper-castle`.
+
+| # | Area | How | Expected | Known limitations | Covers | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| P-1 | Castle entry and hub navigation | Load the castle, walk from the Entry Hall into the Story Hall, open the castle guide | You arrive in the Entry Hall. The Story Hall is the hub. The guide lists the rooms you can see, and no failed `/api/v1` request appears | The castle's sound is silent until castle audio files are uploaded and assigned to the Place (none exist yet) | A-1, A-3, A-9, Q-1 | |
+| P-2 | Room transitions | Walk every archway both ways, in both camera views | Each archway is open, nothing seals behind you, the room bed changes in a room (not in a doorway), and the Secret Chamber stays hidden until the tapestry nook is found | The door sound plays only when assets exist | A-3, Q-2 | |
+| P-3 | Great Library | Explorer: the clue wall (order the clues), the bookshelf secret door, the Storybook dais | Clues are seated by walking or by the HUD card, the secret-door arc runs chapters 1 to 3, and earlier finishers keep their door and key | Earlier finishers do not get `secret-door-key` without an approved backfill (4.3 item 9) | A-6, O-15c | |
+| P-4 | Trophy Room | Before and after earning keepsakes | Earned keepsakes (brush, lens, key and the existing three) stand on their pedestals, and an unearned pedestal is bare with a calm line. The castle shows keepsakes and never grants them | Hall of Heroes 3D plates are deferred (draw budget); the Hall of Heroes is the text list in the guide | A-17, O-10, O-11, Q-7 | |
+| P-5 | Observatory (in the Setting Tower) | Walk up to the telescope, the orrery and the star chart; talk to Professor Orion | Each object gives a short read-aloud message with nothing graded. Orion stands in the corner behind the second star stone, not on it | Orion uses the `npc-professor-ticktock` stand-in model until a commissioned one replaces it; owner confirms Orion (SC-R05) | O-7, O-6 | |
+| P-6 | Planner (the guide's "Go to" map) | Use "Go to" for every room, including a room behind a shut door, and the room you are in | You are placed in the room, facing its middle. A shut door gives its hint, a hidden room says "That room is not on the map.", and the room you are in says "You are already in" that room | Discovery does not gate travel on purpose: arriving marks a room discovered | A-11, A-12 | |
+| P-7 | Great Storybook in 3D | Look at the book on the Great Library dais before and after restoring a page | The cover is torn until the band's required pages are back, then whole. Each restored page shows in its slot, and the hidden bonus page shows once found. A book restored in an earlier edition keeps its sealed cover, and the new page is drawn loose | The book shows three required slots and one bonus slot (a test holds the registry to this) | A-16, O-3, O-4 | |
+| P-8 | The Painted Words | Pathfinder in the Illustration Studio: rhyme gallery, beginning-sound hunt, syllable workshop, restoration; then replay | The page `page-painted-words` comes back. The replay serves the second word set, and wrong answers loop calmly with no timer | Pad answers need standing still for 0.7 s, so a hop answers nothing (by design) | O-1, O-2, Q-4 | |
+| P-9 | Story pages and replay | Open the guide's Storybook section; replay a finished adventure | Each page shows one of four states: Not found yet, You know where to look, You have started this one, Back in the book. A replay does not re-grant a page or a keepsake. A session left open resumes in its room with its choices | Pages are derived from records only; there is no page store to inspect | A-5, A-15, A-16, O-3, Q-10 | |
+| P-10 | Jumping and third-person movement | Each primary adventure once by jumping onto pads and once by the HUD card only; switch "View" | The hop is lower than outdoors, the camera stays under the ceiling and inside the room, and every answer can be given without a jump. Sprouts see flat floor markers and no jump steps | Jumping is optional in the castle by owner direction; the movement tutorial (SC-JMP-06) is not shown | O-6, Q-5, SC-JMP-20 | |
+| P-11 | Collision handling | Walk into walls, NPCs, furniture and door frames; try to jump over a wall; step off a pad | Nothing passes through a wall or a door frame, and no wall is jumpable. Keeper Quill and Professor Orion have colliders. A fall or an invalid position returns you to the last safe floor, and recovery never changes progress | The shared engine's GE-L16 change (#59, raised Solid clearance) is in `main`, and the castle's engine and movement tests pass with it; it has not been walked in a browser | A-3, SC-JMP-02 | |
+| P-12 | NPC interactions | Talk to Keeper Quill (Story Hall), Ember (beside the hearth, once she visits) and Professor Orion, before and after restoring a page, in third-person view | The "Talk to" prompt appears when you stand next to the character, and lines follow progress. Quill's afternoon line is heard once, in an afternoon | Ember appears only after `seed_npc_ember --publish` and her progress gate; final models and clips are owner TODOs | O-7, O-15e, Q-8 | |
+| P-13 | Audio cues | With the Place assignment and a sound release: walk every room, open the Storybook, answer right and wrong, mute, change volume, turn speech off | Room beds crossfade (one at a time), the story theme plays while the Storybook is open, and right, hint and try-again cues play (Sprouts hear no try-again sound). Mute and volume persist, and captions stay with speech off | **No castle audio files exist yet** (`docs/audio/STORYKEEPER_CASTLE_AUDIO.md` section 4), so beds and castle cues are silent and only shared cues can be heard. Ambience is not ducked under speech by design. Voice consent is an open owner decision | A-18, O-8, O-9, Q-9, Q-17 | |
+| P-14 | Rewards and progression | Finish The Painted Words and the Secret Door arc; find the mouse door in the Secret Chamber | Keepsakes are granted once by the server's reward rules. The mouse door gives the Tiny Brass Knob once, with no new pedestal. A forged world-change POST for a page key is refused | Ranks ship switched off (`CASTLE_RANKS.enabled = false`): keep or drop is an owner decision. `backfill_castle_keepsakes --apply` is run per environment by the owner | A-17, O-5, O-10, O-12, O-19 | |
+| P-15 | Returning to the hub | From each room, use the guide's "Go to" for the Story Hall; leave the Writing Room by its door; come back from the map | You arrive in the Story Hall. The Writing Room's exit returns you to the castle. Coming back later resumes at your saved checkpoint | Storybook 3D adventure portals (SC-JMP-04) are not built: pages lead to their room, not into a story world | A-15, O-15, Q-3 | |
+| P-16 | Child-safe adult exit | From every room: "Leave island", then the adult exit; once mid-encounter and once mid-answer; at phone size (375 x 667) in full screen | "Leave island" is always reachable and never behind arithmetic. It asks "Leave the island now?" only while an encounter is open, saves before leaving, and goes to the Realm Explorer. The adult exit goes to the parent space (no check, owner decision 2026-11-10). After leaving mid-answer and coming back, the answer is recorded once or not at all, never twice | At phone size in full screen an NPC panel can cover "Exit full screen" (`portal-adult-exit:142`, proposed GE-090-D8, shared portal code, not castle code) | O-16, Q-3, Q-13 | |

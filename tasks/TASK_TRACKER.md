@@ -1105,7 +1105,12 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       `docs/SC-R12-storykeeper-main-reconcile`). Everything above is in `main` (castle head `df376878`, GE-090
       step 20c, PR #44), and so are GE-090-D1 and D2. Two castle defects were open on `main` at that point: no castle
       sound (region manifest 404) and Quill's prompt in third-person view. GE-090-D7 (Agent 5, PR #63)
-      fixed both and was merged at `1b0a50a3`, after which `sound_prep.md` was updated to match. Evidence: Django on PostgreSQL 18.7, 1949 passed, 0 failed; Vitest 1365 of 1366
+      fixed both and was merged at `1b0a50a3`, after which `sound_prep.md` was updated to match.
+- [x] **SC-R12-HANDOFF** (LAI 02, 2026-11-23, `main` `1b0a50a3`; Development Complete, not owner
+      accepted). SC-R12 per-criterion reconciliation (integration doc section 12) and the 16-area owner
+      playthrough (acceptance guide 4.5). Corrected sound prep, release notes and audio status, and one
+      stale Quill collider comment. No castle code defect found. Evidence is in the integration doc,
+      section 12.1. Evidence: Django on PostgreSQL 18.7, 1949 passed, 0 failed; Vitest 1365 of 1366
       (`noAmplify` load timeout, passes alone); typecheck, content and golden clean. Owner QA checklist:
       acceptance guide section 4.4. Closure sequence: integration doc section 11.5.
 - [x] **GE-072** Storykeeper Castle on the Game Engine Core (2026-11-19, branch `feature/storykeeper-castle-completion`,
