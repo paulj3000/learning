@@ -301,3 +301,25 @@ def test_there_is_no_manifest_route_that_takes_a_free_form_path(api, setup):
     for evil in ("..%2f..%2fetc", "a/b", "x%3Fy%3D1"):
         response = api(f.a).get(f"/api/v1/children/{f.a1.pk}/audio/manifests/regions/{evil}/")
         assert response.status_code == 404
+
+
+def test_a_place_without_a_3d_area_has_a_place_manifest_and_no_region_one(api, setup):
+    """GE-090-D7: Storykeeper's Castle is a Place whose layout is a TypeScript manifest, with no
+    published WorldRegion. Its sound comes from the Place manifest; the region route is a 404 by
+    design, which is why the castle client asks for the Place."""
+    # The real exported Place, on the same Island as Treasure Cove, with no 3D Area of its own.
+    castle = Location.objects.get(slug="storykeeper-castle", active=True)
+    assert castle.world == setup["island"]
+    assert not castle.regions.exists()
+    hall, _ = audio_asset("ambient-castle-hall", category="sound", seconds=4)
+    assign(cue("ambient.castle.hall", hall, loop=True, stream=True), location=castle)
+    services.publish(None)
+
+    response = get(api, setup["t"], "places", castle.slug)
+    body = response.json()
+    assert response.status_code == 200
+    assert body["scope"] == {"type": "place", "id": "storykeeper-castle"}
+    # Its own bed, the island's theme it inherits, and shared cues; nothing from another place.
+    assert {"ambient.castle.hall", "music.island.explore", "ui.menu.select"} <= ids(body)
+    assert "ambient.ocean.waves" not in ids(body)
+    assert get(api, setup["t"], "regions", castle.slug).status_code == 404
