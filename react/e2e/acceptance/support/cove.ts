@@ -64,6 +64,13 @@ export const COVE_LABELS: Record<string, string> = {
 };
 
 /**
+ * The HUD's gameplay action prompts (WorldHud `data-hud="action-prompt"`). Scoped by the marker,
+ * not by the "Verb: thing" name alone: the camera button ("View: Behind me. Change view",
+ * LAI-JMP-01a) has the same shape and is a HUD control, not something to do (GE-090-D7).
+ */
+export const actionPrompts = (page: Page) => page.locator('button[data-hud="action-prompt"]');
+
+/**
  * Stands the player in front of an entity and waits until the one action prompt names it:
  * the engine's focus changes in the next frame, React's prompt a little later, and acting in
  * between would act on the new focus while the old prompt still shows.
@@ -71,11 +78,13 @@ export const COVE_LABELS: Record<string, string> = {
 export async function approach(page: Page, entityId: string, label = COVE_LABELS[entityId]) {
   expect(await page.evaluate((id) => window.__laiE2E!.standFacing(id), entityId)).toBe(true);
   await expect.poll(() => page.evaluate(() => window.__laiE2E!.focused())).toBe(entityId);
-  const name = label ? new RegExp(`^[A-Z][^:]*: ${label}$`) : /^(?!Adults)[A-Z][^:]*: /;
-  const prompt = page.getByRole('button', { name });
+  const name = label ? new RegExp(`^[A-Z][^:]*: ${label}$`) : /^[A-Z][^:]*: /;
+  // Still a real button with an accessible name; the marker only says which kind it is.
+  const prompt = actionPrompts(page).and(page.getByRole('button', { name }));
   await expect(prompt).toHaveCount(1);
   await expect(prompt).toBeVisible();
-  await expect(page.getByRole('button', { name: /^(?!Adults)[A-Z][^:]*: / })).toHaveCount(1);
+  // Exactly one thing to do at a time, whatever other HUD controls are showing.
+  await expect(actionPrompts(page)).toHaveCount(1);
   return prompt;
 }
 

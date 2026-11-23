@@ -727,7 +727,10 @@ export const regionPlaySceneExtension: WorldExtension = {
       npcHostScene: () => ({
         parent: context.scene,
         onFrame: (callback) => context.onFrame(callback),
-        playerPose: () => ({ x: context.camera.position.x, z: context.camera.position.z }),
+        // Where the child stands, not the camera: in the third-person view (LAI-JMP-01a) the
+        // camera trails metres behind, so NPC reach, greeting and facing measured from it never
+        // fired (GE-090-D7).
+        playerPose: () => context.playerPosition(),
         isBlocked: (x, z) => context.isBlocked(x, z),
       }),
       setNpcProxy(entityId, follow) {
