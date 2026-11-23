@@ -1096,20 +1096,22 @@ A new module, `apps/assets/dependencies.py`, owned by `apps.assets`:
 ```python
 @dataclass(frozen=True)
 class Usage:
-    source: str              # app label: "npcs", "avatars", "audio", "regions", "catalog"
-    code: str                # refusal code when blocking (e.g. "npc_release_dependency")
-    label: str               # staff-readable; content ids only, never child data (ADR-025)
+    source: str  # app label: "npcs", "avatars", "audio", "regions", "catalog"
+    code: str  # refusal code when blocking (e.g. "npc_release_dependency")
+    label: str  # staff-readable; content ids only, never child data (ADR-025)
     blocks_retirement: bool
-    admin_url: str = ""      # link to the referring row, "" when none
-    details: Mapping = {}    # structured facts (release numbers, avatar keys, region slugs)
+    admin_url: str = ""  # link to the referring row, "" when none
+    details: Mapping = {}  # structured facts (release numbers, avatar keys, region slugs)
+
 
 UsageProvider = Callable[[ContentAsset, AssetVersion | None], Iterable[Usage]]
 
 RefusalBuilder = Callable[[ContentAsset, AssetVersion | None, list[Usage]], AssetActionRefused]
 
+
 def register_usage_provider(source, provider, *, refusal: RefusalBuilder | None = None): ...
-def usages_for(asset, version=None) -> list[Usage]: ...      # every provider, stable order
-def retirement_guard(asset, version=None) -> None: ...       # raises AssetActionRefused
+def usages_for(asset, version=None) -> list[Usage]: ...  # every provider, stable order
+def retirement_guard(asset, version=None) -> None: ...  # raises AssetActionRefused
 ```
 
 Rules:
