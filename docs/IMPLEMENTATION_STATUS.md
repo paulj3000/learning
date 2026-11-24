@@ -37,6 +37,17 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI 05: jsonschema as a dev dependency (2026-11-24, `chore/jsonschema-dev-dependency` from `main` `9b881fda`); owner-approved, NOT merged
+
+The owner approved it on 2026-11-24. `requirements-dev.txt` now pins `jsonschema==4.26.0` and its
+transitive dependencies (`attrs`, `jsonschema-specifications`, `referencing`, `rpds-py`;
+`typing_extensions` is already pinned in `requirements.txt`). It is tooling only: nothing in `lai/`
+imports it, and production images install `requirements.txt` only.
+
+Why: the 34 contract-schema tests in `tests/processing/test_processing_fixtures.py` (PR #71) call
+`pytest.importorskip("jsonschema")`, and no requirements file declared it, so they were skipped
+everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it in, they run.
+
 ## LAI-07: retired shipped assets keep their collision (2026-11-24, `feature/asset-library-retired-bundled-collision` on `main` `9b881fda`, GE-247); Development Complete
 
 - **Rule** (owner decision, 2026-11-24): the resolver answers a retired 3D asset that has a
