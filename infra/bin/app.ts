@@ -8,6 +8,9 @@ import { DEV_PLATFORM_STACK, DevPlatformStack } from '../lib/devPlatformStack';
 import { DjangoEc2Stack, type DatabaseMode } from '../lib/djangoEc2Stack';
 import { DjangoReleaseStack } from '../lib/djangoReleaseStack';
 import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
+import { resolveProdProcessing } from '../lib/processingConfig';
+import { parseSizing } from '../lib/processingWorkers';
+import { readFileSync } from 'node:fs';
 
 /**
  * The CDK app (LAI-1001). See infra/README.md for synth and deploy commands
@@ -44,6 +47,10 @@ import { FRONTEND_REGION, FrontendStack } from '../lib/frontendStack';
  * | `createOidcProvider` | `LAI_CREATE_OIDC_PROVIDER`  | `false` if the account already has GitHub's   |
  * | `hostedZoneId`       | `LAI_HOSTED_ZONE_ID`        | Route 53 zone for the API, admin and site names |
  * | `hostedZoneName`     | `LAI_HOSTED_ZONE_NAME`      | that zone's name, e.g. `example.com`          |
+ * | `prodProcessing`     | `LAI_PROD_PROCESSING`       | prod: only infra/config/prod-processing.json  |
+ * | `optimizeWorker`     | `LAI_OPTIMIZE_WORKER`       | `true`: define the GLB optimize worker        |
+ * | `processingBudgetUsd` | `LAI_PROCESSING_BUDGET_USD` | prod processing budget; no default (P15)     |
+ * | `processingSizing`   | `LAI_PROCESSING_SIZING`     | JSON memory/timeout overrides per workload    |
  *
  * Deploy-time values (API and admin host names, AMI, instance type, Cognito ids, alarm
  * e-mail) are CloudFormation parameters of `LaiDjangoEc2-prod` (scripts/aws/provision.sh) and
@@ -79,6 +86,36 @@ if (Boolean(hostedZoneId) !== Boolean(hostedZoneName)) {
 
 const env = { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION };
 /**
+ * Background processing switches (ADR-071). Production reads them from the committed
+ * infra/config/prod-processing.json only (review F3): a context value or environment variable is
+ * accepted only when it agrees with the file. Dev takes them from context or the environment.
+ * `prodProcessing` adds the production processing construct to LaiDjangoEc2-prod. `optimizeWorker`
+ * defines the GLB optimize worker (runtime undecided, ADR-070). `processingBudgetUsd` has no
+ * default (P15, owner decision). `processingSizing` is JSON memory/timeout/tmp overrides.
+ */
+const processingOverrides = {
+  prodProcessing: setting('prodProcessing', 'LAI_PROD_PROCESSING'),
+  optimizeWorker: setting('optimizeWorker', 'LAI_OPTIMIZE_WORKER'),
+  processingBudgetUsd: setting('processingBudgetUsd', 'LAI_PROCESSING_BUDGET_USD'),
+  processingSizing: setting('processingSizing', 'LAI_PROCESSING_SIZING'),
+};
+const processingConfig =
+  envName === 'prod'
+    ? resolveProdProcessing(
+        readFileSync(new URL('../config/prod-processing.json', import.meta.url), 'utf8'),
+        processingOverrides,
+      )
+    : {
+        prodProcessing: false,
+        optimizeWorker: processingOverrides.optimizeWorker === 'true',
+        processingBudgetUsd: undefined,
+        processingSizing: parseSizing(processingOverrides.processingSizing),
+      };
+const prodProcessing = processingConfig.prodProcessing;
+const optimizeWorker = processingConfig.optimizeWorker;
+const processingBudgetUsd = processingConfig.processingBudgetUsd;
+const processingSizing = processingConfig.processingSizing;
+/**
  * The Bedrock runtime Region (ADR-064): where LaiAiGuardrail-<env> is deployed and Django calls
  * Bedrock. Defaults to the platform Region. Dev only may differ (e.g. us-west-2 when us-west-1
  * cannot invoke the US Haiku 4.5 profile); EC2, RDS, SQS, Lambda and logs never move.
@@ -102,6 +139,7 @@ new AssetStorageStack(app, `LaiAssetStorage-${envName}`, {
     .map((origin) => origin.trim())
     .filter(Boolean),
   djangoRoleArn: setting('djangoRoleArn', 'LAI_DJANGO_ROLE_ARN') || undefined,
+  processingArtifacts: envName === 'dev' || prodProcessing,
   env,
   synthesizer: synthesizer(),
   description: `Learning Adventure Island asset library storage (${envName})`,
@@ -130,6 +168,8 @@ if (envName === 'dev') {
   new DevPlatformStack(app, DEV_PLATFORM_STACK, {
     githubRepository,
     bedrockRegion: bedrockElsewhere ? bedrockRegion : undefined,
+    optimizeWorker,
+    sizing: processingSizing,
     env,
     synthesizer: synthesizer(),
     description:
@@ -150,6 +190,9 @@ if (envName === 'dev') {
     databaseMode: databaseMode as DatabaseMode,
     multiAz: setting('multiAz', 'LAI_DB_MULTI_AZ') === 'true',
     hostedZone: hostedZoneId ? { id: hostedZoneId, name: hostedZoneName } : undefined,
+    processing: prodProcessing
+      ? { optimizeWorker, budgetUsd: processingBudgetUsd, sizing: processingSizing }
+      : undefined,
     env,
     synthesizer: synthesizer(),
     description: `Learning Adventure Island Django on EC2 (${envName})`,

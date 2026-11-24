@@ -171,6 +171,10 @@ def test_list_columns_show_counts_assets_and_whether_a_row_is_in_the_latest_expo
     assert adventure_admin.scene_assets(adventures["tale"]) == "No Place record (story-only place)"
 
     asset_admin = model_admin(ContentAsset)
-    assert asset_admin.used_by(ContentAsset.objects.get(asset_id="rock")) == "bay"
+    # GE-247: the hub has no Place record but its scene uses the asset too.
+    assert asset_admin.used_by(ContentAsset.objects.get(asset_id="rock")) == (
+        "bay; welcome-harbor (no Place record)"
+    )
+    assert asset_admin.used_by(ContentAsset.objects.get(asset_id="tree")) == "bay"
     assert asset_admin.used_by(ContentAsset.objects.get(asset_id="tree-lod1")) == "No shipped scene"
     assert LocationAsset.objects.count() == 2

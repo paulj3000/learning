@@ -5,7 +5,9 @@
 #       [--skip-wheels] [--source REPO_DIR]
 #
 # Writes DIR/<sha>.tar.gz and DIR/<sha>.json and prints both paths, one per line. The tarball holds
-# lai/, content/, react/public/models/, requirements.txt, wheels/ (aarch64 CPython 3.12 wheels from
+# lai/, processing/lai_processing/ (the standard-library processing library Django imports from
+# beside lai/, ADR-064; without its contract test fixtures), content/, react/public/models/,
+# requirements.txt, wheels/ (aarch64 CPython 3.12 wheels from
 # `pip download`, so the instance installs with --no-index), deploy/native/, scripts/aws/native/
 # and RELEASE.json. It is deterministic: files sorted by name, mtime set to the commit time, owner
 # root, gzip without a timestamp; the same inputs give the same SHA-256. Files come from
@@ -39,7 +41,8 @@ if [ -n "$run_url" ] && ! [[ $run_url =~ ^https://github\.com/[A-Za-z0-9_.-]+/[A
 fi
 [ -f "$source_dir/requirements.txt" ] || fail 10 "$source_dir has no requirements.txt"
 
-PATHS=(lai content react/public/models requirements.txt deploy/native scripts/aws/native)
+PATHS=(lai processing/lai_processing content react/public/models requirements.txt deploy/native
+    scripts/aws/native)
 mkdir -p "$out"
 out=$(cd "$out" && pwd -P)
 work=$(mktemp -d)
@@ -53,12 +56,14 @@ if git -C "$source_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 else
     (cd "$source_dir" && find "${PATHS[@]}" -type f -print0) >"$work/files"
 fi
-# Drop caches and files deleted from the working tree, then copy keeping modes.
-grep -zvE '(^|/)(__pycache__|\.pytest_cache|node_modules|staticfiles)/|\.py[co]$' "$work/files" |
+# Drop caches, the processing contract fixtures (test data) and files deleted from the working
+# tree, then copy keeping modes.
+grep -zvE '(^|/)(__pycache__|\.pytest_cache|node_modules|staticfiles)/|\.py[co]$|^processing/lai_processing/contracts/fixtures/' "$work/files" |
     (cd "$source_dir" && while IFS= read -r -d '' file; do if [ -f "$file" ]; then printf '%s\0' "$file"; fi; done) |
     (cd "$source_dir" && xargs -0 -r cp -p --parents -t "$tree") || fail 20 "copying the source failed"
 [ -f "$tree/scripts/aws/native/deploy-native.sh" ] || fail 20 "scripts/aws/native/deploy-native.sh is missing"
 [ -f "$tree/lai/manage.py" ] || fail 20 "lai/manage.py is missing"
+[ -f "$tree/processing/lai_processing/__init__.py" ] || fail 20 "processing/lai_processing is missing"
 chmod 0755 "$tree"/scripts/aws/native/*.sh
 
 if [ "$skip_wheels" != true ]; then

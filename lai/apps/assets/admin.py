@@ -12,7 +12,18 @@ Every action is a Django permission (grant them with the groups from `ensure_ass
 - preview an image or play a sound (AM-13, read-only): the same view access; served through
   Django with `nosniff` and a locked-down Content-Security-Policy, never as a page
 - verify the stored file, roll back to an earlier version: publish permission
-Every lifecycle action is recorded in Django Admin's history (`LogEntry`) with who and what.
+- validate a model in background (`asset.validate_model`, LAI-LAMBDA-007, ADR-064): staff with
+  upload and view permission. It submits a job (or finds the existing one for the same file) and
+  never changes the version, whatever `LAI_ASSET_ASYNC_VALIDATION` says: it is the way to
+  revalidate an existing or published model without rewriting its metadata. The result is shown
+  read-only in the version's "Background validation" section; a stuck job is failed from its
+  background job page (`jobs.fail_processingjob`)
+Every lifecycle action is recorded in Django Admin's history (`LogEntry`) with who and what,
+and so is each background validation job the action submits.
+
+Saving the change page writes only the editable fields (`EDITABLE_FIELDS`, the notes), never the
+whole row as it was loaded: a background result applied meanwhile (DRAFT to VALIDATED, its
+metadata and report) is never overwritten by a stale form.
 
 The binary fields are read-only for everyone, always; a published version is never deletable.
 All state changes go through `apps.assets.services`.
@@ -29,15 +40,30 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html, format_html_join
+from django.utils.timezone import localtime
 from django.views.decorators.cache import never_cache
 
 from apps.catalog.models import AssetStatus, ContentAsset
 from apps.core.exceptions import error_body
 
 from . import collision, preview, services
+from .admin_capture import CAPTURE_FIELDS, CaptureAdminMixin
+from .admin_image import IMAGE_FIELDS, ImageConversionAdminMixin
+from .admin_optimize import OptimizeAdminMixin
 from .models import AssetVersion, CollisionProfile, VersionStatus
+from .processing import (
+    APPLIED_OUTCOMES,
+    ASYNC_FORMATS,
+    PROCESSING_SOURCE,
+    async_validation_enabled,
+    identity_mismatch,
+    model_validation_summary,
+    processing_findings,
+    submit_model_validation,
+    validation_jobs,
+)
 from .storage import StorageError, get_storage, sha256_of
-from .validation import largest_upload_bytes, max_bytes_for
+from .validation import largest_upload_bytes, max_bytes_for, max_glb_bytes
 
 logger = logging.getLogger("lai.assets")
 
@@ -70,7 +96,9 @@ class UploadForm(forms.Form):
 
 
 @admin.register(AssetVersion)
-class AssetVersionAdmin(admin.ModelAdmin):
+class AssetVersionAdmin(
+    OptimizeAdminMixin, ImageConversionAdminMixin, CaptureAdminMixin, admin.ModelAdmin
+):
     list_display = (
         "version_label",
         "status",
@@ -92,6 +120,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
         "rollback_to_versions",
         "retire_versions",
         "verify_versions",
+        "validate_in_background",
         "inspect_in_background",
     ]
     fields = (
@@ -146,8 +175,39 @@ class AssetVersionAdmin(admin.ModelAdmin):
     def has_retire_permission(self, request):
         return self._perm(request, "retire")
 
+    def has_validate_permission(self, request):
+        """Validate in background: staff who may upload and view versions."""
+        return bool(
+            request.user.is_staff
+            and self._perm(request, "add")
+            and self.has_view_permission(request)
+        )
+
     def get_readonly_fields(self, request, obj=None):
-        return [name for name in self.fields if name != "notes"]
+        return [name for name in self.fields if name not in EDITABLE_FIELDS] + [
+            *BACKGROUND_FIELDS,
+            *IMAGE_FIELDS,
+            *CAPTURE_FIELDS,
+        ]
+
+    def save_model(self, request, obj, form, change):
+        """Write only the editable fields of an existing version. The object was loaded when the
+        form was shown; saving every field would put back its old status, metadata and report
+        over a background result applied since (a lost update). `update_fields` keeps the
+        model's own transition and immutability checks."""
+        if not change:
+            super().save_model(request, obj, form, change)
+            return
+        obj.save(update_fields=list(EDITABLE_FIELDS))
+
+    def get_fieldsets(self, request, obj=None):
+        """The page as before, plus a read-only "Background validation" section when
+        asynchronous validation is on or the version has a validation job (flag off and no job:
+        the page is unchanged)."""
+        fieldsets = list(super().get_fieldsets(request, obj))
+        if obj is not None and (async_validation_enabled() or _latest_job(obj) is not None):
+            fieldsets.append(("Background validation", {"fields": BACKGROUND_FIELDS}))
+        return self.capture_fieldset(request, obj, fieldsets) if obj is not None else fieldsets
 
     # --- upload: the add page ---
 
@@ -166,8 +226,12 @@ class AssetVersionAdmin(admin.ModelAdmin):
                 name="assets_assetversion_preview_file",
             ),
             path("<int:object_id>/media/", media_file, name="assets_assetversion_media"),
+            *self.capture_urls(),
             *super().get_urls(),
         ]
+
+    def get_list_display(self, request):
+        return self.capture_list_display(request, super().get_list_display(request))
 
     def add_view(self, request, form_url="", extra_context=None):
         query = request.META.get("QUERY_STRING")
@@ -197,10 +261,16 @@ class AssetVersionAdmin(admin.ModelAdmin):
                         version.notes = form.cleaned_data["notes"]
                         version.save(update_fields=["notes"])
                     self.log_addition(request, version, [{"added": {}}])
+                    if version.status == VersionStatus.DRAFT:
+                        state = "stored as a draft and is being validated in the background."
+                    elif version.status == VersionStatus.REJECTED:
+                        state = "rejected by background validation; see its validation report."
+                    else:
+                        state = "validated and not yet published."
                     self.message_user(
                         request,
                         f"Uploaded {version.asset.asset_id} version {version.number}. It is "
-                        "validated and not yet published.",
+                        + state,
                         messages.SUCCESS,
                     )
                     return redirect(reverse("admin:assets_assetversion_change", args=[version.pk]))
@@ -214,6 +284,7 @@ class AssetVersionAdmin(admin.ModelAdmin):
             "findings": findings,
             "limits": [
                 ("3D models", max_bytes_for("model")),
+                ("GLB models", max_glb_bytes()),
                 ("Images", max_bytes_for("image")),
                 ("Audio", max_bytes_for("audio")),
             ],
@@ -380,6 +451,97 @@ class AssetVersionAdmin(admin.ModelAdmin):
             self.message_user(request, "Every selected file is present and unchanged.")
 
     @admin.action(
+        description="Validate in background (full model check, result for review)",
+        permissions=["validate"],
+    )
+    def validate_in_background(self, request, queryset):
+        """Submit each selected GLB version for `asset.validate_model`, or report its existing
+        job for the same file. A failed, cancelled, refused or superseded job, a `fail`
+        verdict, or a pass whose version is still a draft, is resubmitted as a new job (at most
+        `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` per file and processor version). Each new job is
+        recorded in the version's admin history. The version is never changed here: the result
+        appears in its "Background validation" section, and publishing stays a separate staff
+        action. A new result never un-rejects a rejected version or changes a published one."""
+        from apps.jobs.services import JobsDisabled, JobsError
+
+        submitted = 0
+        for version in self._first_batch(request, queryset):
+            if version.asset.status != AssetStatus.ACTIVE:
+                self.message_user(
+                    request,
+                    f"{version.label}: This asset is retired, so it is not validated.",
+                    messages.ERROR,
+                )
+                continue
+            if version.format not in ASYNC_FORMATS:
+                self.message_user(
+                    request,
+                    f"{version.label}: Only GLB models can be validated in background.",
+                    messages.ERROR,
+                )
+                continue
+            previous = _latest_job(version)
+            known = set(validation_jobs(version).values_list("pk", flat=True))
+            try:
+                job = submit_model_validation(version, user=request.user)
+            except JobsDisabled:
+                self.message_user(
+                    request,
+                    "Background jobs are turned off on this server, so nothing was validated.",
+                    messages.ERROR,
+                )
+                return
+            except JobsError as error:
+                if error.code == "attempts_exhausted":
+                    self.message_user(
+                        request,
+                        f"{version.label}: This file has reached the limit of background "
+                        "validation attempts, so no new one was submitted. Delete this "
+                        "unpublished version, then upload the file again, or ask an "
+                        "administrator.",
+                        messages.ERROR,
+                    )
+                    continue
+                if error.code == "resource_limit_exceeded":
+                    message = (
+                        f"{version.label}: The file is larger than the {max_glb_bytes():,} byte "
+                        "limit for GLB models, so it was not validated (resource_limit_exceeded)."
+                    )
+                else:
+                    message = (
+                        f"{version.label}: Background validation could not start ({error.code})."
+                    )
+                self.message_user(request, message, messages.ERROR)
+                continue
+            if job.pk not in known:
+                submitted += 1
+                self.log_change(request, version, f"Submitted background validation job {job.pk}.")
+                reason = _resubmission_reason(previous, job, version)
+                if reason:
+                    self.message_user(request, f"{version.label}: {reason}", messages.INFO)
+            elif job.is_terminal:
+                self.message_user(
+                    request,
+                    f"{version.label}: The background validator already validated this file "
+                    f"({_status_label(job)}). See its Background validation section.",
+                    messages.INFO,
+                )
+            else:
+                self.message_user(
+                    request,
+                    f"{version.label}: Background validation of this file is already queued or "
+                    f"running ({_status_label(job)}).",
+                    messages.INFO,
+                )
+        if submitted:
+            self.message_user(
+                request,
+                f"Background validation submitted for {submitted} version(s). The versions are "
+                "unchanged; results appear in each version's Background validation section.",
+                messages.SUCCESS,
+            )
+
+    @admin.action(
         description="Inspect in background (file structure and dimensions)", permissions=["view"]
     )
     def inspect_in_background(self, request, queryset):
@@ -390,10 +552,18 @@ class AssetVersionAdmin(admin.ModelAdmin):
         from . import jobs
 
         submitted = []
-        for version in queryset.select_related("asset")[:50]:
+        for version in self._first_batch(request, queryset):
             try:
                 job = jobs.submit_inspection(version, request.user)
             except JobsError as error:
+                if error.code == "object_too_large":
+                    self.message_user(
+                        request,
+                        f"{version.label}: The file is larger than the {max_glb_bytes():,} byte "
+                        "limit for GLB models, so it was not inspected.",
+                        messages.ERROR,
+                    )
+                    continue
                 self.message_user(
                     request, f"Background jobs are unavailable ({error.code}).", messages.ERROR
                 )
@@ -406,6 +576,18 @@ class AssetVersionAdmin(admin.ModelAdmin):
             "Results are on the background jobs page.",
             messages.SUCCESS,
         )
+
+    def _first_batch(self, request, queryset) -> list:
+        """At most `BULK_LIMIT` of the selected versions; says so when more were selected."""
+        batch = list(queryset.select_related("asset")[: BULK_LIMIT + 1])
+        if len(batch) > BULK_LIMIT:
+            self.message_user(
+                request,
+                f"More than {BULK_LIMIT} versions were selected: only the first {BULK_LIMIT} "
+                "were processed. Run the action again for the rest.",
+                messages.WARNING,
+            )
+        return batch[:BULK_LIMIT]
 
     # --- display ---
 
@@ -434,21 +616,364 @@ class AssetVersionAdmin(admin.ModelAdmin):
     def findings(self, obj):
         if not obj.validation_report:
             return "No findings."
+        report = [f for f in obj.validation_report if isinstance(f, dict)]
+        processing = [f for f in report if f.get("source") == PROCESSING_SOURCE]
+        if not processing:  # upload findings only: shown exactly as before
+            return _finding_list(report)
+        upload = [f for f in report if f.get("source") != PROCESSING_SOURCE]
         return format_html(
-            "<ul>{}</ul>",
-            format_html_join(
-                "",
-                "<li><strong>{}</strong> {}: {} <code>{}</code></li>",
-                (
-                    (f["severity"], f["code"], f["message"], f.get("path", ""))
-                    for f in obj.validation_report
-                ),
-            ),
+            "<p><strong>{}</strong></p>{}<p><strong>{}</strong></p>{}",
+            "Upload checks",
+            _finding_list(upload) if upload else "No findings.",
+            "Background validation",
+            _finding_list(processing),
         )
 
     @admin.display(description="Detected metadata")
     def metadata_summary(self, obj):
         return format_html("<pre>{}</pre>", json.dumps(obj.metadata, indent=2, sort_keys=True))
+
+    # --- background validation (read only; every job value escaped) ---
+
+    @admin.display(description="Processing status")
+    def background_status(self, obj):
+        job = _latest_job(obj)
+        publishing = _publishing_notice(obj)
+        if job is None:
+            return format_html(
+                "<p>{}</p><p>{}</p>",
+                "No background validation has run for this version.",
+                publishing,
+            )
+        rows = [
+            ("Status", _status_label(job)),
+            ("Outcome", _outcome_label(job)),
+            ("Submitted", _when(job.created_at)),
+            ("Started", _when(job.started_at)),
+            ("Finished", _when(job.finished_at)),
+            ("Worker attempts", job.attempts),
+            ("Deliveries", job.deliveries),
+            ("Error code", job.error_code or "-"),
+        ]
+        return format_html(
+            '<p>{}</p><p>{}</p><dl>{}</dl><p><a href="{}">{}</a></p>',
+            _status_notice(job, obj),
+            publishing,
+            format_html_join("", "<dt>{}</dt><dd>{}</dd>", rows),
+            reverse("admin:jobs_processingjob_change", args=[job.pk]),
+            "Open the background job (a stuck job can be marked failed there)",
+        )
+
+    @admin.display(description="Validation result")
+    def background_result(self, obj):
+        job = _latest_job(obj)
+        summary = _summary(job)
+        if summary is None:
+            return "No result yet."
+        verdict = {"pass": "Pass", "fail": "Fail"}.get(summary.get("verdict"), "Unknown")
+        rows = [
+            ("Verdict", verdict),
+            ("Processor", _pair(summary.get("processor_id"), summary.get("processor_version"))),
+            ("Profile", _pair(summary.get("profile_id"), summary.get("profile_version"))),
+            ("Errors", _number(summary.get("error_count"))),
+            ("Warnings", _number(summary.get("warning_count"))),
+            ("Run warnings", ", ".join(map(str, _items(summary.get("run_warnings")))) or "None"),
+        ]
+        findings = processing_findings(job)
+        table = _titled_table(
+            "Findings",
+            ("Code", "Severity", "Message", "Path"),
+            ((f["code"], f["severity"], f["message"], f["path"]) for f in findings),
+        )
+        return format_html(
+            "<dl>{}</dl>{}", format_html_join("", "<dt>{}</dt><dd>{}</dd>", rows), table
+        )
+
+    @admin.display(description="Model information")
+    def background_model(self, obj):
+        summary = _summary(_latest_job(obj))
+        if summary is None:
+            return "No result yet."
+        return _model_information(summary)
+
+
+#: The read-only "Background validation" section of the version change page.
+BACKGROUND_FIELDS = ("background_status", "background_result", "background_model")
+#: The only fields the change page edits (and the only ones its save writes).
+EDITABLE_FIELDS = ("notes",)
+#: Most versions one background action processes.
+BULK_LIMIT = 50
+
+_OUTCOME_LABELS = {
+    "version_validated": "The version was marked validated.",
+    "version_rejected": "The version was marked rejected.",
+    "result_recorded": "The result was recorded; the version was not changed.",
+    "processing_failed": "No result; the version was not changed.",
+    "version_missing": "The version no longer exists.",
+    "result_superseded": (
+        "A newer validation of this version exists, so this result was recorded only."
+    ),
+}
+_MISMATCH_OUTCOME = "The result does not match this version's file; the version was not changed."
+
+
+def _latest_job(version):
+    """The version's newest validation job, read once per page (never locked)."""
+    if not hasattr(version, "_lai_validation_job"):
+        version._lai_validation_job = validation_jobs(version).first()
+    return version._lai_validation_job
+
+
+def _outcome_is_mismatch(code: str) -> bool:
+    return code.endswith("_mismatch") or code == "result_invalid"
+
+
+def _summary(job) -> dict | None:
+    """The result summary of a completed job, or None (no job, unfinished, failed)."""
+    if job is None or job.status != "completed":
+        return None
+    return model_validation_summary(job)
+
+
+def _status_label(job) -> str:
+    if job.status == "pending":
+        return "Queued"
+    if job.status == "running":
+        return "Processing"
+    if job.status == "completed":
+        return "Completed"
+    if job.error_code == "timeout":
+        return "Failed: timed out"
+    if job.error_code == "submit_failed":
+        return "Could not be sent"
+    return "Failed"
+
+
+def _outcome_label(job) -> str:
+    code = job.subject_outcome
+    if not code:
+        return "None." if job.is_terminal else "Not applied to the version yet."
+    if code in _OUTCOME_LABELS:
+        return _OUTCOME_LABELS[code]
+    if _outcome_is_mismatch(code):
+        return _MISMATCH_OUTCOME
+    return f"Recorded as {code}."
+
+
+def _status_notice(job, version) -> str:
+    """One explicit sentence for the job's state. Only a passing verdict for exactly this
+    version's file is reported as passed."""
+    again = "Run Validate in background again to retry."
+    if job.status == "pending":
+        if job.dispatched_at is None:
+            return "Queued: not yet sent to the background validator. There is no result yet."
+        return "Queued: waiting for the background validator. There is no result yet."
+    if job.status == "running":
+        return "Processing: the background validator is reading the file. No result yet."
+    if job.status == "failed":
+        if job.error_code == "timeout":
+            return f"Background validation timed out, so there is no result. {again}"
+        if job.error_code == "submit_failed":
+            return (
+                "The validation request could not be sent to the background validator, so "
+                f"there is no result. {again}"
+            )
+        return f"Background validation failed, so there is no result. {again}"
+    summary = _summary(job)
+    if summary is None:
+        return "No result is available."
+    if _outcome_is_mismatch(job.subject_outcome) or identity_mismatch(job, version) is not None:
+        return (
+            "This result does not match this version's file, so it does not count for this "
+            "version. Run Validate in background again."
+        )
+    if summary.get("verdict") == "pass":
+        if identity_mismatch(job, version, require_current_processor=True) == (
+            "processor_outdated"
+        ):
+            return (
+                "This file passed with an older validator version. Publishing needs a new "
+                "validation: run Validate in background again."
+            )
+        return "Passed: the background validator found no errors in this file."
+    if summary.get("verdict") == "fail":
+        return "Rejected: the background validator found errors in this file. See the findings."
+    return "The result has no verdict."
+
+
+def _resubmission_reason(previous, job, version) -> str:
+    """Why a new validation job was made for `version` when `previous` (its newest job before the
+    action) existed, in words chosen from the actual reason. Empty for a first validation."""
+    if previous is None:
+        return ""
+    if previous.status == "failed":
+        return "The earlier background validation failed, so a new one was submitted."
+    if previous.status != "completed":
+        return ""
+    # A new job's result decides a draft's status; any other version keeps its status.
+    tail = (
+        ""
+        if version.status == VersionStatus.DRAFT
+        else " The version's status is not changed by it."
+    )
+    if previous.subject_outcome not in APPLIED_OUTCOMES:
+        return (
+            "The earlier background validation result was not applied to this version (it was "
+            "refused or superseded), so a new one was submitted." + tail
+        )
+    if previous.idempotency_key != job.idempotency_key:
+        return (
+            "The validator version has changed since the earlier background validation, so a "
+            "new one was submitted with the current validator." + tail
+        )
+    if (previous.result or {}).get("verdict") != "pass":
+        return (
+            "The earlier background validation did not pass this file, so a new one was "
+            "submitted." + tail
+        )
+    return (
+        "The earlier background validation passed, but this version is still a draft, so a new "
+        "one was submitted to apply its result."
+    )
+
+
+def _publishing_notice(version) -> str:
+    """One sentence: may this version be published now? From the publication gate itself
+    (`services.publish_refusal`); the stored file is still re-verified when publishing."""
+    if version.status == VersionStatus.PUBLISHED:
+        return "Publishing: this version is published."
+    refusal = services.publish_refusal(version)
+    if refusal is None:
+        return "Publishing: allowed now. The stored file is checked again when it is published."
+    return f"Publishing: not allowed now ({refusal.code}). {refusal.message}"
+
+
+def _when(value) -> str:
+    return localtime(value).strftime("%Y-%m-%d %H:%M:%S %Z") if value else "-"
+
+
+def _pair(name, version) -> str:
+    return f"{name} {version}" if name else "-"
+
+
+def _items(value) -> list:
+    return value if isinstance(value, list) else []
+
+
+def _number(value) -> str:
+    return str(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else "-"
+
+
+def _vector(value) -> str:
+    return "(" + ", ".join(_number(v) for v in _items(value)) + ")"
+
+
+def _finding_list(findings):
+    return format_html(
+        "<ul>{}</ul>",
+        format_html_join(
+            "",
+            "<li><strong>{}</strong> {}: {} <code>{}</code></li>",
+            (
+                (f.get("severity", ""), f.get("code", ""), f.get("message", ""), f.get("path", ""))
+                for f in findings
+            ),
+        ),
+    )
+
+
+def _model_information(summary: dict):
+    counts = summary.get("counts") if isinstance(summary.get("counts"), dict) else {}
+    bounds = summary.get("bounds") if isinstance(summary.get("bounds"), dict) else None
+    images = [i for i in _items(summary.get("images")) if isinstance(i, dict)]
+    skins = [s for s in _items(summary.get("skins")) if isinstance(s, dict)]
+    clips = [a for a in _items(summary.get("animations")) if isinstance(a, dict)]
+    rows = [
+        ("Meshes", _number(counts.get("meshes"))),
+        ("Primitives", _number(counts.get("primitives"))),
+        ("Triangles", _number(summary.get("triangle_count"))),
+        ("Vertices", _number(summary.get("vertex_count"))),
+        (
+            "Bounds",
+            f"min {_vector(bounds.get('min'))}, max {_vector(bounds.get('max'))}"
+            if bounds
+            else "-",
+        ),
+        ("Generator", summary.get("generator") or "-"),
+        ("Extensions used", ", ".join(map(str, _items(summary.get("extensions_used")))) or "None"),
+        (
+            "Extensions required",
+            ", ".join(map(str, _items(summary.get("extensions_required")))) or "None",
+        ),
+        (
+            "Unsupported extensions",
+            ", ".join(map(str, _items(summary.get("unsupported_extensions")))) or "None",
+        ),
+    ]
+    if summary.get("lists_truncated"):
+        rows.append(("Lists", "Shortened by the validator to fit its size limit."))
+    materials = [str(name) for name in _items(summary.get("material_names"))]
+    parts = [
+        format_html("<dl>{}</dl>", format_html_join("", "<dt>{}</dt><dd>{}</dd>", rows)),
+        _titled_list("Materials", materials),
+        _titled_table(
+            "Textures",
+            ("Index", "Type", "Size (pixels)"),
+            (
+                (
+                    _number(i.get("index")),
+                    i.get("mime_type") or "unknown",
+                    f"{_number(i.get('width'))} x {_number(i.get('height'))}",
+                )
+                for i in images
+            ),
+        ),
+        _titled_table(
+            "Skins",
+            ("Name", "Joints"),
+            ((s.get("name") or "-", _number(s.get("joint_count"))) for s in skins),
+        ),
+        _titled_table(
+            "Animation clips",
+            ("Name (exact)", "Duration (seconds)"),
+            ((_clip_name(a.get("name")), _number(a.get("duration_seconds"))) for a in clips),
+        ),
+    ]
+    return format_html_join("", "{}", ((part,) for part in parts))
+
+
+def _clip_name(name):
+    """A clip name exactly as stored: in `<code>` with `white-space: pre`, so outer spaces show,
+    and an empty or missing name said explicitly. Always escaped."""
+    if name is None:
+        return format_html("<em>{}</em>", "(no name)")
+    if name == "":
+        return format_html("<em>{}</em>", "(empty name)")
+    return format_html('<code style="white-space: pre">{}</code>', str(name))
+
+
+def _titled_list(title: str, items: list[str]):
+    if not items:
+        return format_html("<p><strong>{}</strong>: {}</p>", title, "None")
+    return format_html(
+        "<p><strong>{}</strong></p><ul>{}</ul>",
+        title,
+        format_html_join("", "<li>{}</li>", ((item,) for item in items)),
+    )
+
+
+def _titled_table(title: str, headings, rows):
+    rows = list(rows)
+    if not rows:
+        return format_html("<p><strong>{}</strong>: {}</p>", title, "None")
+    head = format_html_join("", "<th>{}</th>", ((h,) for h in headings))
+    cells = "".join("<td>{}</td>" for _ in headings)
+    return format_html(
+        "<p><strong>{}</strong></p><table><tr>{}</tr>{}</table>",
+        title,
+        head,
+        format_html_join("", f"<tr>{cells}</tr>", rows),
+    )
 
 
 def _verified_response(version) -> FileResponse | JsonResponse:
@@ -541,6 +1066,7 @@ class CollisionProfileAdmin(admin.ModelAdmin):
     readonly_fields = (
         "measured_bounds",
         "runtime_preview",
+        "shipped_scenes",
         "preview_links",
         "updated_by",
         "updated_at",
@@ -560,7 +1086,7 @@ class CollisionProfileAdmin(admin.ModelAdmin):
         ("Compound boxes", {"fields": ("boxes",)}),
         (
             "What the game uses",
-            {"fields": ("measured_bounds", "runtime_preview", "preview_links")},
+            {"fields": ("measured_bounds", "runtime_preview", "shipped_scenes", "preview_links")},
         ),
         (None, {"fields": ("notes", "updated_by", "updated_at")}),
     )
@@ -609,6 +1135,29 @@ class CollisionProfileAdmin(admin.ModelAdmin):
         size = " x ".join(f"{v:.2f}" for v in bounds.size)
         return f"min ({low}) max ({high}); {size} m ({bounds.source})"
 
+    @admin.display(description="Shipped scenes")
+    def shipped_scenes(self, obj):
+        """GE-247: a profile applies in the scenes that ship with the app too, with no release."""
+        from apps.catalog import scene_usage  # local: keeps the imports block untouched
+
+        if obj is None or not obj.asset_id:
+            return "Saved profiles list the shipped scenes that use the asset here."
+        usages = [u for u in scene_usage.shipped_scene_usages(obj.asset) if u.current]
+        if not usages:
+            return "No shipped scene uses this asset."
+        if obj.version_id and obj.version_id != obj.asset.default_version_id:
+            return format_html(
+                "<p>{}</p><p>They use the profile of the default version, so this v{} profile "
+                "does not change them.</p>",
+                "; ".join(usage.short for usage in usages),
+                obj.version.number,
+            )
+        return format_html(
+            "<p>{}</p><p>Saving this profile changes collision there on the child's next visit, "
+            "with no release or rebuild.</p>",
+            "; ".join(usage.short for usage in usages),
+        )
+
     @admin.display(description="Runtime collision")
     def runtime_preview(self, obj):
         if obj is None or obj.pk is None:
@@ -654,3 +1203,6 @@ class CollisionProfileAdmin(admin.ModelAdmin):
         if version is None or version.family != "model":
             return "No model version to preview."
         return preview.link_for(version)
+
+
+from . import admin_artifacts  # noqa: E402,F401 - registers the derived artifact admin

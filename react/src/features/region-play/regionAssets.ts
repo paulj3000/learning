@@ -3,7 +3,11 @@ import {
   type DjangoAssetResolver,
 } from '../../api/assets/djangoAssetResolver';
 import { DJANGO_API_CONFIG, type DjangoApiConfig } from '../../api/config';
-import { createAssetLoader, type AssetLoader } from '../island-map/three/assets/assetLoader';
+import {
+  createAssetLoader,
+  enableKtx2Textures,
+  type AssetLoader,
+} from '../island-map/three/assets/assetLoader';
 import type { AssetResolver } from '../island-map/three/assets/assetResolver';
 import {
   DEFAULT_LOCATION_ENGINE_DEPS,
@@ -57,7 +61,13 @@ function hasCollisionProfiles(resolver: AssetResolver): resolver is DjangoAssetR
   return typeof (resolver as Partial<DjangoAssetResolver>).collisionProfiles === 'function';
 }
 
-/** The engine's view of one loader, and of its resolver's collision profiles when it has them. */
+/**
+ * The engine's view of one loader, and of its resolver's collision profiles
+ * when it has them. `attachRenderer` gives this loader (and every other game
+ * loader) KTX2 support for the engine's renderer, through the app-wide
+ * reference-counted KTX2 loader (`ktx2Support`, ADR-070), so a published KTX2
+ * model in region play decodes like a bundled one.
+ */
 export function engineAssetsFrom(
   loader: AssetLoader,
   profiles?: Pick<DjangoAssetResolver, 'collisionProfiles'>,
@@ -67,5 +77,6 @@ export function engineAssetsFrom(
     instanced: (assetId, placements) => loader.createInstancedMeshFromAsset(assetId, placements),
     withLod: (assetId) => loader.instantiateWithLod(assetId),
     ...(profiles ? { collisionProfiles: (ids) => profiles.collisionProfiles(ids) } : {}),
+    attachRenderer: (renderer) => enableKtx2Textures(renderer),
   };
 }

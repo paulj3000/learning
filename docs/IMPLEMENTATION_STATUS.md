@@ -37,6 +37,238 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI 05: jsonschema as a dev dependency (2026-11-24, `chore/jsonschema-dev-dependency` from `main` `9b881fda`); owner-approved, NOT merged
+
+The owner approved it on 2026-11-24. `requirements-dev.txt` now pins `jsonschema==4.26.0` and its
+transitive dependencies (`attrs`, `jsonschema-specifications`, `referencing`, `rpds-py`;
+`typing_extensions` is already pinned in `requirements.txt`). It is tooling only: nothing in `lai/`
+imports it, and production images install `requirements.txt` only.
+
+Why: the 34 contract-schema tests in `tests/processing/test_processing_fixtures.py` (PR #71) call
+`pytest.importorskip("jsonschema")`, and no requirements file declared it, so they were skipped
+everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it in, they run.
+
+## LAI-07: retired shipped assets keep their collision (2026-11-24, `feature/asset-library-retired-bundled-collision` on `main` `9b881fda`, GE-247); Development Complete
+
+- **Rule** (owner decision, 2026-11-24): the resolver answers a retired 3D asset that has a
+  `bundled_path` with the `collision` of its default version's profile, because the client keeps
+  drawing the bundled model. Before, retiring it made that model walk-through.
+- **Unchanged:** a retired asset that is not shipped, a non-model asset, and a retired version of a
+  live asset send no `collision`. No migration, no API shape change, no client change (the client
+  already reads `collision` on every entry).
+- **Tests:** 5 new in `apps/assets/tests/test_collision_profiles.py`. The resolver, collision,
+  media and catalog usage suites pass on PostgreSQL 18 (109 passed); `makemigrations --check` is
+  clean. Deferred to merge readiness: full suites and browser tests.
+- **Docs:** `docs/ASSET_LIBRARY.md` section 7, `docs/ASSET_COLLISION_PROFILES.md`.
+
+## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, Trello #247); merged to `main` in PR #70 (`9b881fda`), follow-up `fix/ge-247-retirement-note-collision-kept` from `c9123f48`; NOT owner-accepted
+
+- Owner direction (2026-11-23): shipped-scene references are listed, never blocking (S6 not required). Collision-profile effects are reported. The hub becomes a Place only if that has no side effects.
+- Built:
+  - the hub's 11 ids are kept through import in `ContentRelease.report["scene_assets_without_place"]` (interim, no migration);
+  - `apps/catalog/scene_usage.py`;
+  - the asset definition `used_by` and the retire warning (non-blocking);
+  - the collision profile page lists shipped scenes (S4);
+  - S5 is pinned (`avatar.default` fails `SlugField` validation);
+  - the client test that a retired entry keeps the bundled model and any collision the server sends.
+  - S1: the `catalog` usage provider (`apps/catalog/dependencies.py`) on LAI 07's W2-1 registry. It lists shipped scenes, the hub included, never blocks, returns nothing for a version question, and fails closed. `manage.py asset_usage` shows these usages.
+- Owner decisions (2026-11-24):
+  - a retired asset that still ships with the app keeps its collision profile. LAI 07's resolver change is on `main` (#75, `c9123f48`); the follow-up makes the staff note say the profile keeps applying, with a test that the note matches the resolver;
+  - the hub stays in the release report, not a Place.
+- Tests (PostgreSQL 18): `apps/catalog` and `apps/assets` pass, `djangoAssetResolver.test.ts` passes, and `makemigrations --check` is clean. Browser tests are not run.
+- S7 is not recommended now.
+- Design and evidence: `docs/engineering/game-engine/bundled-asset-references.md`.
+
+## GE-090-D8: adult exits clear of dialogue panels in full screen (2026-11-23, `fix/ge-090-d8-adult-exit` from `1b0a50a3`); Development Complete, NOT merged
+
+At 375x667 in full screen, Pip's panel covered "Exit full screen" (`portal-adult-exit:142`, found
+by GE-090-D7). The panels sat `--child-stage-exits-inset` (7.5rem) above the viewport's bottom,
+but the exits sit on the stage's bottom edge, and the camera view and sprint settings shown below
+the stage in full screen lift that edge. `WorldStage` now measures the gap between the stage's
+bottom and the viewport's while in full screen (and on resize), and sets
+`--child-stage-bottom-gap` on the full-screen element; `ChildShell.module.css` adds it to the
+inset. Both Pip panels (NPC Manager and legacy) and every Treasure Rush dialog use that inset, so
+all of them clear the exits. With nothing below the stage the gap is 0, so the tablet layout is
+unchanged; the camera button stays on the HUD. Follow-up from LAI 01's review: with a larger
+inset, a tall panel's `max-height` could put its top 16px from the screen top, over the HUD's "Go
+back to the harbor" link; in full screen `--child-header-inset` now reserves the HUD's top row
+(0.75rem + 2.75rem, pinned to WorldHud.module.css by a test), so a panel stops below the link.
+Tests (gated): `WorldStage.test.tsx` (4 new; 3 fail without the fix), `childNavInsets.test.ts`
+(new HUD-row pairing test), `portal/shell`, `npc-manager` and `RegionPlayCompanion*.test.tsx`: 31
+files, 476 passed. Typecheck and lint pass.
+
+Browser run (owner-authorized 2026-11-23, after the VM network fix) found two more causes:
+`IslandWorldView.module.css`'s full-screen column rule (`.wrapper:fullscreen > :not(...)`,
+specificity 0,3,0) also matched Pip's fixed panel and replaced its height cap with 45vh, so the
+panel ran off the top of the screen; it is now wrapped in `:where()`. And at 375x667 the settings
+below the stage left it 311px tall, too short for a 10rem panel between the harbor link and the
+exits. Owner decision: shrink the settings, not the panel. The full-screen stage is at least 23rem
+(capped at 70vh) and the harbor link stays one row in full screen only. Measured: stage 368px,
+panel 72-244px, link 24-68px. Playwright on `30578905`: `portal-adult-exit.spec.ts` 7/7 and
+`treasure-rush.spec.ts` controls, full screen and exit (desktop and tablet) pass; the quest
+journey (`treasure-rush:83`) fails identically on `main` `bf622901` (Pip offers Pirate's Leap
+instead of confirming the first quest; not D8). Cosmetic: at 320px in full screen the link
+reaches 9px past the stage edge (still on screen). Unverified: phone landscape (667x375), where
+the 70vh cap leaves the panel less room; phone support is not expanded here.
+
+## LAI-07 Asset Library W2-1: usage registry and aggregate retirement guard (2026-11-23, `feature/asset-library-w2-1-registry` on `main` `1b0a50a3`, Trello #246); Development Complete, NOT merged
+
+- **Delivers** (`docs/ASSET_LIBRARY.md` section 25):
+  - `apps/assets/dependencies.py`: `Usage`, `register_usage_provider`, `usages_for`,
+    `registered_sources`, and `retirement_guard`, registered from `AssetsConfig.ready()`
+    through the existing `services.register_retirement_guard`.
+  - The read-only command `manage.py asset_usage <asset_id> [--number N] [--json]`.
+- **Behaviour:** none changes yet. No app registers a provider, so retirement refuses exactly
+  what it refused before, and the NPC and avatar guards stay registered. A provider that raises
+  refuses retirement (`dependency_check_failed`, logged with ids only).
+- **Scope:** no migration, no `services.py` or admin change, no API or client change.
+- **Commits:** b5890533 and ecf46521 (W2-0 contract), e88d6eca (W2-1), 40a726f5 (ruff format),
+  then a merge of `main` `1b0a50a3`.
+- **Tests:** 19 registry and command tests. Two are new for the standalone PR: the NPC and avatar
+  guards stay in place, and a refused retirement with a replacement keeps the default. Results
+  are on Trello #246 and in the PR.
+- **Follows:** W2-3 (regions) and W2-4 (NPC and avatar parity) in a separate PR; W2-2 waits for
+  the Sound Manager owner; W2-5 waits for the Lambda reconciliation. GE-247 (Agent 4) builds the
+  catalog provider on this API once it is on `main`.
+
+## FPV-D10: Area puzzle skill evidence (2026-11-23, `fix/FPV-D10-puzzle-skill-evidence` rebased onto `main` `bf622901`, Trello P1S0CXpL); Development Complete, NOT merged, NOT owner-accepted
+
+Area puzzles (Heart of Firepeak, North Pole) were graded and rewarded but recorded no
+`SkillEvidence`, so the parent dashboard showed no skill activity for them. This blocks Firepeak
+and North Pole completion. It does not block owner playthroughs.
+
+- **Persistence.** `education.services.record_puzzle_evidence` is called by
+  `game_sessions.play.solve_puzzle` inside its transaction, for every graded attempt, right or
+  wrong. It writes one row per attempt. The row is keyed by the new nullable one-to-one
+  `SkillEvidence.puzzle_attempt` (migration `education 0009`), so repeat practice creates rows
+  and a duplicate submission does not.
+  - It folds the row into `SkillProgress` once.
+  - The objective is the answered variant's `skill`, else the band's (`regions.puzzles.skill_for`).
+  - Mechanical kinds record nothing.
+  - An objective code the catalog does not hold is skipped with a content-only warning. The solve
+    and its reward are kept.
+  - Any other failure propagates, and the attempt, world change and reward roll back together.
+- **Schema.** A check constraint requires exactly one of the four sources per row. Chest
+  (challenge) and step evidence are unchanged.
+- **Support level.** Puzzles store no hint use, so the level is derived: a correct answer after an
+  earlier wrong one in the same visit counts as supported (1); otherwise 0. Needs owner review.
+- **Curriculum.** There are 12 new learning objectives and one retitle (`cause-and-effect`). The
+  mapping table is in [docs/regions/PUZZLE_SKILL_MAPPING.md](regions/PUZZLE_SKILL_MAPPING.md),
+  agreed with LAI 03; owner review is pending. Content changes are on LAI 03's branches.
+  - Puzzles also gained an optional per-variant `skill` override.
+  - `manage.py puzzle_skill_report [--strict]` lists published puzzle skills that are not in the
+    catalog.
+- **Not done.** There is no backfill of historical attempts. That needs separate authorization;
+  an idempotent dry-run command is proposed in the PR. Deployed environments need `load_content`
+  for the new objectives.
+- **Tests.**
+  - Django on PostgreSQL 18: `apps/education/tests/test_puzzle_evidence.py` (16 tests) and
+    `TestVariantSkill` in `test_puzzle_kinds.py`. The focused regression run (education, regions puzzle suites, game_sessions, scoring, catalog, progression, tenant isolation) gave 1485 passed, 0 failed.
+  - Vitest (adventures content, parent dashboard, mastery, area puzzles): 18 files, 283 passed.
+  - `npm run typecheck`, `content:check` and `golden:check` pass, and so does `makemigrations --check`.
+  - Deferred to merge readiness: full suites, lint and build gates, browser tests.
+
+## LAI 01: TR-D9 the legacy Pip skips "Quest accepted!" and offers Pirate's Leap (2026-11-24, `fix/TR-D9-pip-dialog-active-quest` from `main` `5c4974c2`); Development Complete, NOT owner-accepted
+
+- **Defect (LAI 05 authorized browser run, `treasure-rush.spec.ts:83`):**
+  - Happens on a fresh stack, when no NPC release is published so the legacy Pip answers.
+  - The child presses "Yes, I will help!" for Pip's Missing Treasure. Pip then asks the Pirate's Leap question ("Pip hid a secret treasure beyond the old pirate training course… Will you help me?") instead of confirming.
+  - The same thing happens on every later visit until that quest is finished. The child never sees the steps or Pip's clue (TR-14), and is offered a second quest straight away.
+  - Order-dependent: in the full suite, `npc-1-admin` has already published the managed Pip first, so the test passes.
+- **Cause:**
+  - The cove offers both of Pip's quests: `pirates_leap_seed.py` adds `pirates-leap` to the region's `offered_quests`.
+  - `PipDialog` showed the first AVAILABLE quest before the ACTIVE one. The HUD (`questObjective`) already puts ACTIVE first.
+  - Present since Pirate's Leap joined the cove (GE-070, `25ffb8bb`). The single-quest unit fixtures hid it.
+- **Fix:**
+  - `PipDialog` now shows ACTIVE first, then AVAILABLE, then the first quest.
+  - Pirate's Leap is offered once Pip's Missing Treasure is finished. That matches the HUD.
+- **Tests:** three cases added in `RegionPlayCompanion.test.tsx`.
+  - Accept with a second offer present: confirms the quest and shows its steps.
+  - Later visit while the quest is active: shows progress.
+  - After the first quest is completed: the second quest is offered.
+  - The first two failed on `main` and pass with the fix.
+  - `regionPlay/`, `region-play/` and `npc-manager/` run from `react/`: 83 files, 1,084 tests pass. Typecheck passes; Prettier is clean.
+- **Deferred:** the ESLint run (no flat config is found locally; merge gate), and the browser rerun of `treasure-rush.spec.ts:83` on a fresh stack (needs owner authorization).
+
+## LAI 01: Treasure Rush release verification (2026-11-23, `lai-01/treasure-rush-release`, rebased onto `main` `1b0a50a3`); verification only, owner playthrough pending, NOT owner-accepted
+
+Status: the core MVP is Complete (owner-accepted 2026-11-11) and was not rebuilt. This pass
+checks `main` after Game Engine 1.0 and PR #63. Final child-facing acceptance stays open until
+the owner records the release playthrough in `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`. No
+product code changed here. No Treasure Rush-owned defect with reproducible evidence was found
+beyond D7, which is now merged.
+
+- **On `main`, by ancestry:** GE-070 (`a22b2681`), `core/ge-scoring` (`5977bed2`),
+  `core/gameengine` (`ca6ada2c`) and TR-21 (`42a06f66`, `ce20c90b`). Scoring is server-side.
+  `scoring/realms.py` maps Treasure Cove to `pips-missing-treasure` and Pirate's Leap to
+  `pirates-leap`, so the legacy `treasure-rush-cove` quest earns no score. Claims reach the visit
+  sink through `createEngineBridgeExtension` in `extensions/index.ts`.
+- **Release blocker, GE-090-D7 B:** on `main`, Pip's "Talk to" prompt measures reach from the
+  trailing third-person camera, not the child. The D7 regression test, run against `main`'s
+  `regionPlayScene.ts`, fails: it expects `{x: 0, z: 10}` and receives `{x: 0, z: 6.12}`. The fix
+  is `24add20e`, reviewed and approved by LAI 01. It is **merged to `main` in PR #63
+  (`1b0a50a3`)**. It uses the existing `NpcHostScene.playerPose` contract and changes no shared
+  engine contract. On `1b0a50a3`, `regionPlay.engine.test.ts` (with the third-person reach
+  test) and `storykeeperCastle.engine.test.ts` pass: 2 files, 37 tests, gated.
+- **PR #59 (GE-L16 raised-solid clearance, `4b949994`) compatibility:** the shared controller
+  used to ignore a solid box with `minY > 0`. Now a low raised solid blocks like a wall and a
+  high one is an overhead passage. All 83 of Treasure Cove's authored colliders start at the
+  ground (checked from `cove_layout()`), and Pirate's Leap uses platforms, not raised solids, so
+  neither changes. Derived boxes apply only to resolver-placed scenery, and the cove's layout
+  and third-person tests passed on `a17d1636`, which contains #59.
+- **Not a tablet blocker; proposed GE-090-D8, owned by LAI 05:** `portal-adult-exit:142`. At
+  375x667 in full screen, Pip's panel covers "Exit full screen". Closing the panel restores it.
+  Both of Pip's panels (the NPC Manager `NpcInteraction.module.css` and the legacy
+  `RegionPlayPanels.module.css`) offset by `--child-stage-exits-inset`, so a shell-level fix covers
+  both. LAI 01 is not changing them.
+- **Gameplay items, by evidence (code and non-browser tests; no visual check):**
+  - Start and finish, quest order, chests, key, rune puzzle, finale, persistence and another
+    child's isolation: `test_pips_treasure.py`, `test_chest_play.py`, `test_play_api.py`.
+  - Five zones with entry messages, and the gate and channel opening on
+    `TREASURE_COVE_QUEST_COMPLETE`: `cove_layout()`, `test_treasure_cove_layout.py`.
+  - Replay: Lookout spyglass `test_lookout_replay.py` (locked until done, no payout, server
+    graded). Pirate's Leap: `test_pirates_leap.py`.
+  - Jumping is on by default (`DEFAULT_JUMP_CONFIGURATION.enabled`), and so is the camera switch
+    (`DEFAULT_PLAYER_CAMERA.allowModeSwitch`). The cove doesn't override either. The HUD camera
+    button is covered by `WorldHud.test.tsx`.
+  - Camera follows and isn't left behind at walls or the world edge:
+    `treasureCoveThirdPerson.engine.test.ts` and `game/src/stabilization/cameraAvatarSync.test.ts`.
+    Footprint at walls: `playerFootprint.engine.test.ts` (castle walls and doors; it timed out
+    under load once and passed alone).
+  - Assets: all 37 asset ids in the cove layout resolve, either to a bundled model or to a Django
+    model pack. Packs need the owner's import; the feather is CC-BY-4.0 and unpublished.
+  - Sound through the Sound Manager (`useTreasureRushAudio`); Pip through the NPC Manager.
+  - Points: scoring is off by default (`LAI_SCORING_ENABLED`), so a child sees keepsakes and the
+    Explorer Badge, not points.
+- **Asset Library and collision:** cove props are extension-drawn with authored colliders, and
+  authored location colliders override any profile (`docs/ASSET_COLLISION_PROFILES.md`, "What the
+  game always protects"), so profiles cannot move Treasure Cove's gameplay boxes. Covered by
+  `regionAssets.test.ts`, `collisionProfiles.engine.test.ts` and `treasureCoveLayout.engine.test.ts`.
+- **Tests (gated, VirtualBox host):**
+  - `main` `aa8adb33` engine (`game/src` movement, camera, stabilization, components): 27 files,
+    341 passed.
+  - `main` `aa8adb33` React (regionPlay, region-play, runtime, platforms, assets, api/assets,
+    api/play, game-engine, content-export, `src/test`): 180 of 181 files, 2,248 of 2,249 passed. The
+    1 failure is a 5 s timeout in Firepeak's `AreaPuzzleLayer.test.tsx` at peak load 19.8.
+  - Candidate `a17d1636` engine: 29 files, 370 passed.
+  - Candidate `a17d1636` React: 2,255 of 2,259 passed. There were 4 non-Treasure-Rush 5 s timeouts
+    under paging; those 4 files passed 64 of 64 when rerun alone (supporting only).
+  - `main` `aa8adb33` Django on PostgreSQL 18 (`LAI_REQUIRE_POSTGRES=1`): game_sessions, quests,
+    scoring, npcs, regions, progression, assets, `audio/tests/test_treasure_rush_seed.py` and
+    `test_manifest_api.py`. 2,372 passed, 0 failed. This covers chests, NPC talk, quest
+    progression, the Lookout and Pirate's Leap replay, scoring collectors and the play-API
+    isolation matrix.
+- **Deferred expansion (Trello AuCKCbCn), all optional polish with working fallbacks:**
+  - TR-10 asset resolver: done.
+  - TR-19 sound: implemented through the Sound Manager. Audible browser check pending.
+  - TR-D27 puzzle kinds: playtest-driven.
+  - Missing art: `treasure-key`, the pedestal, rocks, ferns, coconuts, bridge and lantern.
+  - Pip `Cheer`/`Point` clips: `Wave` stands in.
+- **Open:** the owner playthrough (the checklist's release section, 22 items, not yet played),
+  D8 (LAI 05), the feather licence and the legacy-quest decisions, the GE-D9 flaky region-play hint
+  test, and the `treasureRushAudio` cascade (Trello 9OdaKlbs). Neither flaky test reproduced in
+  this pass.
+
 ## GE-090-D7: browser acceptance defects (2026-11-22, `fix/ge-090-d7-browser-acceptance` from `aa8adb33`, Trello VD4zv7WN); Development Complete, NOT merged, NOT owner-accepted
 
 The 19 desktop and tablet acceptance failures on `main` had four causes: two product defects and
@@ -92,18 +324,30 @@ This supersedes the "NOT merged" wording in the older castle entries below. Deta
   SC-JMP unit parts), through GE-090 step 20c and PR #44. GE-090-D1 (`ba4acdf0`) and D2
   (`8e7e3719`) are in `main` too. D2's four ids are owned by `HOME_ISLAND_PACK`, which is
   correct.
-- **Open castle defects on `main`:** two, both fixed on the unmerged GE-090-D7 branch
-  (`fix/ge-090-d7-browser-acceptance` @ `9b68e548`, Agent 5). The castle is silent because it
-  requests a region manifest that is a 404; the fix uses the Place manifest. NPC reach was
+- **Castle defects on `main`:** none known. Two were open at `aa8adb33` and are now fixed by
+  GE-090-D7 (PR #63, merged at `1b0a50a3` on 2026-11-23, Agent 5). The castle was silent because
+  it requested a region manifest that is a 404; it now uses the Place manifest. NPC reach was
   measured from the third-person camera, so Quill's prompt could fail to appear. I reviewed the
-  castle parts as owner and they are correct.
+  castle parts as owner and they are correct. `docs/regions/prep/sound_prep.md` now matches.
 - **Evidence (unit only):** Django on PostgreSQL 18.7, 1949 passed, 0 failed, 0 skipped, with no
   missing migrations. Vitest: 103 files, 1365 passed, 1 failed. The failure is `noAmplify`, a
   timeout while the host was paging; it passes alone (supporting information only). Typecheck,
   content:check and golden:check are clean. No browser, Playwright or EC2 run.
 - **Owner QA:** the focused checklist for desktop, touch and accessibility is in
-  `docs/regions/storykeeper_castle_acceptance.md` section 4.4 (Q-1 to Q-18). Run it after D7
-  merges.
+  `docs/regions/storykeeper_castle_acceptance.md` section 4.4 (Q-1 to Q-18). It is unblocked
+  now that D7 is in `main`. For sound, staff first assign the castle cues to the Place
+  `storykeeper-castle` and publish a sound release.
+- **SC-R12 against `main` `1b0a50a3` (2026-11-23):**
+  - **Criteria:** each criterion (A-1 to A-21 and SC-R12-02) has its implementation, the PR that
+    brought it to `main`, automated evidence, the manual acceptance still needed and any open defect,
+    in integration doc section 12.
+  - **Owner playthrough:** P-1 to P-16, by castle area, with expected outcomes and known limitations,
+    in acceptance guide section 4.5. None of it has been played.
+  - **Docs corrected:** `sound_prep.md` (Place manifest route; as-built differences) and the release
+    notes draft (now in `main`; ADR-065 Accepted; audio files missing; GE-090-D8). The
+    `STORYKEEPER_CASTLE_AUDIO.md` status line is current.
+  - **Code:** no castle code defect found. One stale code comment was corrected: Keeper Quill does
+    have a collider.
 
 ## LAI-07 Asset Library streamlining, W1 correctness (2026-11-22, `feature/asset-library-streamlining` rebased onto `ed6b0afc`, Trello #244); Development Complete, unit-tested on PostgreSQL 18.7, NOT merged
 
@@ -341,6 +585,61 @@ section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
 - **Not done:** browser and device QA (models fitted to engine platform boxes, platform sounds,
   riddle bridge in a real visit, the hint and Jump layout on a phone).
 
+## North Pole: The Missing Christmas Star (SEA-04, NP-001 to NP-060, GE-074); on `main`, owner QA pending, not owner-accepted, not deployed
+
+**Curriculum re-tag (2026-11-23, LAI 03, on FPV-D10 `f6d1a373`).** This branch merges LAI 06's
+contract commit (PR #73, not merged to `main`) and re-tags North Pole:
+- `north_pole_puzzles.SKILLS` holds each band's objective and the per-variant overrides from
+  `docs/north-pole/CURRICULUM_AUDIT.md` (26 catalog objectives; the 9 invalid ids are gone).
+  `_quiz` applies it and refuses an override for a missing variant. The engine definition lists
+  the same 26; the puzzle snapshot is regenerated; `NORTH_POLE_CURRICULUM.md` shows the new codes.
+- `np-obs-final` Explorer v2 to v5 are rewritten as two-step take-away within ten (v1 kept), so
+  the whole band is `subtraction-within-ten`. The mixed-operation helpers are removed.
+- Tests: every quiz band has a row, every code is an exported objective, overrides land on the
+  right variants, the final challenge stays within ten, and `puzzle_skill_report` is empty for
+  the Area after seed and publish.
+- Databases seeded earlier keep the old ids until staff publish a revision (ADR-047).
+
+**Curriculum, ADR and acceptance check (2026-11-23, LAI 03, `main` `1b0a50a3` merged in).**
+- ADR-080 matches the code:
+  - one Realm, Place and Area, and nine quests with world-change prerequisites;
+  - the full-playthrough test accepts only `np-q01`, and accepting later credits everything;
+  - a closure check reaches all 27 puzzles and all 5 chests;
+  - replay grants nothing.
+  The amendment fixes the stale ADR-070 reference and the set-completion note.
+- ADR-081 matches the code. Staff windows are set in Admin. Discovery hides the Place outside its
+  window, and launch and redeem refuse it on the server. Saves are kept. Two new tests in
+  `apps/seasons`: refused launch with saves intact, and the UTC date boundary (owner decision:
+  UTC or local date).
+- Accepted (architecture) for ADR-080 and ADR-081 by the owner's merge of PR #66. Gameplay
+  acceptance (SEA-04) stays separate.
+- Curriculum: `docs/north-pole/CURRICULUM_AUDIT.md`, agreed with LAI 06. 9 invalid skill ids,
+  several valid-but-wrong codes and 10 new objectives. `np-obs-final` Explorer v2 to v5 need
+  rewriting. Both are done (block above).
+- Regression: `apps/seasons` 37 passed (PostgreSQL 18.7). The North Pole layout, seed and puzzle
+  tests are in the Firepeak run (419 passed), and the React and engine runs are the same as
+  Firepeak's (628 and 36 passed).
+
+**Release-readiness check (2026-11-23, LAI 03, `main` `aa8adb33`).** North Pole is on `main`
+(GE-090 step 22, PR #44). Unit level only:
+- Content: 9 quests `np-q01-welcome` to `np-q09-christmas-eve` in the export; layout version 5.
+- Engine: `npm run engine:validate` on `north_pole_scene.json` with the standard capability
+  registry, 0 issues. The engine bridge carries 11 checkpoints (9 zones and 2 lake banks), the
+  open-water hazard, the village snow surface (footsteps only, grip unchanged), the lake ice bank
+  (friction 0.3, 2 m clear of the water) and the engine snow weather (follows the child).
+- Django (PostgreSQL 18.7, gated): 452 passed, 0 failed (North Pole cues, NPC seed, assets,
+  layout, puzzles, seed, engine bridge, puzzle kinds, scoring realms and collectors, seasons).
+- React (gated): 21 files, 329 passed, 0 failed (North Pole region, engine bridge, definition,
+  weather parity, content export, seasonal chips, islands API, region audio, area puzzles,
+  game-engine bridge, realms).
+- `npm run typecheck`, `content:check` and `golden:check`: pass on the same tree (run in the
+  Firepeak worktree at `aa8adb33`).
+- Defects: Area puzzle solves record no `SkillEvidence` (shared, with Firepeak) and 9 puzzle
+  skill ids are not learning objectives (corrected from 5 on the same day, `CURRICULUM_AUDIT.md`); every collectible plays the star-fragment cue.
+  Details in `docs/north-pole/NORTH_POLE_OWNER_QA.md` section 4.
+- Owner QA checklist refreshed for `main` with ids (R, W, S, P, T, E).
+- Not run (policy): Playwright, browser, device, full suites, lint, format, build.
+
 ## GE-100 to GE-110: universal scoring and progression engine (2026-11-19, `core/ge-scoring`); development complete, integration into `core/gameengine` pending, economy OFF and NOT owner-approved, NOT merged
 
 **Conflict raised, not resolved.** ADR-011 part A and the scoring standard (ADR-072, mandatory)
@@ -478,7 +777,56 @@ engine lead's migration-ready SHA on `core/gameengine`.
   (content decision). Clue and hint selection with two Pip quests needs a product decision.
 - **Not done:** browser, device, gamepad or Playwright checks (policy); owner QA.
 
-## The Heart of Firepeak (FPV-01 to FPV-24, 2026-11-18, `feature/firepeak-volcano-adventure`); development complete, unit-tested only, owner QA pending, NOT merged
+## The Heart of Firepeak (FPV-01 to FPV-24); on `main`, owner QA pending, not owner-accepted, not deployed
+
+**Curriculum re-tag (2026-11-23, LAI 03, on FPV-D10 `f6d1a373`).** This branch merges LAI 06's
+contract commit (PR #73, not merged to `main`) and re-tags the Heart of Firepeak:
+- `firepeak_heart_content.SKILLS` holds each band's objective and the per-variant overrides from
+  `docs/firepeak/CURRICULUM_AUDIT.md` (17 catalog objectives; the 10 invalid ids are gone). The
+  engine definition lists the same 17; the scene snapshot is regenerated.
+- Tests: every teaching band has a row, every code is an exported objective, overrides land on the
+  right variants, an override for a missing variant is refused, and `puzzle_skill_report` is empty
+  for the Area after seed and publish.
+- Gate: `puzzle_skill_report --strict` exits 0 on a fresh PostgreSQL 18 database.
+- Databases seeded earlier keep the old ids until staff publish a revision (ADR-047).
+
+**Curriculum, ADR and acceptance check (2026-11-23, LAI 03, `main` `1b0a50a3` merged in).**
+- ADR-073 matches the code: separate Place, one seven-zone Area with six gates, generic
+  `CHOOSE_ANSWER` (7) and `ORDER_SEQUENCE` (4), a no-jump required route, jumping still on,
+  no lives or timers, and two Firepeak Places. The amendment records that hazards now run through
+  the engine bridge and that rocks and steam are built. Accepted (architecture) by the owner's
+  merge of PR #66. Gameplay acceptance (FPV-24) stays separate.
+- Curriculum: `docs/firepeak/CURRICULUM_AUDIT.md`, agreed with LAI 06. 10 of 11 skill ids were
+  not objectives; there are per-variant overrides and new objectives (authored by LAI 06). The
+  re-tag is done (block above).
+- Regression on the merged tree:
+  - Django (PostgreSQL 18.7): 419 passed (Firepeak and North Pole layout, seed, play, import,
+    security, and the changed asset collision profiles).
+  - React: 51 files, 628 passed.
+  - Engine: platform hazards and checkpoint state, 36 passed.
+  - `npm run typecheck`: pass.
+  - `engine:validate` on both scenes with the standard registry: 0 issues.
+- Open: FPV-D10 (completion blocker, LAI 06); owner QA (FPV-24); FPV-22 owner decisions.
+
+**Release-readiness check (2026-11-23, LAI 03, `main` `aa8adb33`).** Firepeak is on `main`
+(GE-090 step 17, PR #44). Checked on this SHA, unit level only:
+- Engine: `npm run engine:validate` on `firepeak_heart_scene.json` with the standard capability
+  registry, 0 issues. Lava hazard, telegraphed falling rocks, steam push volume, the crumbling
+  engine platform and the eight checkpoints run through the engine bridge (layout version 5).
+- Django (PostgreSQL 18.7, gated): 430 passed, 0 failed (Firepeak cues, Heart import, authoring
+  forms, Heart security, NPC seed, engine bridge, Heart layout, play and seed, Firepeak Volcano,
+  platforming, puzzle kinds, scoring collectors, realms and rules).
+- React (gated): 41 files, 486 passed, 0 failed (region play and Firepeak, regionPlay extension,
+  engine bridge and stabilization, content export, realms, audio, Great Storybook, castle trophies).
+- `npm run typecheck`, `content:check` (13 files) and `golden:check` (8 files): pass.
+- Defect found: Area puzzle solves (`game_sessions/play.py` `solve_puzzle`) record a
+  `PuzzleAttempt` but no `SkillEvidence`, so the parent dashboard's by-skill view has no Firepeak
+  (or North Pole) puzzle learning. Shared code; routed to the progression owner (LAI 06).
+- FPV-22 reconciled with the merged castle: `docs/firepeak/STORYKEEPER_INTEGRATION.md`.
+- Owner QA checklist refreshed for `main`: `docs/firepeak/FIREPEAK_OWNER_QA.md`.
+- Not run (policy): Playwright, browser, device, full suites, lint, format, build.
+
+### Development history (2026-11-18 to 2026-11-19, `feature/firepeak-volcano-adventure`)
 
 Contract and decisions: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`, ADR-073 (Proposed). Based on
 `feature/treasure-rush-palm-trees` (420f1afd) for the shared jump, camera and platform engine.
@@ -537,10 +885,10 @@ fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core)
     `platforming.recoveryLeads`) and moves crumble-then-fall for `fh-stone-vanish` to the engine's
     `gameplay.platforms` with unchanged timing (design section 12 item 9). The steam push shipped
     in layout version 4. Every other platform stays on the live system until GE-076.
-  - ADR-073 still needs its Reserved row on `main` (owner registry-only change).
+  - ADR-073's registry row is on `main` (Proposed). The acceptance change is prepared on `docs/adr-073-080-081-acceptance` and needs the owner's merge (2026-11-23).
 - Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
 - Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
-- Great Storybook page and Trophy Room pedestal: Firepeak side only (`STORYKEEPER_INTEGRATION.md`).
+- Great Storybook page and Trophy Room pedestal: Firepeak side only; castle registration needs owner decisions (`STORYKEEPER_INTEGRATION.md`, reconciled 2026-11-23).
 - Question Studio bank for area puzzles: extension point only.
 - Falling rocks, steam push and the crumbling stone: adopted (GE-073, GE-073F).
 - Managed NPCs do not speak per-puzzle stage lines in their own panel (the puzzle panel shows them).
@@ -765,6 +1113,245 @@ schema or infrastructure change. Baseline `main` @ 466a4972.
 - Follow-up (LAI-ENG-001, Trello card 202): `docs/engineering/initial-audit.md` (baseline audit and 16
   conflicts found in existing documents, none edited), an owner approval checklist and worktree rollout
   steps in `docs/engineering/README.md`.
+
+## Lambda processing completion (owner approvals 2026-11-18): developer-complete on `feature/serverless-processing-completion`; NOT merged, NOT deployed, live acceptance NOT run
+
+Provisional base: Wave 4 `486d2acc`. PR #42 and PR #43 could not be merged from the development
+session (no GitHub write credentials, and the effective repository deployment variables could
+not be read), so this branch is stacked on Wave 4 and must be reconciled with `main` after both
+merge. Integration conventions and file ownership: `docs/processing/COMPLETION_INTEGRATION.md`.
+Every new server-side capability is behind a control that defaults to `off`; no flag is enabled
+anywhere; no AWS call, deploy, layer publish or workflow run was made.
+
+| Area | Card | ADR | What exists (code, tests, docs) |
+|---|---|---|---|
+| Derived artifacts (Option C) | 014 | ADR-066 | `DerivedArtifact` (`assets.0003`), kinds and queues (`jobs.0005`), verified result recording in the one consumer, create-only worker store (`lambda/jobs_worker/artifact_store.py`, `IfNoneMatch="*"`, SHA-256 re-check after 412), staff-only Admin review, streamed private preview, explicit promotion to a new unpublished `AssetVersion`, retention 90/30 days with holds, orphan reconciliation (`asset_artifact_retention`, dry run by default), release check (`processing_release_check`) and release-manifest gate (`LAI_PROCESSING_RELEASE_MANIFEST`) |
+| Security and operations | defects | (ADR-064 corrections) | latest applicable validation decides publication (newer pending/failed/outdated blocks, asset then version locks), shared GLB extension policy with sync/async parity (compression rejected unless verified and enabled; unlisted extensions rejected; publish refuses rather than rejects on policy-only changes; rollback tolerates policy-only changes), failed and non-applied completed jobs pruned without returning attempts, worker import guards per package family, image metadata audit (`image_metadata_audit`, read-only; historical images NOT sanitized), artifact media route staff-only |
+| Audio transcoding | 008b | ADR-067 | LGPL FFmpeg 7.1.5 + libopus 1.6.1 + LAME 3.100 layer build (`native/ffmpeg`, pinned SHA-256, SBOM, licence refusal of gpl/nonfree), shared native runner (`processing/lai_native/runtime`), Opus primary and MP3 alternative, per-category loudness profiles, tag verification, Lambda-deadline wiring, `audio_worker`, Sound Manager actions (`audio.0006` permission) |
+| Image conversion | 013a | ADR-068 | separate Pillow 13.0.0 function (`native/pillow`, hash-pinned, aarch64 zip 13.3 MB of a 24 MiB budget), PNG/JPEG/WebP convert, resize, thumbnails, sRGB for artwork, exact values for data textures, glTF texture profiles, metadata stripped and audited on every output, scan-bomb and ICC limits, Asset Library actions |
+| Staff GLB thumbnails | 013b | ADR-069 | Django Admin capture page (Three.js, same-origin model only), WebP with PNG fallback, CSRF-protected upload bound to version id and SHA-256, server-side format and dimension checks, private derived artifact; browser acceptance NOT run (manual checklist `GLB_THUMBNAIL_CAPTURE.md`) |
+| Meshopt then KTX2 | 010 | ADR-070 | stdlib Meshopt and KTX2 validators wired into both validators behind `LAI_GLB_MESHOPT` / `LAI_GLB_KTX2` (validator 1.2.0: unpublished drafts revalidate), publish-time compression gate, gltfpack 1.3 and KTX-Software 4.4.2 tooling (x86 only; no arm64 gltfpack, no optimize zip, so both controls stay off), optimize jobs and Admin actions, one shared renderer-bound KTX2 loader for every game loader, Meshopt decoder bundled |
+| Production infrastructure | 012 | ADR-071 | prod processing construct inside `LaiDjangoEc2-prod`, enabled only by the committed `infra/config/prod-processing.json` (currently off; default prod synth byte-identical), dev native queues and workers (off), create-only and version-read IAM, capture Deny, alarms, budget only with an owner amount, `release-prod-workers.yml` (dispatch only, gated by `LAI_PROD_PROCESSING_DEPLOY_ENABLED`), deterministic release manifest with kind versions and SHA pins, rollback plan, consumer started after Django health |
+
+Independent reviews (security and privacy, database and concurrency, native execution, game
+compatibility, infrastructure) ran on the integrated branch; every blocking or high finding was
+fixed with tests, except review F10, where the owner's 2026-11-17 `StringLikeIfExists` decision
+was kept and the residual risk recorded as ADR-071 O15.
+
+Measurements (x86 workstation only; no arm64, Lambda, device or browser evidence exists):
+FFmpeg layer 1,510,244 bytes zipped; 900 s voice in 102 s wall, 87 MB peak; Pillow 16 MP peak RSS
+224 to 366 MiB; NPC GLB 3,307,456 to 941,508 bytes with Meshopt (28.5%), KTX2 no size win but
+calculated GPU texture memory 21.33 to 5.33 MiB. Local demo (`scripts/processing/local-demo.sh`):
+zero AWS client attempts; with the native tools present all audio, image, capture and
+optimization scenarios ran for real.
+
+Remaining live work: LAI-LAMBDA-011 (dev acceptance, every tier), LAI-LAMBDA-012 deployment,
+arm64 builds, browser and tablet acceptance of capture and compressed models.
+
+## Lambda processing closure and design wave (2026-11-17, late); NOT merged, NOT deployed
+
+- **PR #42 (001 to 007):** head `4ca7363a`, CI run 44195758040 green, mergeable, still draft, not
+  merged. Deployment gates verified closed from the `main` runs at `466a4972` (every deploy, build
+  and prod job skipped); PR #42 changes only push path filters. Focused final review: no blocking
+  defect. Merge needs an owner action (this session had no GitHub write credentials).
+- **Wave 4:** `feature/serverless-processing-wave4` adds the Ogg upload checksum fix (`04bd4df4`:
+  `validation_media._check_ogg` read the page CRC and never compared it; now the first 16 pages and
+  the last page are verified, code `ogg_crc`) and the rewritten 011/012 docs. Local demo passed with
+  zero AWS client attempts; worker zip 467,111 bytes (budget 2 MiB). No Wave 4 PR exists yet.
+- **Design branches (owner review, not for merge to `main` until approved):**
+
+| Branch (stacked on Wave 4 `48c98a18`) | Card | Content |
+|---|---|---|
+| `feature/lambda-derived-artifacts-design` | shared | `proposals/ADR-PROPOSED-derived-artifacts.md` (Option C recommended), `DERIVED_ARTIFACTS_INTEGRATION.md` |
+| `feature/lambda-audio-transcoding-design` | 008b | updated `proposals/ADR-PROPOSED-native-audio-transcoding.md`, `AUDIO_TRANSCODING.md`, unwired profile model `contracts/audio_profiles.py`, offline `bench/audio_transcode_bench.py` |
+| `feature/lambda-image-processing-design` | 013a | image-only `proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`, `feasibility/LAI-LAMBDA-013-image-conversion-contract.md`, standard-library EXIF/GPS scanner and upload warnings `image_location_present` / `image_metadata_present` (warnings only) |
+| `feature/lambda-thumbnail-rendering-design` | 013b | `proposals/ADR-PROPOSED-glb-thumbnail-rendering.md`, `GLB_THUMBNAIL_SPEC.md`, `bench/thumbnail_framing.py` |
+| `feature/lambda-glb-optimization-design` | 010 | updated 010 feasibility and proposal (Three.js loader change list, measurements), `proposals/ADR-PROPOSED-heavy-workload-runtime.md`, tests pinning that compressed extensions stay unpublishable |
+| `feature/lambda-release-readiness-design` | 011, 012 | merged into Wave 4 (`0eaf75c1`) |
+
+Every native runtime, artifact write and new queue in these branches is a proposal. The decisions
+are collected in `docs/processing/WAVE4_HANDOFF.md` section 7.
+
+## Wave 4 processing (LAI-LAMBDA-008 to 013): integrated on `feature/serverless-processing-wave4` (2026-11-17); NOT merged, NOT deployed
+
+Repository only; no AWS resource was created or changed. The branch is the reviewed canonical
+PR #42 head plus the Wave 4 workstreams (`feature/w4-npc-animation`, `feature/w4-audio-inspection`,
+`feature/w4-image-feasibility`, `feature/w4-optimization-feasibility`,
+`feature/w4-release-readiness`). This entry replaces the per-workstream entries. Handoff and what
+remains: `docs/processing/WAVE4_HANDOFF.md`.
+
+| Card | Status |
+|---|---|
+| LAI-LAMBDA-009 NPC animation inspection | Developer-complete on the branch |
+| LAI-LAMBDA-008 audio | Phase 1 (header inspection) developer-complete; transcoding and loudness (phase 2) not authorized, proposal only |
+| LAI-LAMBDA-010 GLB and texture optimization | Feasibility only |
+| LAI-LAMBDA-013 image conversion and thumbnails | Feasibility only |
+| LAI-LAMBDA-011 DEV live acceptance | Documentation only (checklist, not executed) |
+| LAI-LAMBDA-012 production rollout | Documentation only (plan) |
+
+- **009, `asset.analyze_animation`** (`docs/processing/NPC_ANIMATION_INSPECTION.md`). Processor
+  `asset.animation_inspector` 1.0.0, profile `animation-default` v1, standard library in the
+  existing worker zip; reuses the GLB validator's container and JSON modules without changing its
+  version (so no version becomes `processor_outdated`). Reports exact clip names, durations,
+  channels, samplers, keyframe counts, targets, skins and joints. Handler
+  `apps.npcs.animation_inspection`: result and identity verification, a copy on never-published
+  versions only (`inspection_stored`), published versions untouched (`result_recorded`). Admin
+  (`admin_animation.py`): "Inspect animations in background" on NPC model variants
+  (`npcs.change_npcmodelvariant`), an escaped read-only section and a suggestion-only mapping
+  helper that never suggests exporter take names. `NpcModelVariant.animation_map` is never
+  written.
+- **008 phase 1, `asset.process_audio`** (`docs/processing/AUDIO_INSPECTION.md`). Processor
+  `asset.audio_inspector` 1.0.0, profile `audio-inspect` v1: WAV, MP3 and Ogg (Vorbis, Opus)
+  header inspection in the standard library, format from the bytes, declared-type mismatch as a
+  finding, exact or estimated durations, explicit limitations; 20 MiB input. Staff-triggered
+  only ("Inspect audio in background" on Audio files and Sound cues, `audio.inspect_audiofile`;
+  proxy `audio.0005_audio_file_proxy`); never on upload. Results stay on the job; no version, cue
+  or release changes. Phase 2 (FFmpeg transcoding and loudness) is a proposal only:
+  `docs/processing/proposals/ADR-PROPOSED-native-audio-transcoding.md`.
+- **One jobs migration:** `jobs.0004_wave4_inspection_kinds` (kind choices and the
+  `jobs_kind_valid` check for both kinds). Rollout is consumer first.
+- **010 feasibility** (`docs/processing/feasibility/LAI-LAMBDA-010-glb-optimization.md`; proposed,
+  unaccepted `proposals/ADR-PROPOSED-glb-optimization.md`; `scripts/processing/bench/glb_baseline.py`,
+  `optimization_bench.py`). Baseline of the repository GLBs measured; no optimization tool was
+  installed, so no saving is measured. No decoder is shipped and both validators refuse meshopt,
+  Draco and BasisU. 013 owns image resize and the derived-artifact design.
+- **013 feasibility** (`docs/processing/feasibility/LAI-LAMBDA-013-*.md`; proposed, unaccepted
+  `proposals/ADR-PROPOSED-image-conversion-and-thumbnails.md`; `measure_native_wheels.py`,
+  `image_bench.py`, `thumbnail_bench.py`). Measured: worker zip about 351 KB (budget 2 MiB), Pillow
+  arm64 wheel 6.5 MB (21.6 MB unpacked), pyvips with libvips 8.5 MB, Chrome headless shell 273 MB
+  unpacked; x86 workstation timings only, no arm64 or Lambda measurement. Finding: uploaded images
+  keep EXIF and GPS data. Blocked on owner decisions D-1 to D-12.
+- **011 and 012:** `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (rewritten in three tiers:
+  core 001 to 007, Wave 4 inspection in section 5, future native workers in section 12; section 1
+  "Deployment gate verification" records that all deploy jobs on `main` were skipped because the
+  gate variables were not `true`) and `docs/processing/LAI-LAMBDA-012-production-rollout.md`
+  (reconciled with the production CDK and workflows; owner decisions P1 to P15, P14 and P15 new).
+  Nothing executed.
+- **Integration fix (2026-11-17):** the canonical review fix made `gltf.jsonparse.parse_document`
+  take a `max_elements` bound (string-aware structural pre-scan before `json.loads`); the
+  animation inspector still called the old signature, so every inspection raised `TypeError`
+  (31 failing tests). The inspector now carries `max_json_elements` (1,000,000, not raisable, as
+  in the GLB validator); a test covers the bound.
+- **Local demo** (`scripts/processing/local-demo.sh`, own PostgreSQL database, the packaged worker
+  zip, in-memory SQS and S3, zero AWS client attempts): the core steps 1 to 9 as before, then an
+  animated GLB inspected through the packaged worker (exact clips `Armature|mixamo.com|Layer0`,
+  `Idle`; NPC Admin section rendered; `animation_map` unchanged), a synthetic WAV inspected (wav,
+  pcm, 8000 Hz, 1 channel, 16 bit, 0.5 s exact; Sound Manager panel rendered; still `VALIDATED`),
+  and the failure paths: a GLB refused for audio (`not_audio`) and a non-audio `.wav` with verdict
+  `fail`; a duplicate result ignored; a stale version refused (`checksum_mismatch`); a view-only
+  staff user refused the actions (no job made); an S3 503 on a ranged read raised retryable
+  (`throttled`) and succeeded on redelivery. The demo now keeps its asset files in its temporary
+  directory (the settings fix `LAI_ASSET_LOCAL_ROOT`, which the script's export did not change).
+- **Tests:** at `6e5cab6`, full pytest on PostgreSQL 6276 passed, 7 skipped, 0 failed; React unit
+  tests, build, typecheck, infra Vitest, offline dev and prod synth, Ruff, Prettier, oxlint,
+  content, golden, ADR and `makemigrations --check` all pass; the worker zip
+  `jobs-worker-b287c21bc908adc9.zip` (467,111 bytes) builds identically twice; the local demo
+  passes all 17 steps with 0 AWS client attempts.
+- **Not verified:** any live worker run (LAI-LAMBDA-011, owner approval). **Not done:** 008 phase 2, any 010 or 013 implementation, artifact writes,
+  native tools or container images, deployment (owner decisions W4-1 to W4-8).
+
+## Asynchronous model validation re-landed on the canonical path (LAI-LAMBDA-001 to 007, ADR-064): developer-complete on `feature/serverless-processing-canonical` (2026-11-17); owner review pending, NOT merged, NOT deployed
+
+Repository only; no AWS resource was created or changed. Re-lands the compatible parts of PR #40,
+PR #41 and `feature/serverless-processing-wave3` (all unmerged, branches kept as implementation
+references) on the one processing path. Details: `docs/processing/CANONICAL_PATH.md` ("Re-land
+status") and `docs/processing/ASYNC_MODEL_VALIDATION.md`. The earlier Wave 1, 2 and 3 status
+entries live on those branches and are superseded by ADR-064 and this entry.
+
+- **Foundation (principal).** `processing/lai_processing` and the GLB validator re-landed with the
+  Wave 2/3 review fixes, plus a comment in `core/limits.py`; `asset.validate_model` and
+  `reference.checksum` as `apps.jobs` kinds on the media queue (`envelope.KIND_QUEUE`, `JobKind`,
+  migration `jobs.0003_contract_kinds` with `idempotency_key` and `subject_outcome`,
+  `services.submit(job_id=, idempotency_key=)`); `core/contract.py` runs the ADR-061 request in the
+  schema-1 payload and returns the ADR-061 result (retryable failures redeliver through SQS,
+  permanent ones become `failed` results, no artifact writes); `lambda/build.py` vendors the library
+  into the worker zip; settings put `processing/` on `sys.path` and add `LAI_ASSET_ASYNC_VALIDATION`
+  (default `off`).
+- **Workstream 1 (upload and gate, LAI-LAMBDA-006 and 007).** Flag-on GLB upload: `DRAFT` and its
+  job in one transaction, `processing_unavailable` when submission is refused; publication gate
+  `processing_required`.
+- **Workstream 2 (result tests).** `asset.validate_model` results through `apply_result` and
+  `jobs_consume_results`: verdicts, failures, duplicates and late results, forged and mismatched
+  results, identity changes, manual revalidation, handler database errors, lock order and
+  concurrency, idempotent submission; `reference.checksum` end to end.
+- **Workstream 3 (Django Admin, LAI-LAMBDA-007).** Read-only "Background validation" section and
+  the "Validate in background" action; every value escaped.
+- **Workstream 4 (worker, zip, packaging, guard).** Contract kinds through the packaged handler;
+  zip contents, determinism, import guard and 2 MiB budget (about 351 KB); the native release and
+  `lai/Dockerfile` ship `processing/lai_processing`; workflows trigger on it;
+  `tests/repo/test_canonical_processing_guard.py`.
+- **Defects found and fixed on this branch:**
+  - the contract status was not checked: a failed or cancelled `ProcessingJobResult` inside a
+    schema-1 `succeeded` envelope rejected the draft; it is now `result_invalid`;
+  - a refused result (mismatch or invalid) blocked resubmission for good; only pending, running
+    or applied jobs are reused now;
+  - a transient S3 read during the engine's input copy was `unexpected_failure` (manual, never
+    retried); it is now `storage_failure` and retried through SQS;
+  - the `glb-default` profile's 300 s budget exceeded the media function's 120 s timeout; the
+    request now carries 90 s.
+- **Retry and retention (owner decisions 2026-11-17; `fix/can-retry-retention` merged into
+  `feature/serverless-processing-canonical`).** Staff resubmission of a failed (any code, `timeout`
+  and `cancelled` included), refused, superseded or `fail`-verdict validation job makes a new job
+  under the asset row lock (double clicks make one); pending, running and passing jobs are reused;
+  at most `LAI_ASSET_VALIDATION_MAX_ATTEMPTS` (5) jobs per file and processor version
+  (`attempts_exhausted`). No cancelled job status: a contract cancel is `failed`/`cancelled`. A
+  result whose job is no longer the version's newest is `result_superseded` and changes nothing; the
+  gate follows the newest accepted result. A `REJECTED` version stays rejected and a published one
+  never changes. `jobs_sweep` keeps completed `asset.validate_model` jobs
+  `LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS` (90; exactly 90 days is kept), other kinds keep
+  `LAI_JOBS_RETENTION_DAYS`; pending, running and failed jobs are never pruned. An unpublished GLB
+  whose passing job was pruned needs a new validation; published delivery is unaffected. Tests:
+  `test_model_validation_retry.py`, additions to `test_admin_validation.py`, `test_jobs_services.py`
+  and `test_jobs_admin_settings.py`. Docs: `ASYNC_MODEL_VALIDATION.md` sections 9 and 10. Open:
+  whether failed validation jobs should also expire; a compact immutable evidence record (evaluated,
+  not implemented); `.env.sample` not updated (not readable in this session).
+- **Tests:** the speech storage test that failed earlier in the full run
+  (`test_speech_storage.py::TestS3::test_presigned_urls_use_the_regional_host`, order dependent)
+  is fixed: a boto3 default session cached ambient credentials; fixed by 7e94966 plus a module
+  fixture in 2333d9e. Final suite results:
+  at `55657cb`, full pytest on PostgreSQL 6110 passed, 7 skipped; React unit tests, build,
+  typecheck, infra Vitest, offline dev and prod synth, Ruff, Prettier, oxlint (3 existing
+  warnings), content, golden, ADR and `makemigrations --check` all pass; the worker zip
+  `jobs-worker-e40163430cfccc67.zip` (361,456 bytes) builds identically twice; GitHub CI green.
+- **Local demo** (`scripts/processing/local-demo.sh`; Django with the packaged worker zip,
+  in-memory SQS and S3): a flag-on upload committed as `DRAFT` with its job on the media queue;
+  publication refused with `not_validated` (the draft) and `processing_required` (a flag-off
+  `VALIDATED` GLB); the packaged worker validated the GLB and `apply_result` recorded `running`
+  then applied the result (`VALIDATED`, exact clip names); a redelivered work message was ignored
+  as a duplicate; the Admin section rendered; explicit publish passed the gate and the resolver
+  served the version; a failing model became `REJECTED` (`invalid_json`); zero AWS calls.
+- **Not verified (live only, LAI-LAMBDA-011):** a deployed upload, worker run, DLQ redrive and
+  outage drill. **Owner decisions open:** artifact writes on this path. `s3:ListBucket` for the
+  media role: approved 2026-11-17 and done in the repository (`fix/can-s3-missing` merged into
+  `feature/serverless-processing-canonical`; not deployed): `ListAssetBucket` on the asset bucket
+  only (`StringLikeIfExists` `assets/*`), and asset read errors classified (missing: terminal
+  `object_missing`/`input_missing`; 403: terminal `access_denied`/`permission_denied`, never
+  "missing"; throttling, 5xx, transport: retried). `docs/processing/CANONICAL_PATH.md`, "Asset read
+  errors"; live 404 check in LAI-LAMBDA-011.
+- **GLB input limit decided (owner, 2026-11-17; `fix/can-glb-limit` merged into
+  `feature/serverless-processing-canonical`):** `LAI_ASSET_MAX_GLB_BYTES`, default 50 MiB =
+  52,428,800 bytes, bounds 1 MiB to 50 MiB (the `glb-default` profile limit), applied to the Admin
+  upload, the `asset.validate_model` request and the `asset.inspect` payload (`max_bytes`, enforced
+  by the worker; old payloads keep 64 MiB). nginx `client_max_body_size 55m` already covers 50 MiB
+  plus overhead. Tests: `lai/apps/assets/tests/test_glb_limit.py`,
+  `tests/deploy/test_upload_body_limit.py`, one worker test in
+  `tests/lambda/test_jobs_worker_handler.py`. Deploy the worker zip before or with Django.
+- **GLB validator memory and metadata fixes (review findings, merged into the canonical branch).**
+  A 16 MiB JSON chunk of tiny values peaked at 870 MB (`[{},{},...]`) in the 512 MB media
+  function; a linear, string-aware structural pre-scan now runs before `json.loads` in both the
+  processor (`jsonparse.scan_structure`) and Django's upload validator (`_scan_json`, mirrored,
+  parity-tested): nesting over 64 is `invalid_json`, more than 1,000,000 elements
+  (`max_json_elements`, not raisable by a request) is `too_complex`. Worst admitted 16 MiB chunk
+  measured at 235 MB peak RSS; the old worst cases are refused at 68 MB. The depth walk is gone.
+  Django now also refuses JSON nested deeper than 64 (the `deep_json` parity difference is
+  gone). Oversized extension names no longer fail the job with `resource_limit_exceeded`: the
+  extension lists and `generator` are dropped to fit, with a minimal fallback. Processor stays
+  1.0.0 (never deployed, no stored result). No infra or memory change.
+  `docs/processing/GLB_VALIDATION.md` section 3, "JSON memory budget".
+- **Worker cache lookups (review finding, `fix/can-cache-403` merged).** A 403 on the worker's
+  own stored-result lookup or speech clip HEAD now means "not stored yet" instead of a retry; it
+  kept every job's first delivery out of the DLQ when the plain `s3:prefix` ListBucket grants do
+  not apply. No IAM change; asset inputs keep 403 as `access_denied`. Pre-existing on `main`.
 
 ## DEV blocker resolution (ADR-064) — implemented and tested in the repository on `main` (2026-11-17); NOT deployed
 

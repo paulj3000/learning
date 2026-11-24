@@ -1,5 +1,5 @@
 {
-  "contentDigest": "2133f6a1e7510898be5cb36aa494716746f34dfaaaf1b6b8498223f24ee459d7",
+  "contentDigest": "ad97832c0724ef40f2116fadb35af659a042e7d10e30243600490ad48a442c24",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -22,11 +22,11 @@
     {
       "counts": {
         "adventures": 29,
-        "learningObjectives": 20,
+        "learningObjectives": 32,
         "wonderWallQuestions": 4
       },
       "path": "adventures.json",
-      "sha256": "d5ae5eb17b8acfdb5611b16b73b45620b929f9a8344e3d73a47eca8d6bcb1813"
+      "sha256": "7fee075d27fbc3e499ea2b285ce9d1eb4b055ce04457fcc7b078e7342cf92262"
     },
     {
       "counts": {

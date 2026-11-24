@@ -56,6 +56,54 @@ class TestSnapshot:
         assert "firepeak-volcano-main" in assets
 
 
+class TestCurriculumSkills:
+    """FPV-D10: every skill a puzzle names is a catalog objective (firepeak CURRICULUM_AUDIT.md)."""
+
+    @staticmethod
+    def _named():
+        for pid, kind, _e, b in ROWS:
+            if kind not in (PuzzleKind.CHOOSE_ANSWER, PuzzleKind.ORDER_SEQUENCE):
+                continue
+            for band, params in b["ageBands"].items():
+                yield pid, band, None, params["skill"]
+                for v in params["variants"]:
+                    if "skill" in v:
+                        yield pid, band, v["id"], v["skill"]
+
+    def test_every_teaching_band_has_a_skills_row(self):
+        teaching = {r[0] for r in ROWS if r[1] in (content.KIND_CHOOSE, content.KIND_ORDER)}
+        assert set(content.SKILLS) == teaching
+        assert all(set(bands) == set(BANDS) for bands in content.SKILLS.values())
+
+    def test_every_skill_is_a_learning_objective_in_the_export(self):
+        from apps.catalog.importer import DEFAULT_EXPORT_DIR
+
+        exported = json.loads((DEFAULT_EXPORT_DIR / "adventures.json").read_text())
+        codes = {o["code"] for o in exported["learningObjectives"]}
+        unknown = sorted({(p, b, v, c) for p, b, v, c in self._named() if c not in codes})
+        assert unknown == []
+
+    def test_variant_overrides_are_applied_and_others_use_the_band_default(self):
+        bands = dict((r[0], r[3]["ageBands"]) for r in ROWS)
+        explorer = bands["fh-lava-numbers"]["EXPLORER"]
+        assert explorer["skill"] == "addition-within-100"
+        by_id = {v["id"]: v.get("skill") for v in explorer["variants"]}
+        assert by_id == {
+            "v1": None,
+            "v2": "subtraction-within-100",
+            "v3": "multiplication-facts",
+            "v4": None,
+            "v5": "multiplication-facts",
+        }
+
+    def test_an_override_for_a_missing_variant_is_refused(self, monkeypatch):
+        monkeypatch.setitem(
+            content.SKILLS, "fh-summit-rocks", {b: ("earth-science", {"v9": "x"}) for b in BANDS}
+        )
+        with pytest.raises(ValueError, match="no variants"):
+            content.puzzle_rows()
+
+
 class TestPuzzleTable:
     def test_fourteen_puzzles_in_design_order(self):
         assert [r[0] for r in ROWS] == [
@@ -476,6 +524,14 @@ class TestPublishCommand:
         assert region.status == ContentStatus.PUBLISHED
         assert set(region.puzzles.values_list("status", flat=True)) == {ContentStatus.PUBLISHED}
         call_command("publish_firepeak_heart", stdout=None)  # idempotent
+
+    @override_settings(DEBUG=True)
+    def test_every_published_puzzle_skill_is_a_learning_objective(self, heart):
+        from apps.education.services import puzzle_skill_report
+
+        call_command("seed_firepeak_heart", stdout=None)
+        call_command("publish_firepeak_heart", stdout=None)
+        assert [r for r in puzzle_skill_report() if r["region"] == seed.REGION_ID] == []
 
 
 class TestNpcManagerPlacements:

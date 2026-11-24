@@ -1103,9 +1103,14 @@ tsconfig.app.json` has one error, the missing `@colyseus/sdk` module, none in ca
       the scoring lead and added to `CHILD_WRITE_ROUTES` (re-run: 37 passed). Owner gates are unchanged.
 - [x] **SC-R12-RECONCILE** Castle reconciled with `main` @ `aa8adb33` (LAI 02, 2026-11-23, branch
       `docs/SC-R12-storykeeper-main-reconcile`). Everything above is in `main` (castle head `df376878`, GE-090
-      step 20c, PR #44), and so are GE-090-D1 and D2. Two castle defects remain on `main`, both fixed on the
-      unmerged GE-090-D7 branch (Agent 5): no castle sound (region manifest 404) and Quill's prompt
-      in third-person view. Evidence: Django on PostgreSQL 18.7, 1949 passed, 0 failed; Vitest 1365 of 1366
+      step 20c, PR #44), and so are GE-090-D1 and D2. Two castle defects were open on `main` at that point: no castle
+      sound (region manifest 404) and Quill's prompt in third-person view. GE-090-D7 (Agent 5, PR #63)
+      fixed both and was merged at `1b0a50a3`, after which `sound_prep.md` was updated to match.
+- [x] **SC-R12-HANDOFF** (LAI 02, 2026-11-23, `main` `1b0a50a3`; Development Complete, not owner
+      accepted). SC-R12 per-criterion reconciliation (integration doc section 12) and the 16-area owner
+      playthrough (acceptance guide 4.5). Corrected sound prep, release notes and audio status, and one
+      stale Quill collider comment. No castle code defect found. Evidence is in the integration doc,
+      section 12.1. Evidence: Django on PostgreSQL 18.7, 1949 passed, 0 failed; Vitest 1365 of 1366
       (`noAmplify` load timeout, passes alone); typecheck, content and golden clean. Owner QA checklist:
       acceptance guide section 4.4. Closure sequence: integration doc section 11.5.
 - [x] **GE-072** Storykeeper Castle on the Game Engine Core (2026-11-19, branch `feature/storykeeper-castle-completion`,
@@ -1389,3 +1394,87 @@ apps/assets` plus every Django test file naming the castle or the Storybook (29 
 - [ ] **SC-R12 gates** Previously listed: Gated items: new supporting NPC model, narration voice consent, Phaser
       retirement (SC-R10-03, ADR-020, LAI-2303), owner playtest and real-tablet profiling (SC-R11, the SC-11
       gate).
+
+# Serverless Background Processing (`docs/processing/`, ADR-061 amended by ADR-064)
+
+One processing path (ADR-064, `docs/processing/CANONICAL_PATH.md`): `apps.jobs`, the ADR-055
+queues, the zip Lambda workers and `jobs_consume_results`. PR #40 (`feature/serverless-processing`),
+PR #41 (`feature/serverless-processing-wave2`) and `feature/serverless-processing-wave3` are not
+merged and are kept as implementation references; their compatible parts are re-landed on
+`feature/serverless-processing-canonical` (developer-complete 2026-11-17, owner review pending,
+not merged, not deployed). Trello cards LAI-LAMBDA-001 to 013.
+
+- [x] **LAI-LAMBDA-001** Shared processing library and job contracts (ADR-061). Re-landed on
+      `feature/serverless-processing-canonical`: `processing/lai_processing` from PR #40, re-landed
+      with the Wave 2/3 review fixes, plus a comment in `core/limits.py`; tests in
+      `tests/processing/`. Pending owner review, not merged
+- [x] **LAI-LAMBDA-002** GLB validator and metadata extractor (`asset.glb_validator`,
+      `asset.validate_model`, parity with `lai/apps/assets/validation.py`). Re-landed and vendored
+      into the jobs worker zip (`lambda/build.py`). Pending owner review, not merged, not deployed
+- [x] **LAI-LAMBDA-003** Local worker and runtime adapters. **Superseded by ADR-064:** the existing
+      zip worker (`lambda/jobs_worker`, `core/contract.py`) runs the contract kinds;
+      `lai_processing_runtime`, the ECR image and `Dockerfile.lambda` are not taken
+- [x] **LAI-LAMBDA-004** Django job records. Done through `apps.jobs` (no second model):
+      `asset.validate_model` and `reference.checksum` kinds, `idempotency_key` and
+      `subject_outcome` (migration `jobs.0003_contract_kinds`), handler `apps.assets.processing`.
+      Pending owner review, not merged, no live migration
+- [x] **LAI-LAMBDA-005** Processing infrastructure. **Superseded by ADR-064:** no new
+      infrastructure; the media queue and worker `lai-<env>-jobs-media` are reused.
+      `LaiProcessing-<env>`, its queues, bucket, ECR and `deploy-processing.yml` are not taken.
+      `s3:ListBucket` for the media role: decided 2026-11-17; `ListAssetBucket` in the
+      repository, not deployed
+- [x] **LAI-LAMBDA-006** Upload and completion integration. Developer-complete on
+      `feature/serverless-processing-canonical`: `LAI_ASSET_ASYNC_VALIDATION` (default `off`), a
+      flag-on GLB upload stored `DRAFT` with its job in one transaction, `apply(job)` moves it to
+      `VALIDATED` or `REJECTED`. Evidence: `test_async_upload.py`,
+      `test_model_validation_results.py`, `scripts/processing/local-demo.sh`. Pending owner review,
+      not merged, not deployed
+- [x] **LAI-LAMBDA-007** Asset Library validation results and release gates. Developer-complete on
+      `feature/serverless-processing-canonical`: Django Admin "Background validation" section and
+      "Validate in background" action; publication gate `processing_required` (rollback and make
+      default not gated; no automatic publication). Evidence: `test_publication_gate.py`,
+      `test_admin_validation.py`. Pending owner review, not merged, not deployed
+- [x] **LAI-LAMBDA-008** Audio validation (`asset.process_audio`), phase 1: header inspection.
+      Developer-complete on `feature/serverless-processing-wave4`: processor
+      `asset.audio_inspector` (standard library, worker zip), handler `apps.audio.inspection`
+      (results stay on the job), "Inspect audio in background" on Audio files and Sound cues
+      (`audio.inspect_audiofile`), migration `jobs.0004_wave4_inspection_kinds`. Evidence:
+      `test_processing_audio_inspector.py`, `test_audio_inspection.py`,
+      `scripts/processing/local-demo.sh`. Not merged, not deployed. Transcoding moved to 008b.
+      2026-11-17: upload Ogg checksum gap fixed (`ogg_crc`)
+- [ ] **LAI-LAMBDA-008b** Audio transcoding and loudness normalisation (008 phase 2; FFmpeg).
+      Owner-approved 2026-11-18 (ADR-067). **Developer-complete on `feature/serverless-processing-completion`, not merged, not
+      deployed:** LGPL FFmpeg layer build, `lai_native` runner and audio processor, `audio_worker`,
+      Sound Manager actions, derived artifacts. Evidence: `tests/processing_native`,
+      `tests/lambda/test_audio_worker.py`, `lai/apps/audio/tests/test_audio_transcoding.py`, real
+      x86 FFmpeg tests and local demo. Open: arm64 layer, sizing, live acceptance (011)
+- [x] **LAI-LAMBDA-009** NPC animation inspection and mapping assistance
+      (`asset.analyze_animation`, zip). Developer-complete on `feature/serverless-processing-wave4`:
+      processor `asset.animation_inspector`, handler `apps.npcs.animation_inspection`, "Inspect
+      animations in background" on NPC model variants with a suggestion-only mapping helper;
+      never writes `animation_map`, never changes a published version. Evidence:
+      `test_processing_animation_inspection.py`, `test_animation_inspection.py`,
+      `scripts/processing/local-demo.sh`. Not merged, not deployed
+- [ ] **LAI-LAMBDA-010** GLB optimisation, Meshopt then KTX2 (`asset.optimize`). Owner-approved
+      2026-11-18 (ADR-070). **Developer-complete on `feature/serverless-processing-completion`, not merged, not deployed, controls off:**
+      validators (1.2.0) and publication gate, optimize processor, worker and Admin actions,
+      shared KTX2 loader for every game loader, measured x86 benchmarks. Open: arm64 gltfpack and
+      optimize zip (blocks enabling), browser and tablet acceptance, production runtime (O1)
+- [ ] **LAI-LAMBDA-011** Live AWS end-to-end, failure, performance and cost acceptance (depends:
+      006, 007 merged; owner deployment approval). Runbook
+      `docs/processing/LAI-LAMBDA-011-dev-acceptance.md` (core, derived artifacts, native
+      workloads, staff preview tiers). Not executed. Open
+- [ ] **LAI-LAMBDA-012** Production rollout, observability and rollback. Infrastructure code
+      owner-approved 2026-11-18 (ADR-071) and developer-complete on `feature/serverless-processing-completion` (committed prod config
+      off, release workflow gated off, manifest, rollback plan, alarms). Production deployment
+      NOT authorized and NOT done. Open
+- [ ] **LAI-LAMBDA-013** Asset thumbnail generation and image conversion (parent; open until both
+      children close; server-side GLB rendering is deferred and does not block it):
+  - [ ] **LAI-LAMBDA-013a** Image conversion (`asset.convert_image`, separate Pillow function,
+        ADR-068). Developer-complete on `feature/serverless-processing-completion`: convert, resize, thumbnails, privacy stripping,
+        Asset Library actions, derived artifacts. Not merged, not deployed
+  - [ ] **LAI-LAMBDA-013b** Staff browser GLB thumbnail capture (ADR-069). Developer-complete on
+        `feature/serverless-processing-completion`; browser acceptance NOT run (manual checklist `GLB_THUMBNAIL_CAPTURE.md`)
+  - [ ] **LAI-LAMBDA-014** Shared derived artifacts (Option C, ADR-066). Developer-complete on
+        `feature/serverless-processing-completion`: model, verified recording, create-only writes, review, promotion, retention, release
+        check. Not merged, not deployed

@@ -140,6 +140,27 @@ All under **Sound library** in Django Admin; no React screen exists or was added
 4. **Sound releases, Publish the sound library**: shows every problem (or, when clean, what will be
    published), takes an optional note, and creates the next release atomically.
 5. **Roll back**: select a release, apply the action; it re-publishes that snapshot as a new release.
+6. **Inspect audio in background** (LAI-LAMBDA-008 phase 1, on **Audio files (inspection)** and on
+   **Sound cues**): a read-only header inspection of the exact stored version (format from the
+   bytes, codec, duration and whether it is exact or estimated, sample rate, channels, findings and
+   limitations), run by the media worker. The result is shown on the file or cue page with a link
+   to its background job. It changes no version, cue or release and publishes nothing. Needs
+   `audio.inspect_audiofile`. See `docs/processing/AUDIO_INSPECTION.md`.
+7. **Transcode** and **Normalise loudness and transcode** in background (LAI-LAMBDA-008b, ADR-067,
+   on the same two pages; needs `audio.transcode_audiofile`): send the exact stored version to the
+   audio worker, which makes an Ogg Opus output (primary) and an MP3 output (alternative). Transcode
+   keeps the level and only measures it; Normalise sets it to the cue channel's target (voice -16
+   LUFS, music -18, ambient -20, effects peak -3 dBFS, interface peak -6 dBFS). Actions on a cue use
+   its channel; on an audio file the channel comes from the cues that use the file (or the action
+   asks you to start from a cue). Both are refused with a plain message while `LAI_AUDIO_TRANSCODING`
+   is off. The file and cue pages show progress, source and output format, duration, bit rate, size,
+   loudness and true peak before and after, the gain, findings, and **Review and promote** and
+   **Play** links to the derived artifact preview (`docs/processing/DERIVED_ARTIFACTS.md`). The
+   outputs are private previews: nothing replaces a version, changes a cue or reaches a release
+   until a staff member with the promote permission (Asset publishers) promotes one into a new
+   unpublished version, which is then published in the Asset Library and a sound release as usual.
+   Only staff-authored audio is processed, never child audio. See
+   `docs/processing/AUDIO_TRANSCODING.md` section 10.
 
 Cue list: filter by channel, enabled and shared; search by id, name, description and asset id; the
 Publishing status column reads `Not published`, `Published`, `Changes not yet published`,
@@ -148,8 +169,9 @@ disable actions apply at the next release. Django's history page lists every cha
 rollback also write a history entry on the release.
 
 Roles (`manage.py ensure_sound_roles`, idempotent like `ensure_asset_roles`): **Sound editors**
-create and edit cues and assignments and view releases; **Sound publishers** also publish and roll
-back. Neither can upload or publish audio files; that stays with the Asset Library groups.
+create and edit cues and assignments, view releases, inspect audio files and transcode or normalise them in the background (previews
+only, plus read-only access to derived artifacts);
+**Sound publishers** also publish and roll back. Neither can upload or publish audio files; that stays with the Asset Library groups.
 
 ## 4. Publishing and version consistency (SM-P2-05)
 

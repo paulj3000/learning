@@ -18,8 +18,9 @@ from django.db.models import BooleanField, Count, ExpressionWrapper, Q, Subquery
 
 from apps.assets import preview as asset_preview
 from apps.assets.models import AssetVersion
-from apps.catalog import admin_access
+from apps.catalog import admin_access, scene_usage
 from apps.catalog.authoring_admin import AuthoredContentAdminMixin
+from apps.catalog.importer import SCENE_ASSETS_WITHOUT_PLACE
 from apps.catalog.models import (
     Adventure,
     AdventureStep,
@@ -43,7 +44,7 @@ CATALOG_FIELDS = ("active", "sort_order")
 
 
 def _latest_release():
-    return ContentRelease.objects.order_by("-imported_at", "-id").values("pk")[:1]
+    return ContentRelease.objects.order_by(*scene_usage.NEWEST_FIRST).values("pk")[:1]
 
 
 class InLatestReleaseFilter(admin.SimpleListFilter):
@@ -440,12 +441,30 @@ class ContentAssetAdmin(CatalogModelAdmin):
         )
         return asset_preview.link_for(version)
 
-    @admin.display(description="Used by locations")
-    def used_by(self, obj) -> str:
-        slugs = obj.location_links.order_by("location__slug").values_list(
-            "location__slug", flat=True
+    def get_queryset(self, request):
+        # The latest release for `used_by`, in this query rather than once per listed row.
+        latest = ContentRelease.objects.order_by(*scene_usage.NEWEST_FIRST)
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(
+                latest_release_pk=Subquery(latest.values("pk")[:1]),
+                latest_without_place=Subquery(
+                    latest.values(f"report__{SCENE_ASSETS_WITHOUT_PLACE}")[:1]
+                ),
+            )
         )
-        return ", ".join(slugs) or "No shipped scene"
+
+    @admin.display(description="Used by shipped scenes")
+    def used_by(self, obj) -> str:
+        if not hasattr(obj, "latest_release_pk"):  # not from get_queryset: ask once
+            latest = scene_usage.latest_release()
+        elif obj.latest_release_pk is None:  # nothing imported yet
+            latest = None
+        else:
+            latest = scene_usage.LatestRelease(obj.latest_release_pk, obj.latest_without_place)
+        usages = scene_usage.shipped_scene_usages(obj, latest)
+        return "; ".join(usage.short for usage in usages) or "No shipped scene"
 
     @admin.action(description="Retire selected assets", permissions=["retire"])
     def retire_assets(self, request, queryset):
@@ -453,7 +472,8 @@ class ContentAssetAdmin(CatalogModelAdmin):
 
         count = 0
         for asset in queryset:
-            used = asset.location_links.count()
+            # Shipped scenes never block retirement (GE-247); they are listed so staff see it.
+            scenes = [usage for usage in scene_usage.shipped_scene_usages(asset) if usage.current]
             try:
                 retire_asset(asset)
             except AssetActionRefused as refused:  # a retirement guard objected (LAI-NPC-036)
@@ -461,11 +481,12 @@ class ContentAssetAdmin(CatalogModelAdmin):
                 continue
             self.log_change(request, asset, "Retired the asset.")
             count += 1
-            if used:
+            if scenes:
                 self.message_user(
                     request,
-                    f"{asset.asset_id} is still referenced by {used} place(s); games fall back "
-                    "to their bundled art until it is reactivated.",
+                    f"{asset.asset_id} is still used by shipped scene(s) "
+                    f"{', '.join(usage.short for usage in scenes)}. "
+                    f"{scene_usage.retirement_note(asset)}",
                     messages.WARNING,
                 )
         if count:

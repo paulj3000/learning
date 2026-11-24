@@ -60,6 +60,86 @@ services:
         mode: non-blocking
         max-buffer-size: 4m
 
+  # Background processing (ADR-071, profile `jobs`): started only when the rendered runtime
+  # settings say LAI_JOBS_BACKEND=sqs (scripts/aws/lib.sh compose_for), so a release with the
+  # backend `disabled` runs neither. The same image and settings as `django`, the same command as
+  # dev's lai-jobs-consumer.service: one consumer, which also runs the outbox relay. It checks
+  # PostgreSQL before every receive (no receive is spent while the database is down), stops on
+  # SIGTERM after the current message, and exits 0 when the backend is not sqs, so on-failure never
+  # restarts it then. A crash restarts it; unapplied results stay in the queue (14 days).
+  jobs-consumer:
+    profiles: [jobs]
+    image: ${LAI_IMAGE:?set by the deploy script}
+    command: [python, manage.py, jobs_consume_results]
+    restart: on-failure
+    env_file:
+      - path: ${LAI_RUNTIME_DIR:?}/django.env
+        format: raw
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      LAI_RELEASE_SHA: ${LAI_GIT_SHA:?}
+    volumes:
+      - ${LAI_CERTS_DIR:?}:/etc/lai/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    stop_grace_period: 40s # the 20 s long poll plus one message, as TimeoutStopSec=40 in dev
+    depends_on:
+      django:
+        condition: service_healthy # migrations applied and the database reachable
+    networks: [app]
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:?}
+        awslogs-group: ${LAI_APP_LOG_GROUP:?}
+        awslogs-create-group: 'false'
+        awslogs-stream: jobs-consumer-${LAI_GIT_SHA:?}
+        mode: non-blocking
+        max-buffer-size: 4m
+
+  # Daily reconciliation (dev: lai-maintenance.timer): jobs_sweep fails stale jobs and prunes
+  # completed ones by their retention. Runs at start (every release) and then every 24 hours;
+  # idempotent and transactional, so a restart or an overlapping run is harmless. `init` makes
+  # SIGTERM stop the loop at once. A failure is logged as `jobs-sweep failed` (an alarm metric).
+  jobs-sweep:
+    profiles: [jobs]
+    image: ${LAI_IMAGE:?set by the deploy script}
+    init: true
+    entrypoint: [/bin/sh, -c]
+    command:
+      - 'while true; do python manage.py jobs_sweep || echo "jobs-sweep failed exit=$$?"; sleep 86400; done'
+    restart: unless-stopped
+    env_file:
+      - path: ${LAI_RUNTIME_DIR:?}/django.env
+        format: raw
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      LAI_RELEASE_SHA: ${LAI_GIT_SHA:?}
+    volumes:
+      - ${LAI_CERTS_DIR:?}:/etc/lai/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    stop_grace_period: 10s
+    depends_on:
+      django:
+        condition: service_healthy
+    networks: [app]
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION:?}
+        awslogs-group: ${LAI_APP_LOG_GROUP:?}
+        awslogs-create-group: 'false'
+        awslogs-stream: jobs-sweep-${LAI_GIT_SHA:?}
+        mode: non-blocking
+        max-buffer-size: 4m
+
   proxy:
     image: public.ecr.aws/nginx/nginx:1.28-alpine
     restart: unless-stopped

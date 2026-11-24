@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lai.invalid/processing/schemas/job_result.v1.schema.json",
+  "title": "ProcessingJobResult v1",
+  "description": "What one attempt produced (lai_processing.contracts.results.ProcessingJobResult). Processing success is not asset approval: status says whether the worker ran the job to the end, verdict what the processor concluded; neither publishes anything. Shared definitions live in job_request.v1.schema.json. The Python decoder is authoritative and also enforces cross-field rules: a succeeded result has a verdict and a processor and no errors; a pass verdict has no error findings; a failed or cancelled result has errors and no verdict; retry_class equals the first error's classification; error messages equal the fixed safe message of their code; artifacts belong to this job, attempt, namespace, profile and processor with unique logical ids.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "schema_version",
+    "job_id",
+    "job_type",
+    "namespace",
+    "idempotency_key",
+    "correlation_id",
+    "attempt_id",
+    "attempt_number",
+    "processor",
+    "profile",
+    "status",
+    "verdict",
+    "retry_class",
+    "input",
+    "started_at",
+    "completed_at",
+    "duration_ms",
+    "metadata",
+    "findings",
+    "warnings",
+    "errors",
+    "artifacts"
+  ],
+  "properties": {
+    "kind": {
+      "description": "Message kind discriminator.",
+      "const": "lai.processing.job_result"
+    },
+    "schema_version": {
+      "description": "Contract schema version.",
+      "type": "integer",
+      "const": 1
+    },
+    "job_id": {
+      "description": "The request's job id.",
+      "$ref": "job_request.v1.schema.json#/$defs/uuid"
+    },
+    "job_type": {
+      "description": "The request's job type.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 64
+    },
+    "namespace": {
+      "description": "The request's namespace.",
+      "$ref": "job_request.v1.schema.json#/$defs/namespace"
+    },
+    "idempotency_key": {
+      "description": "The request's idempotency key.",
+      "type": "string",
+      "pattern": "^ik1:[0-9a-f]{64}$"
+    },
+    "correlation_id": {
+      "description": "The request's correlation id.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{8,64}$"
+    },
+    "attempt_id": {
+      "description": "The attempt that produced this result.",
+      "$ref": "job_request.v1.schema.json#/$defs/uuid"
+    },
+    "attempt_number": {
+      "description": "The attempt's number (1 to 100).",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "processor": {
+      "description": "The processor that ran; null only when no processor was resolved (a failure before dispatch).",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/processor_identity" }]
+    },
+    "profile": {
+      "description": "The profile version the attempt used.",
+      "$ref": "job_request.v1.schema.json#/$defs/profile_ref"
+    },
+    "status": {
+      "description": "Worker execution result: succeeded, failed or cancelled.",
+      "enum": ["succeeded", "failed", "cancelled"]
+    },
+    "verdict": {
+      "description": "The processor's conclusion about the input for a succeeded result (pass, fail, not_applicable); null otherwise.",
+      "oneOf": [{ "type": "null" }, { "enum": ["pass", "fail", "not_applicable"] }]
+    },
+    "retry_class": {
+      "description": "Retry class of the primary (first) error; null for a success.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/retry_class" }]
+    },
+    "input": {
+      "description": "The input as the worker observed it, or null when it was never read.",
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/input_identity" }]
+    },
+    "started_at": {
+      "description": "When the attempt started (UTC, Z suffix).",
+      "$ref": "job_request.v1.schema.json#/$defs/timestamp"
+    },
+    "completed_at": {
+      "description": "When the attempt finished; not before started_at.",
+      "$ref": "job_request.v1.schema.json#/$defs/timestamp"
+    },
+    "duration_ms": {
+      "description": "Measured execution time in milliseconds (at most one day).",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 86400000
+    },
+    "metadata": {
+      "description": "Processor-specific JSON metadata (bounded nesting, no NaN, string keys of at most 128 characters, canonical size at most 256 KiB and the job's max_metadata_bytes). Never input text or child data.",
+      "type": "object"
+    },
+    "findings": {
+      "description": "Validation findings about the input (at most 500).",
+      "type": "array",
+      "maxItems": 500,
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "warnings": {
+      "description": "Notes about the processing run itself (at most 50).",
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/warning" }
+    },
+    "errors": {
+      "description": "Classified errors (at most 8); empty for a success, non-empty otherwise.",
+      "type": "array",
+      "maxItems": 8,
+      "items": { "$ref": "#/$defs/job_error" }
+    },
+    "artifacts": {
+      "description": "Immutable references to derived objects this attempt wrote.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/artifact_reference" }
+    }
+  },
+  "$defs": {
+    "retry_class": {
+      "description": "retryable (bounded automatic retry), permanent (never retried), cancelled, manual (operator action).",
+      "enum": ["retryable", "permanent", "cancelled", "manual"]
+    },
+    "processor_identity": {
+      "description": "Which processor, and which release of it, produced a result or artifact.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["processor_id", "processor_version"],
+      "properties": {
+        "processor_id": {
+          "description": "Dotted processor name.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+          "maxLength": 64
+        },
+        "processor_version": {
+          "description": "Semantic version of the processor release.",
+          "type": "string",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)$",
+          "maxLength": 32
+        }
+      }
+    },
+    "input_identity": {
+      "description": "The input as observed. verified is true only when the whole object was read and matched the request's size and SHA-256.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "sha256", "size_bytes", "verified"],
+      "properties": {
+        "ref": {
+          "description": "The object read (with the version actually read when known).",
+          "$ref": "job_request.v1.schema.json#/$defs/object_ref"
+        },
+        "sha256": {
+          "description": "Observed SHA-256.",
+          "$ref": "job_request.v1.schema.json#/$defs/sha256"
+        },
+        "size_bytes": {
+          "description": "Observed size in bytes.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
+        },
+        "verified": {
+          "description": "Whether size and checksum were verified against the request.",
+          "type": "boolean"
+        }
+      }
+    },
+    "short_text": {
+      "description": "Code-authored text without control characters.",
+      "type": "string",
+      "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+    },
+    "finding": {
+      "description": "One validation finding, in the Asset Library's finding shape.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message", "path"],
+      "properties": {
+        "code": {
+          "description": "snake_case finding code.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 64
+        },
+        "severity": {
+          "description": "error, warning or info.",
+          "enum": ["error", "warning", "info"]
+        },
+        "message": {
+          "description": "Message authored by processor code, never input text (at most 500 characters).",
+          "allOf": [{ "$ref": "#/$defs/short_text" }, { "maxLength": 500 }]
+        },
+        "path": {
+          "description": "Location inside the input the finding refers to, or empty (at most 200 characters).",
+          "allOf": [{ "$ref": "#/$defs/short_text" }, { "maxLength": 200 }]
+        }
+      }
+    },
+    "warning": {
+      "description": "A note about the processing run (not about the input's validity).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "description": "snake_case warning code.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 64
+        },
+        "message": {
+          "description": "Code-authored message (at most 500 characters).",
+          "allOf": [{ "$ref": "#/$defs/short_text" }, { "maxLength": 500 }]
+        }
+      }
+    },
+    "job_error": {
+      "description": "A classified error. message is always the fixed safe text for code, and retry_class always the code's classification (core/errors.py).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "retry_class", "message", "details"],
+      "properties": {
+        "code": {
+          "description": "Error code from core/errors.py ErrorCode.",
+          "enum": [
+            "invalid_input",
+            "unsupported_input",
+            "unsupported_schema_version",
+            "unsupported_job_type",
+            "unsupported_processor",
+            "invalid_processing_profile",
+            "invalid_object_reference",
+            "checksum_mismatch",
+            "input_missing",
+            "permission_denied",
+            "resource_limit_exceeded",
+            "message_too_large",
+            "processing_timeout",
+            "temporary_failure",
+            "throttled",
+            "storage_failure",
+            "artifact_conflict",
+            "duplicate_request",
+            "job_expired",
+            "namespace_mismatch",
+            "unexpected_failure",
+            "cancelled"
+          ]
+        },
+        "retry_class": {
+          "description": "The code's fixed classification.",
+          "$ref": "#/$defs/retry_class"
+        },
+        "message": {
+          "description": "The fixed safe message for code (SAFE_MESSAGES); anything else is refused.",
+          "type": "string"
+        },
+        "details": {
+          "description": "Short scalar facts safe to persist and log (at most 16 entries; identifier-like keys of at most 64 characters; strings of at most 200 characters without newlines).",
+          "type": "object",
+          "maxProperties": 16,
+          "propertyNames": { "maxLength": 64, "pattern": "^[A-Za-z0-9_]+$" },
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "null" },
+              { "type": "boolean" },
+              { "type": "number" },
+              { "type": "string", "maxLength": 200, "pattern": "^[^\\r\\n]*$" }
+            ]
+          }
+        }
+      }
+    },
+    "artifact_reference": {
+      "description": "A durable, immutable pointer to one derived object. Identified by store, key, version and checksum, never a presigned URL. Its key must sit under processing/artifacts/<namespace>/<source_job_id>/<source_attempt_id>/.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_type",
+        "logical_id",
+        "ref",
+        "content_type",
+        "size_bytes",
+        "sha256",
+        "source_job_id",
+        "source_attempt_id",
+        "processor",
+        "profile"
+      ],
+      "properties": {
+        "artifact_type": {
+          "description": "Dotted artifact type, e.g. report.job_result.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+          "maxLength": 64
+        },
+        "logical_id": {
+          "description": "Name of the artifact within its attempt (unique per result).",
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[-_][a-z0-9]+)*$",
+          "maxLength": 64
+        },
+        "ref": {
+          "description": "Location in the artifacts store.",
+          "$ref": "job_request.v1.schema.json#/$defs/object_ref"
+        },
+        "content_type": {
+          "description": "Media type of the artifact.",
+          "type": "string",
+          "pattern": "^[a-z]+/[a-z0-9][a-z0-9.+-]*$",
+          "maxLength": 100
+        },
+        "size_bytes": {
+          "description": "Exact size in bytes.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
+        },
+        "sha256": {
+          "description": "SHA-256 of the artifact bytes.",
+          "$ref": "job_request.v1.schema.json#/$defs/sha256"
+        },
+        "source_job_id": {
+          "description": "The job that produced the artifact.",
+          "$ref": "job_request.v1.schema.json#/$defs/uuid"
+        },
+        "source_attempt_id": {
+          "description": "The attempt that produced the artifact.",
+          "$ref": "job_request.v1.schema.json#/$defs/uuid"
+        },
+        "processor": {
+          "description": "The producing processor.",
+          "$ref": "#/$defs/processor_identity"
+        },
+        "profile": {
+          "description": "The profile version used.",
+          "$ref": "job_request.v1.schema.json#/$defs/profile_ref"
+        }
+      }
+    }
+  }
+}

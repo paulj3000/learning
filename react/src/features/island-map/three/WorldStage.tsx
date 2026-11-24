@@ -2,6 +2,14 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import styles from './WorldStage.module.css';
 import { LeaveIslandButton } from '../../portal/exit';
 
+/**
+ * The custom property, set on the full-screen element, that says how far the
+ * stage's bottom edge sits above the viewport's (GE-090-D8). The stage's exits
+ * sit on that edge; `ChildShell.module.css` adds it to
+ * `--child-stage-exits-inset`, so fixed dialogue panels stay clear of them.
+ */
+export const STAGE_BOTTOM_GAP = '--child-stage-bottom-gap';
+
 /** True when the browser lets a page element go full screen (not iPhone Safari, not some embeds). */
 function fullscreenSupported(): boolean {
   return typeof document !== 'undefined' && document.fullscreenEnabled === true;
@@ -38,6 +46,33 @@ export function WorldStage({ children }: { children: ReactNode }) {
       }
     };
   }, []);
+
+  // GE-090-D8: in full screen, settings below the stage (camera view, sprint)
+  // lift its bottom edge, and the exits with it, above the viewport's bottom.
+  // Measure the gap and publish it, and follow any later resize.
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const stage = stageRef.current;
+    const target = stage?.parentElement;
+    if (!stage || !target) return;
+    const update = () => {
+      const gap = Math.max(
+        0,
+        Math.round(window.innerHeight - stage.getBoundingClientRect().bottom),
+      );
+      target.style.setProperty(STAGE_BOTTOM_GAP, `${gap}px`);
+    };
+    update();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    observer?.observe(stage);
+    observer?.observe(target);
+    window.addEventListener('resize', update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', update);
+      target.style.removeProperty(STAGE_BOTTOM_GAP);
+    };
+  }, [isFullscreen]);
 
   const toggle = useCallback(() => {
     const target = stageRef.current?.parentElement;

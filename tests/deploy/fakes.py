@@ -100,6 +100,9 @@ def compose(args: list[str]) -> int:
     if " up " in f" {joined} ":
         if args[-1] == "db":
             return 0
+        if "jobs-consumer" in args:
+            (STATE / "jobs_started").write_text(release)
+            return 1 if flag("jobs_up_fail") else 0
         (STATE / "running").write_text(release)
         return 1 if flag(f"up_fail_{release}") else 0
     if " ps " in f" {joined} ":

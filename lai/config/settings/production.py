@@ -125,6 +125,22 @@ if LAI_STUDIO_RUN_MODE not in {"jobs", "manual"}:
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE must be jobs or manual in production.")
 if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND != "sqs":
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND=sqs.")
+# Re-checked here because production's jobs backend default (`disabled`) differs from base.py's.
+if LAI_ASSET_ASYNC_VALIDATION == "on" and LAI_JOBS_BACKEND != "sqs":
+    raise ImproperlyConfigured("LAI_ASSET_ASYNC_VALIDATION=on needs LAI_JOBS_BACKEND=sqs.")
+# Derived-artifact workloads (ADR-066) likewise run only on the sqs backend, never inline here,
+# and each needs its queue URL.
+for _control, _queue in (
+    ("LAI_AUDIO_TRANSCODING", "LAI_JOBS_AUDIO_QUEUE_URL"),
+    ("LAI_IMAGE_CONVERSION", "LAI_JOBS_IMAGE_QUEUE_URL"),
+    ("LAI_GLB_MESHOPT", "LAI_JOBS_OPTIMIZE_QUEUE_URL"),
+    ("LAI_GLB_KTX2", "LAI_JOBS_OPTIMIZE_QUEUE_URL"),
+):
+    if globals()[_control] == "on":
+        if LAI_JOBS_BACKEND != "sqs":
+            raise ImproperlyConfigured(f"{_control}=on needs LAI_JOBS_BACKEND=sqs.")
+        if not globals()[_queue]:
+            raise ImproperlyConfigured(f"{_control}=on needs {_queue}.")
 
 # Development bootstrap (ADR-055, docs/infrastructure/dev-native-environment.md): the dev
 # environment's installer may publish the approved Treasure Rush seed content once. Both values

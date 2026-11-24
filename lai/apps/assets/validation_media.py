@@ -27,6 +27,10 @@ MAX_IMAGE_SIDE = 4096
 MAX_IMAGE_PIXELS = 16_000_000
 MAX_AUDIO_SECONDS = 15 * 60
 MAX_CHUNKS = 100_000
+# Ogg page checksums verified at upload: the first OGG_CRC_PAGES pages and the last page, the same
+# sample as the worker's inspector (`AudioSettings.ogg_crc_pages`). The CRC is pure Python, so a
+# full walk of a 20 MB file would hold the request for seconds.
+OGG_CRC_PAGES = 16
 MP3_BITRATES = {
     # (version, layer III) -> kbit/s by bitrate index
     "mpeg1": [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
@@ -86,12 +90,40 @@ def validate_image(stream: IO[bytes], *, size: int, file_format: str) -> Validat
         width, height = checker(result, stream, size)
         _check_dimensions(result, width, height)
         result.metadata = {"width": width, "height": height}
+        _warn_embedded_metadata(result, stream, size)
     except _Stop:
         if not result.errors:  # pragma: no cover - every stop records why
             result.error("unreadable", "The file could not be read as an image.")
     finally:
         stream.seek(0)
     return result
+
+
+def _warn_embedded_metadata(result: ValidationResult, stream: IO[bytes], size: int) -> None:
+    """Warn, never block, when an image carries EXIF, GPS or XMP data (LAI-LAMBDA-013, A1).
+
+    Published bytes reach the game unchanged, so a phone photo would deliver its location. The
+    scan is bounded, reads no pixels and records presence only, never a value. A failure of the
+    scan itself must not affect validation.
+    """
+    try:
+        from lai_processing.processors.image.metadata import scan_image_metadata
+
+        facts = scan_image_metadata(lambda offset, length: _read(stream, offset, length), size)
+    except Exception:  # noqa: BLE001 - advisory only
+        return
+    if facts.location_possible:
+        result.warn(
+            "image_location_present",
+            "The image may contain location (GPS) data. It is delivered to the game unchanged. "
+            "Remove the metadata and export again.",
+        )
+    if facts.exif_present or facts.xmp_present or facts.iptc_present or facts.text_present:
+        result.warn(
+            "image_metadata_present",
+            "The image contains embedded metadata (EXIF, XMP, IPTC or text). It is delivered "
+            "unchanged.",
+        )
 
 
 def _check_dimensions(result: ValidationResult, width: int, height: int) -> None:
@@ -405,6 +437,16 @@ def _check_wav(result, stream, size):
     }
 
 
+def _check_ogg_crc(result, stream, offset: int, length: int, expected: int) -> None:
+    from lai_processing.processors.audio.ogg import ogg_crc
+
+    page = bytearray(_read(stream, offset, length))
+    page[22:26] = b"\x00\x00\x00\x00"  # the checksum is computed with its own field zeroed
+    if ogg_crc(bytes(page)) != expected:
+        result.error("ogg_crc", "An Ogg page checksum does not match. The file is damaged.")
+        raise _Stop
+
+
 def _check_ogg(result, stream, size):
     offset, pages, codec, rate, channels, last_granule, ended = 0, 0, None, 0, 0, 0, False
     pre_skip = 0
@@ -413,7 +455,7 @@ def _check_ogg(result, stream, size):
         if len(header) < 27 or header[:4] != b"OggS" or header[4] != 0:
             result.error("ogg_page", "The Ogg file has a corrupted page.")
             raise _Stop
-        flags, granule, _serial, _seq, _crc, segment_count = struct.unpack("<BqIIIB", header[5:27])
+        flags, granule, _serial, _seq, crc, segment_count = struct.unpack("<BqIIIB", header[5:27])
         table = _read(stream, offset + 27, segment_count)
         if len(table) < segment_count:
             result.error("ogg_truncated", "The Ogg file ends inside a page.")
@@ -422,6 +464,8 @@ def _check_ogg(result, stream, size):
         if offset + 27 + segment_count + body_length > size:
             result.error("ogg_truncated", "The Ogg file ends inside a page.")
             raise _Stop
+        if pages < OGG_CRC_PAGES or flags & 0x04:
+            _check_ogg_crc(result, stream, offset, 27 + segment_count + body_length, crc)
         if pages == 0:
             if not flags & 0x02:
                 result.error("ogg_start", "The Ogg file does not start with a first page.")

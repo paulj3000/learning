@@ -18,6 +18,7 @@ on:
       - 'lambda/**'
       - 'lai/apps/ai/providers/**'
       - 'lai/apps/jobs/core/**'
+      - 'processing/lai_processing/**'
       - 'scripts/aws/package-lambda.sh'
       - 'tests/lambda/**'
       - '.github/workflows/deploy-dev-lambda.yml'

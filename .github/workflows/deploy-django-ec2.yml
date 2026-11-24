@@ -24,6 +24,7 @@ on:
     branches: [main]
     paths:
       - 'lai/**'
+      - 'processing/lai_processing/**'
       - 'content/**'
       - 'react/public/models/**'
       - 'requirements.txt'

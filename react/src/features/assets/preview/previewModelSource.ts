@@ -1,5 +1,11 @@
 import { LoadingManager, type Object3D } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {
+  CompressedModelError,
+  configureGltfLoader,
+  describeGltfLoadError,
+  type GltfLoaderDecoders,
+} from '../../island-map/three/assets/gltfDecoders';
 
 /**
  * Fetching and parsing a model for the Django Admin preview (LAI-2200 AM-10,
@@ -23,6 +29,7 @@ export type PreviewErrorCode =
   | 'network'
   | 'unsupported_format'
   | 'invalid_model'
+  | 'compression_unsupported'
   | 'empty_model'
   | 'webgl_unavailable';
 
@@ -37,6 +44,8 @@ const MESSAGES: Record<PreviewErrorCode, string> = {
   network: 'The model could not be downloaded. Check your connection and reload the page.',
   unsupported_format: 'Only .glb and self-contained .gltf models can be previewed.',
   invalid_model: 'The file could not be read as a glTF 2.0 model.',
+  compression_unsupported:
+    'This model uses compression this browser cannot show (it needs WebAssembly, and KTX2 textures need WebGL).',
   empty_model: 'The model has no visible geometry to show.',
   webgl_unavailable: 'This browser cannot show 3D graphics (WebGL is unavailable or disabled).',
 };
@@ -156,6 +165,7 @@ function isEmbedded(url: string): boolean {
 export async function parsePreviewModel(
   data: ArrayBuffer,
   format: PreviewFormat,
+  decoders: GltfLoaderDecoders = {},
 ): Promise<{ scene: Object3D; clipNames: string[] }> {
   if (sniffFormat(data) !== format) throw new PreviewError('invalid_model');
   let external = false;
@@ -165,11 +175,19 @@ export async function parsePreviewModel(
     external = true;
     return 'data:application/octet-stream;base64,';
   });
-  const loader = new GLTFLoader(manager);
+  // Decoders fetch nothing through `manager`: the Meshopt decoder is bundled
+  // with its WASM inline, and a KTX2 loader (`decoders.ktx2`) uses its own
+  // manager, which loads only the bundled transcoder and embedded texture
+  // data, so the URL refusal above still covers everything else.
+  const loader = configureGltfLoader(new GLTFLoader(manager), decoders);
   let gltf;
   try {
     gltf = await loader.parseAsync(data, '');
-  } catch {
+  } catch (error) {
+    const described = error instanceof Error ? describeGltfLoadError(error) : null;
+    if (described instanceof CompressedModelError) {
+      throw new PreviewError('compression_unsupported');
+    }
     throw new PreviewError('invalid_model');
   }
   if (external) throw new PreviewError('invalid_model');

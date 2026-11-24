@@ -1,9 +1,10 @@
 # Storykeeper's Castle completion: release notes (SC-R12-02, DRAFT)
 
-Status: **draft, not released, not owner accepted.** Branch `feature/storykeeper-castle-completion`.
-Nothing here is merged to `main` or deployed. Every item is development complete with unit-test
-evidence (`tasks/TASK_TRACKER.md`); browser, device and playtest acceptance is the owner checklist in
-`storykeeper_castle_acceptance.md` section 4.
+Status: **draft, not released, not owner accepted.** Everything below is in `main` (castle head
+`df376878` through PR #44; GE-090-D1 PR #53, D2 PR #54 and D7 PR #63; checked against `main`
+`1b0a50a3` on 2026-11-23). Nothing is deployed. Every item is development complete with unit-test
+evidence (`tasks/TASK_TRACKER.md`). Browser, device and playtest acceptance is the owner checklist in
+`storykeeper_castle_acceptance.md` sections 4.4 and 4.5, and none of it has been run.
 
 ## For parents
 
@@ -41,10 +42,13 @@ evidence (`tasks/TASK_TRACKER.md`); browser, device and playtest acceptance is t
 | SC-R05 | Quill reconcile, Ember visit, Professor Orion | Tracker |
 | SC-R06 | Castle cues on the Sound Manager; narration via Django speech | Tracker |
 | SC-R07 | Keepsake items and reward rules; pedestals; Hall of Heroes; ranks (off) | Tracker |
-| SC-R08-01, SC-R09 | Ambient event catalog; Castle Director route `generateCastleDirector`; Quill flavour service | ADR-065 (Proposed); `docs/PLAY_API.md`; `docs/AI_AND_CHILD_SAFETY.md` |
+| SC-R08-01, SC-R09 | Ambient event catalog; Castle Director route `generateCastleDirector`; Quill flavour service | ADR-065 (Accepted, owner 2026-11-18); `docs/PLAY_API.md`; `docs/AI_AND_CHILD_SAFETY.md` |
 | SC-R08-02/03 | Two hidden chamber finds (`castle-chamber-star`, `castle-chamber-mouse-door`); five chamber ambient events, observation only | Tracker |
 | SC-R10-01/02 | Three.js Writing Room and parity tests; optional `entryRequirements` in the location manifest | `docs/regions/prep/writing_room_prep.md` |
 | SC-R11 (engineering) | Local diagnostics (`?lai-diag=1`), disposal fixes, configurable wall height, accessibility tests | `docs/PILOT_READINESS.md` 5b |
+| GE-072 | The castle on the shared `@lai/game-engine` runtime, camera and movement | `storykeeper_castle_engine_integration.md` |
+| GE-090-D1, D2 | Keepsake backfill and client world changes lock through the users service; the Writing Room stories and `tiny-brass-knob` owned by the home island pack | PR #53, PR #54 |
+| GE-090-D7 | The castle loads sound from its Place manifest (was a 404 region request, so the castle was silent); NPC reach measured from the child, not the third-person camera | PR #63 (`1b0a50a3`) |
 
 Migrations: `ai/0006_castle_director` (route constraint), `regions/0008_castle_director` (was 0007, renumbered after Firepeak)
 (`CastleVisitState`, `CastleEventShown`, both child-owned and deleted with the child). No data
@@ -67,4 +71,8 @@ migration. No production data touched.
 - Quill flavour has no client surface; the ambient line has no 3D cue.
 - Residual integrity risks listed in `docs/security/WORLD_CHANGE_INTEGRITY.md` (non-page adventure keys,
   some quest objective types).
-- Formatting (Prettier, Ruff) and the full suites run at merge readiness, not during this stretch.
+- No castle audio files exist yet (`docs/audio/STORYKEEPER_CASTLE_AUDIO.md` section 4): beds and castle
+  cues are silent until they are uploaded, seeded, assigned to the Place `storykeeper-castle` and
+  released. No castle sound has been heard in a browser.
+- At phone size in full screen, an NPC panel can cover "Exit full screen" (shared portal code,
+  proposed GE-090-D8).

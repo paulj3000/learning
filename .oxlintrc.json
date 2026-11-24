@@ -10,7 +10,8 @@
     "coverage",
     "playwright-report",
     "test-results",
-    "lai/apps/assets/static/assets/admin/asset-preview.js"
+    "lai/apps/assets/static/assets/admin/asset-preview.js",
+    "lai/apps/assets/static/assets/admin/asset-capture.js"
   ],
   "rules": {
     "react/rules-of-hooks": "error",
