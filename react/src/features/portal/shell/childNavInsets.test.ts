@@ -163,9 +163,9 @@ describe('child nav insets', () => {
     );
     expect(declaration(stage!.body, 'min-height')).toBe('max(40vh, min(23rem, 70vh))');
     const link = rules(read('features/island-map/three/WorldHud.module.css')).find(
-      (rule) => rule.selector === '.exitLink',
+      (rule) => rule.selector === ':fullscreen .exitLink',
     );
-    // One 2.75rem row, the height the full-screen header inset reserves.
+    // One 2.75rem row in full screen, the height the full-screen header inset reserves.
     expect(declaration(link!.body, 'white-space')).toBe('nowrap');
     expect(declaration(link!.body, 'flex-shrink')).toBe('0');
   });

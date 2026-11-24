@@ -43,8 +43,12 @@
   font-weight: 600;
   text-decoration: none;
   border: 2px solid rgba(255, 255, 255, 0.85);
-  /* One row (2.75rem): full-screen panels reserve exactly that much (GE-090-D8), so the link
-     never wraps beside a long location cue; the cue wraps instead. */
+}
+
+/* In full screen the link stays one 2.75rem row, the height dialogue panels reserve for it
+   (ChildShell.module.css, GE-090-D8); a long location cue wraps instead. Only there: on the
+   page a 320px phone has no room for it unwrapped. */
+:fullscreen .exitLink {
   white-space: nowrap;
   flex-shrink: 0;
 }
