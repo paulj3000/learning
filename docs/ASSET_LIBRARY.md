@@ -1240,6 +1240,13 @@ Rules:
 | `catalog` (catalog owner; built by GE-247) | None | Shipped scenes: `LocationAsset` rows (stale ones marked) and the Welcome Harbor hub from the latest release report | None. Built by GE-247 (Trello #247, Agent 4, 2026-11-24): `apps/catalog/dependencies.py`, listed only, never blocking, asset-level only |
 | `assets` derived artifacts (Lambda owner) | None (retirement keeps the files) | Live `DerivedArtifact` rows for the version (`source_version`, `promoted_version`) | Not built yet: the model is on `main` since #71; a provider comes with or after W2-5 |
 
+Known limit (`regions`, LAI 04, 2026-11-24): a published 3D Area can also draw an asset's
+low-detail twin (`ContentAsset.low_detail`, loaded by `withLod` in `region-play/regionAssets.ts`).
+The twin is not in the area's JSON, so the provider neither lists nor protects it. Retiring a twin
+keeps the base model drawn; the far level of detail falls back to the bundled twin or a
+placeholder. Following `low_detail` from the ids a PUBLISHED area names (listed only, or blocking)
+is an owner decision for a follow-up.
+
 Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,
 `Sound release 12, cue sfx.chest.open`, `3D Area treasure-cove, placement palm-03`. Labels never
 contain child data.
