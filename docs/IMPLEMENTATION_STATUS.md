@@ -37,6 +37,19 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07: retired shipped assets keep their collision (2026-11-24, `feature/asset-library-retired-bundled-collision` on `main` `9b881fda`, GE-247); Development Complete
+
+- **Rule** (owner decision, 2026-11-24): the resolver answers a retired 3D asset that has a
+  `bundled_path` with the `collision` of its default version's profile, because the client keeps
+  drawing the bundled model. Before, retiring it made that model walk-through.
+- **Unchanged:** a retired asset that is not shipped, a non-model asset, and a retired version of a
+  live asset send no `collision`. No migration, no API shape change, no client change (the client
+  already reads `collision` on every entry).
+- **Tests:** 5 new in `apps/assets/tests/test_collision_profiles.py`. The resolver, collision,
+  media and catalog usage suites pass on PostgreSQL 18 (109 passed); `makemigrations --check` is
+  clean. Deferred to merge readiness: full suites and browser tests.
+- **Docs:** `docs/ASSET_LIBRARY.md` section 7, `docs/ASSET_COLLISION_PROFILES.md`.
+
 ## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, `main` `3132b151` merged in, Trello #247); Development Complete, NOT merged, NOT owner-accepted
 
 - Owner direction (2026-11-23): shipped-scene references are listed, never blocking (S6 not required). Collision-profile effects are reported. The hub becomes a Place only if that has no side effects.
