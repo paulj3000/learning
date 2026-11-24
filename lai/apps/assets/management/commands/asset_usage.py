@@ -4,8 +4,9 @@
     python manage.py asset_usage palm-tree --number 3
     python manage.py asset_usage palm-tree --json
 
-Read-only. "BLOCKS" marks a usage that refuses retirement. Assets named only in bundled
-TypeScript manifests are not visible here (docs/ASSET_LIBRARY.md s. 25.1).
+Read-only. "BLOCKS" marks a usage that refuses retirement. Shipped scenes (bundled TypeScript
+manifests) appear as listed `catalog` usages once their content is imported (GE-247;
+docs/ASSET_LIBRARY.md s. 25.1).
 """
 
 import json

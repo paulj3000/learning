@@ -88,6 +88,8 @@ class ImportReport:
     conflicts: list[str] = field(default_factory=list)
     """Django-owned records whose export differs; kept as drafts, never applied (ADR-047)."""
     release_id: int | None = None
+    scene_assets_without_place: dict[str, list[str]] = field(default_factory=dict)
+    """Shipped scenes the catalog has no Place for (the hub): region slug -> asset ids (GE-247)."""
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -97,6 +99,7 @@ class ImportReport:
             "counts": self.counts,
             "skipped": self.skipped,
             "conflicts": self.conflicts,
+            SCENE_ASSETS_WITHOUT_PLACE: self.scene_assets_without_place,
         }
 
 
@@ -199,7 +202,14 @@ class Plan:
     reward_rules: list[dict[str, Any]] = field(default_factory=list)
     stories: list[dict[str, Any]] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
+    #: Shipped scenes with no Place record (the Welcome Harbor hub): region slug -> asset ids.
+    scene_assets_without_place: dict[str, list[str]] = field(default_factory=dict)
 
+
+#: Release-report key for shipped scenes without a Place record (the hub): slug -> asset ids.
+#: Interim home until the owner decides whether the hub becomes a Place (GE-247); read by
+#: `apps.catalog.scene_usage`, never by anything else.
+SCENE_ASSETS_WITHOUT_PLACE = "scene_assets_without_place"
 
 _text = records.text
 _texts = records.texts
@@ -352,6 +362,8 @@ def build_plan(bundle: ExportBundle) -> Plan:
             # The hub (welcome-harbor) has a scene but no Location record (a known ambiguity
             # in the export manifest); its assets are recorded in the export, not linked here.
             plan.skipped.append(f"{where}: region has no Location record ({len(ids)} assets)")
+            # Kept in the release report so asset usage still lists them (GE-247).
+            plan.scene_assets_without_place[slug] = list(dict.fromkeys(ids))
             continue
         for position, asset_id in enumerate(dict.fromkeys(ids)):
             plan.location_assets.append({"location": slug, "asset": asset_id, "position": position})
@@ -742,6 +754,7 @@ def import_content(
         content_digest=bundle.content_digest,
         schema_version=bundle.schema_version,
         skipped=list(plan.skipped),
+        scene_assets_without_place=dict(plan.scene_assets_without_place),
     )
     with transaction.atomic():
         with connection.cursor() as cursor:

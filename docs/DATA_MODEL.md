@@ -733,6 +733,13 @@ Django importer accepts both (version 2 simply has no associations). After a man
 order: `npx vitest run src/features/island-map/three/runtime/sceneAssetIndex.test.ts -u`,
 `npm run content:export`, `npm run golden:generate`.
 
+On import, a location's ids become `catalog.LocationAsset` rows. A region with no Place record (the
+hub) cannot have rows. Its ids are kept in the release report instead, under
+`scene_assets_without_place` (`importer.SCENE_ASSETS_WITHOUT_PLACE`, GE-247). That is an interim home
+until the owner decides whether the hub becomes a Place. `apps/catalog/scene_usage.py` reads both
+sources so staff see every shipped scene that uses an asset
+(`docs/engineering/game-engine/bundled-asset-references.md`).
+
 **Not exportable as data, or not exported yet.**
 - *Logic needing a rule specification or a Python implementation (LAI-0303 golden vectors, Phase 6):* answer
   validation (`validateStepAnswer`), hint escalation, step transitions, reward resolution, quest and

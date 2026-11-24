@@ -37,6 +37,24 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, `main` `3132b151` merged in, Trello #247); Development Complete, NOT merged, NOT owner-accepted
+
+- Owner direction (2026-11-23): shipped-scene references are listed, never blocking (S6 not required). Collision-profile effects are reported. The hub becomes a Place only if that has no side effects.
+- Built:
+  - the hub's 11 ids are kept through import in `ContentRelease.report["scene_assets_without_place"]` (interim, no migration);
+  - `apps/catalog/scene_usage.py`;
+  - the asset definition `used_by` and the retire warning (non-blocking);
+  - the collision profile page lists shipped scenes (S4);
+  - S5 is pinned (`avatar.default` fails `SlugField` validation);
+  - the client test that a retired entry keeps the bundled model and any collision the server sends.
+  - S1: the `catalog` usage provider (`apps/catalog/dependencies.py`) on LAI 07's W2-1 registry. It lists shipped scenes, the hub included, never blocks, returns nothing for a version question, and fails closed. `manage.py asset_usage` shows these usages.
+- Owner decisions (2026-11-24):
+  - a retired asset that still ships with the app keeps its collision profile. The resolver change is LAI 07's and is not on `main` yet, so the staff note still describes current behaviour;
+  - the hub stays in the release report, not a Place.
+- Tests (PostgreSQL 18): `apps/catalog` and `apps/assets` pass, `djangoAssetResolver.test.ts` passes, and `makemigrations --check` is clean. Browser tests are not run.
+- S7 is not recommended now.
+- Design and evidence: `docs/engineering/game-engine/bundled-asset-references.md`.
+
 ## GE-090-D8: adult exits clear of dialogue panels in full screen (2026-11-23, `fix/ge-090-d8-adult-exit` from `1b0a50a3`); Development Complete, NOT merged
 
 At 375x667 in full screen, Pip's panel covered "Exit full screen" (`portal-adult-exit:142`, found
