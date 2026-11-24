@@ -1,8 +1,15 @@
 # North Pole: curriculum audit of puzzle skills (SEA-04, FPV-D10)
 
-Status: **audit done, content not changed yet.** Checked on `main` `1b0a50a3`, 2026-11-23, by
-LAI 03 with LAI 06 (scoring and progression). The content change waits for LAI 06's per-variant
-contract (below).
+Status: **audit done, content re-tagged** on LAI 06's FPV-D10 contract `f6d1a373` (PR #73, not
+merged), 2026-11-23. Audited on `main` `1b0a50a3` by LAI 03 with LAI 06 (scoring and progression).
+Every band and override below is now in `north_pole_puzzles.SKILLS`, `np-obs-final` Explorer v2
+to v5 are rewritten (finding 3), and `manage.py puzzle_skill_report --strict` is the gate after
+`load_content`, `seed_north_pole` and `publish_north_pole`.
+
+**Existing databases.** The seed never overwrites a puzzle's authored revisions (ADR-047), so a
+database seeded before this change keeps the old ids and the old `np-obs-final` questions until
+staff publish a revision (Django Admin, 3D Area puzzles) or the database is re-seeded. Run
+`puzzle_skill_report` on any shared database before relying on the dashboard.
 
 Realm: `north-pole`. Place and Area: `north-pole-village`. Quests: `np-q01-welcome` to
 `np-q09-christmas-eve`. Bands: Sprout, Pathfinder and Explorer. Source:
@@ -24,8 +31,8 @@ ids in that file.
    - `np-obs-constellation` Pathfinder (`observation`);
    - `np-obs-final` Explorer (`multiplication-facts`; mostly mixed multi-step operations).
 3. **Content to change.** In `np-obs-final` Explorer only v1 fits its band. v2 to v5 mix
-   operations (for example 4 x 6 - 5). Replace them with in-range multi-step subtraction (LAI 06
-   agreed, 2026-11-23). This is the only puzzle where content changes, not just tags.
+   operations (for example 4 x 6 - 5). Replaced with in-range two-step subtraction (LAI 06 agreed,
+   2026-11-23; done). This is the only puzzle where content changed, not just tags.
 4. **Not graded** (no skill by design): `np-welcome-look` (OBSERVE_FEATURES), `np-stables-return`
    (RETURN_TO_NPC), `np-ginger-build` (PLACE_PLATFORMS) and `np-eve-sleigh-bell` (COLLECT_OBJECT).
 5. **Math chests are already valid.** `np-workshop-gift-chest`, `np-mountain-lever-1` and

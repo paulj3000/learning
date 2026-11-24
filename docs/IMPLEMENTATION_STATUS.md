@@ -459,6 +459,19 @@ section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
 
 ## North Pole: The Missing Christmas Star (SEA-04, NP-001 to NP-060, GE-074); on `main`, owner QA pending, not owner-accepted, not deployed
 
+**Curriculum re-tag (2026-11-23, LAI 03, on FPV-D10 `f6d1a373`).** This branch merges LAI 06's
+contract commit (PR #73, not merged to `main`) and re-tags North Pole:
+- `north_pole_puzzles.SKILLS` holds each band's objective and the per-variant overrides from
+  `docs/north-pole/CURRICULUM_AUDIT.md` (26 catalog objectives; the 9 invalid ids are gone).
+  `_quiz` applies it and refuses an override for a missing variant. The engine definition lists
+  the same 26; the puzzle snapshot is regenerated; `NORTH_POLE_CURRICULUM.md` shows the new codes.
+- `np-obs-final` Explorer v2 to v5 are rewritten as two-step take-away within ten (v1 kept), so
+  the whole band is `subtraction-within-ten`. The mixed-operation helpers are removed.
+- Tests: every quiz band has a row, every code is an exported objective, overrides land on the
+  right variants, the final challenge stays within ten, and `puzzle_skill_report` is empty for
+  the Area after seed and publish.
+- Databases seeded earlier keep the old ids until staff publish a revision (ADR-047).
+
 **Curriculum, ADR and acceptance check (2026-11-23, LAI 03, `main` `1b0a50a3` merged in).**
 - ADR-080 matches the code:
   - one Realm, Place and Area, and nine quests with world-change prerequisites;
@@ -470,11 +483,11 @@ section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
   window, and launch and redeem refuse it on the server. Saves are kept. Two new tests in
   `apps/seasons`: refused launch with saves intact, and the UTC date boundary (owner decision:
   UTC or local date).
-- Accepted (architecture) for ADR-080 and ADR-081 is prepared in PR #66. It takes effect on the
-  owner's merge. Gameplay acceptance (SEA-04) stays separate.
+- Accepted (architecture) for ADR-080 and ADR-081 by the owner's merge of PR #66. Gameplay
+  acceptance (SEA-04) stays separate.
 - Curriculum: `docs/north-pole/CURRICULUM_AUDIT.md`, agreed with LAI 06. 9 invalid skill ids,
   several valid-but-wrong codes and 10 new objectives. `np-obs-final` Explorer v2 to v5 need
-  rewriting. The content re-tag waits for LAI 06's contract commit (FPV-D10).
+  rewriting. Both are done (block above).
 - Regression: `apps/seasons` 37 passed (PostgreSQL 18.7). The North Pole layout, seed and puzzle
   tests are in the Firepeak run (419 passed), and the React and engine runs are the same as
   Firepeak's (628 and 36 passed).

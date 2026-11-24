@@ -28,7 +28,7 @@ interface Snapshot {
 }
 interface PuzzleBody {
   puzzleId: string;
-  ageBands: Record<string, { skill?: string } | null>;
+  ageBands: Record<string, { skill?: string; variants?: { skill?: string }[] } | null>;
 }
 
 /** Every authored id anywhere in the scene (platforms, colliders, stairs, zones). */
@@ -67,7 +67,10 @@ describe('North Pole engine definitions (GE-074)', () => {
     const bodies = read<PuzzleBody[]>('north_pole_puzzles.json');
     expect(new Set(NORTH_POLE_PUZZLE_IDS)).toEqual(new Set(bodies.map((b) => b.puzzleId)));
     const skills = new Set(
-      bodies.flatMap((b) => Object.values(b.ageBands).map((band) => band?.skill)).filter(Boolean),
+      bodies
+        .flatMap((b) => Object.values(b.ageBands))
+        .flatMap((band) => [band?.skill, ...(band?.variants ?? []).map((v) => v.skill)])
+        .filter(Boolean),
     );
     expect(new Set(NORTH_POLE_ADVENTURE.learningObjectiveIds)).toEqual(skills);
   });
