@@ -32,7 +32,6 @@ from apps.catalog.models import AssetCategory, AssetOrigin, AssetStatus, Content
 from . import formats, services
 from .models import VersionStatus
 from .storage import sha256_of
-from .validation import validate_upload
 
 ASSET_ID = formats.ASSET_ID
 
@@ -81,9 +80,18 @@ def _inside(root: Path, relative: str) -> Path | None:
     return candidate if root in candidate.parents else None
 
 
+def refusal_entry(refused) -> dict:
+    """How an import report records a refused upload, dry run or not: its code and the
+    finding codes (the refusal's own code when it has no findings)."""
+    return {
+        "reason": refused.code,
+        "codes": sorted({f.code for f in refused.findings}) or [refused.code],
+    }
+
+
 def _import_file(report, asset, path: Path, source: dict, *, dry_run: bool) -> None:
     with path.open("rb") as stream:
-        sha256, size = sha256_of(stream)
+        sha256, _size = sha256_of(stream)
         existing = (
             asset.versions.filter(sha256=sha256)
             .exclude(status=VersionStatus.REJECTED)
@@ -95,20 +103,16 @@ def _import_file(report, asset, path: Path, source: dict, *, dry_run: bool) -> N
         if existing is not None:
             report.skipped.append({**source, "asset": asset.asset_id, "version": existing})
             return
-        if dry_run:
-            result = validate_upload(stream, size=size, definition=asset)
-            if result.passed:
-                report.imported.append({**source, "asset": asset.asset_id, "version": None})
-            else:
-                codes = sorted({f.code for f in result.errors})
-                report.unresolved.append({**source, "reason": "invalid_model", "codes": codes})
-            return
         try:
-            version = services.upload_version(asset, stream, original_filename=path.name)
+            version = services.upload_version(
+                asset, stream, original_filename=path.name, dry_run=dry_run
+            )
         except services.AssetActionRefused as refused:
-            codes = sorted({f.code for f in refused.findings}) or [refused.code]
-            report.unresolved.append({**source, "reason": refused.code, "codes": codes})
+            report.unresolved.append({**source, **refusal_entry(refused)})
             return
+    if dry_run:
+        report.imported.append({**source, "asset": asset.asset_id, "version": None})
+        return
     entry = {
         **source,
         "asset": asset.asset_id,

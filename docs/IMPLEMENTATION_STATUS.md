@@ -37,6 +37,21 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W4: shared asset-id pattern and one upload dry run (2026-11-24, `refactor/asset-library-w4-shared-helpers`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
+
+- **One asset-id pattern:** `formats.ASSET_ID`, used by validation, the importer and storage
+  instead of three copies.
+- **One dry run:** `services.upload_version(dry_run=True)` makes the same checks as a real upload
+  (validation, a retired asset, a duplicate file), raises the same refusals and writes nothing (no
+  row, object, job or lock). The bundled and Amplify importers and the model pack import use it
+  instead of their own copies, so a dry run reports what the real run would. Visible change: a
+  dry run's bad file is now reported as `invalid_file` (the real run's code) instead of
+  `invalid_model`, and a dry run now also reports `asset_retired` and `duplicate_version`.
+- **Declined:** one transform helper for `validation` and `gltf_prep` (they behave differently on
+  `matrix` nodes and bad input); an agreement test covers TRS nodes instead.
+- Local code only: no migration, no AWS call, nothing deployed, no deployed database touched.
+- Tests: `test_shared_helpers.py` (9), `test_upload_dry_run.py` (4).
+
 ## LAI 05: jsonschema as a dev dependency (2026-11-24, `chore/jsonschema-dev-dependency` from `main` `9b881fda`); owner-approved, NOT merged
 
 The owner approved it on 2026-11-24. `requirements-dev.txt` now pins `jsonschema==4.26.0` and its
