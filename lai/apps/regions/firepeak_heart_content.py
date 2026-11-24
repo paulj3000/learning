@@ -58,11 +58,10 @@ def order(vid, prompt, labels, explanation, ids, shift=0):
     }
 
 
-def _choose_params(presentation, subject, skill, entities, variants, hints):
+def _choose_params(presentation, subject, entities, variants, hints):
     return {
         "presentation": presentation,
         "subject": subject,
-        "skill": skill,
         "optionEntities": entities,
         "variants": variants,
         "hints": hints,
@@ -70,11 +69,10 @@ def _choose_params(presentation, subject, skill, entities, variants, hints):
     }
 
 
-def _order_params(presentation, subject, skill, entities, variants, hints):
+def _order_params(presentation, subject, entities, variants, hints):
     return {
         "presentation": presentation,
         "subject": subject,
-        "skill": skill,
         "itemEntities": entities,
         "variants": variants,
         "hints": hints,
@@ -206,7 +204,7 @@ def _pattern(band):
             "How much does the number change each time?",
             "Try counting on from the last crystal.",
         ]
-    return _choose_params("CRYSTALS", "MATHEMATICS", "patterns", PATTERN_ENTITIES, variants, hints)
+    return _choose_params("CRYSTALS", "MATHEMATICS", PATTERN_ENTITIES, variants, hints)
 
 
 # --- 3. count the embers (CHOOSE_ANSWER, CARDS) ------------------------------------------------
@@ -287,9 +285,7 @@ def _count(band):
             ),
         ]
         hints = ["Count in groups instead of one by one.", "Add the same number again and again."]
-    return _choose_params(
-        "CARDS", "MATHEMATICS", "counting-and-groups", COUNT_ENTITIES, variants, hints
-    )
+    return _choose_params("CARDS", "MATHEMATICS", COUNT_ENTITIES, variants, hints)
 
 
 # --- 4. numbers on the stepping stones (CHOOSE_ANSWER, PLATFORMS) ------------------------------
@@ -381,9 +377,7 @@ def _lava_numbers(band):
             "Break the numbers into tens and ones.",
             "Check your answer by doing it another way.",
         ]
-    return _choose_params(
-        "PLATFORMS", "MATHEMATICS", "add-subtract-multiply", LAVA_ENTITIES, variants, hints
-    )
+    return _choose_params("PLATFORMS", "MATHEMATICS", LAVA_ENTITIES, variants, hints)
 
 
 # --- 5. choose the path (CHOOSE_ANSWER, PATHS) -------------------------------------------------
@@ -475,9 +469,7 @@ def _lava_compare(band):
             ),
         ]
         hints = ["Compare the tens first, then the ones.", "Say each number out loud in order."]
-    return _choose_params(
-        "PATHS", "MATHEMATICS", "compare-order-halves", COMPARE_ENTITIES, variants, hints
-    )
+    return _choose_params("PATHS", "MATHEMATICS", COMPARE_ENTITIES, variants, hints)
 
 
 # --- 6. shapes in the caverns (CHOOSE_ANSWER, SHAPES; four options) ----------------------------
@@ -572,7 +564,7 @@ def _shapes(band):
             "Faces are flat sides. Edges are where they meet.",
         ]
         subject = "MATHEMATICS"
-    return _choose_params("SHAPES", subject, "shapes-and-geometry", SHAPE_ENTITIES, variants, hints)
+    return _choose_params("SHAPES", subject, SHAPE_ENTITIES, variants, hints)
 
 
 # --- 7. arrange the cave crystals (ORDER_SEQUENCE, CRYSTALS; four items) -----------------------
@@ -654,9 +646,7 @@ def _arrange(band):
             ),
         ]
         hints = ["Compare two crystals at a time.", "Think about how big each part is."]
-    return _order_params(
-        "CRYSTALS", "MATHEMATICS", "ordering-and-measurement", ARRANGE_ENTITIES, variants, hints
-    )
+    return _order_params("CRYSTALS", "MATHEMATICS", ARRANGE_ENTITIES, variants, hints)
 
 
 # --- 8. wake the forge machines (ORDER_SEQUENCE, SWITCHES) -------------------------------------
@@ -757,9 +747,7 @@ def _switches(band):
             "Find the step that has to be first or last.",
             "Look for words like before and after.",
         ]
-    return _order_params(
-        "SWITCHES", "LOGIC", "sequencing-cause-and-effect", entities, variants, hints
-    )
+    return _order_params("SWITCHES", "LOGIC", entities, variants, hints)
 
 
 # --- 9. the forge circuit (CHOOSE_ANSWER, PATHS) -----------------------------------------------
@@ -862,9 +850,7 @@ def _circuit(band):
             "Check that the loop is closed all the way round.",
         ]
         subject = "LOGIC"
-    return _choose_params(
-        "PATHS", subject, "circuits-and-sharing", CIRCUIT_ENTITIES, variants, hints
-    )
+    return _choose_params("PATHS", subject, CIRCUIT_ENTITIES, variants, hints)
 
 
 # --- 10. name the rocks (CHOOSE_ANSWER, SAMPLES) -----------------------------------------------
@@ -953,9 +939,7 @@ def _rocks(band):
             ),
         ]
         hints = ["Think about how each rock was made.", "Read each name and picture its look."]
-    return _choose_params(
-        "SAMPLES", "EARTH_SCIENCE", "rocks-and-volcanoes", ROCK_ENTITIES, variants, hints
-    )
+    return _choose_params("SAMPLES", "EARTH_SCIENCE", ROCK_ENTITIES, variants, hints)
 
 
 # --- 11. the island story (ORDER_SEQUENCE, STORY) ----------------------------------------------
@@ -1043,9 +1027,7 @@ def _island(band):
             "Which step has to happen before the others?",
             "Island building takes many eruptions.",
         ]
-    return _order_params(
-        "STORY", "EARTH_SCIENCE", "earth-processes-sequence", entities, variants, hints
-    )
+    return _order_params("STORY", "EARTH_SCIENCE", entities, variants, hints)
 
 
 # --- 12. the four elemental crystals (ORDER_SEQUENCE, CRYSTALS) --------------------------------
@@ -1120,9 +1102,7 @@ def _crystals(band):
             "Read the clue again, one part at a time.",
             "Find the crystal that must come first.",
         ]
-    return _order_params(
-        "CRYSTALS", "LITERACY", "reading-comprehension-sequence", HEART_ENTITIES, variants, hints
-    )
+    return _order_params("CRYSTALS", "LITERACY", HEART_ENTITIES, variants, hints)
 
 
 # --- 13 and 14 ---------------------------------------------------------------------------------
@@ -1283,6 +1263,100 @@ PUZZLES = [
 ]
 
 
+# --- curriculum skills (FPV-D10) -----------------------------------------------------------------
+
+#: Each band's learning objective, and the variants that practise a different one. Codes are
+#: catalog `LearningObjective` codes (`learningObjectives.ts`); `puzzle_skill_report --strict`
+#: checks them. One row per band of docs/firepeak/CURRICULUM_AUDIT.md, which gives the reasons.
+SKILLS = {
+    "fh-emberwood-pattern": {
+        "PATHFINDER": ("patterns", {}),
+        "EXPLORER": ("patterns", {}),
+    },
+    "fh-emberwood-count": {
+        "PATHFINDER": (
+            "comparing-and-ordering-numbers",
+            {"v3": "patterns", "v4": "addition-within-ten"},
+        ),
+        "EXPLORER": ("multiplication-facts", {"v1": "patterns", "v3": "patterns"}),
+    },
+    "fh-lava-numbers": {
+        "PATHFINDER": (
+            "addition-within-ten",
+            {"v2": "subtraction-within-ten", "v4": "subtraction-within-ten"},
+        ),
+        "EXPLORER": (
+            "addition-within-100",
+            {
+                "v2": "subtraction-within-100",
+                "v3": "multiplication-facts",
+                "v5": "multiplication-facts",
+            },
+        ),
+    },
+    "fh-lava-compare": {
+        "PATHFINDER": ("comparing-and-ordering-numbers", {}),
+        "EXPLORER": (
+            "comparing-and-ordering-numbers",
+            {"v3": "halves-and-fractions", "v4": "halves-and-fractions"},
+        ),
+    },
+    "fh-caverns-shapes": {
+        "PATHFINDER": ("shapes-and-geometry", {}),
+        "EXPLORER": ("shapes-and-geometry", {"v3": "halves-and-fractions"}),
+    },
+    "fh-caverns-arrange": {
+        "PATHFINDER": (
+            "measurement",
+            {"v2": "comparing-and-ordering-numbers", "v4": "comparing-and-ordering-numbers"},
+        ),
+        "EXPLORER": (
+            "halves-and-fractions",
+            {"v1": "shapes-and-geometry", "v4": "comparing-and-ordering-numbers"},
+        ),
+    },
+    "fh-forge-switches": {
+        "PATHFINDER": ("following-instructions", {}),
+        "EXPLORER": ("cause-and-effect", {}),
+    },
+    "fh-forge-circuit": {
+        "PATHFINDER": ("simple-circuits", {}),
+        "EXPLORER": (
+            "simple-circuits",
+            {"v2": "equal-sharing", "v3": "equal-sharing", "v4": "equal-sharing"},
+        ),
+    },
+    "fh-summit-rocks": {
+        "PATHFINDER": ("earth-science", {}),
+        "EXPLORER": ("earth-science", {}),
+    },
+    "fh-summit-island": {
+        "PATHFINDER": ("earth-science", {}),
+        "EXPLORER": ("earth-science", {}),
+    },
+    "fh-heart-crystals": {
+        "PATHFINDER": ("sequencing", {}),
+        "EXPLORER": ("reading-comprehension", {}),
+    },
+}
+
+
+def _with_skills(puzzle_id, band, params):
+    """Set the band's `skill` and each overriding variant's `skill` from `SKILLS`."""
+    if puzzle_id not in SKILLS:
+        return params
+    default, overrides = SKILLS[puzzle_id][band]
+    variant_ids = {v["id"] for v in params["variants"]}
+    unknown = set(overrides) - variant_ids
+    if unknown:
+        raise ValueError(f"{puzzle_id} {band}: no variants {sorted(unknown)}")
+    variants = [
+        {**v, "skill": overrides[v["id"]]} if v["id"] in overrides else v
+        for v in params["variants"]
+    ]
+    return {**params, "skill": default, "variants": variants}
+
+
 def body(puzzle_id, kind, title, requires, change, reward, factory) -> dict:
     return {
         "puzzleId": puzzle_id,
@@ -1291,7 +1365,7 @@ def body(puzzle_id, kind, title, requires, change, reward, factory) -> dict:
         "requiresChangeKeys": list(requires),
         "worldChangeKey": change,
         "rewardRuleId": reward,
-        "ageBands": {band: factory(band) for band in BANDS},
+        "ageBands": {band: _with_skills(puzzle_id, band, factory(band)) for band in BANDS},
     }
 
 

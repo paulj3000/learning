@@ -1,7 +1,8 @@
 # Storykeeper Castle sound and narration (SC-R06-01 to SC-R06-03)
 
-Status: development complete and unit-tested on `work/sc-r06` (2026-11-17), from
-`feature/storykeeper-castle-completion` (`77731284`). **Nothing has been heard.** No browser,
+Status: development complete and unit-tested; in `main` (castle head `df376878` through PR #44,
+and the Place-manifest fix GE-090-D7 through PR #63 at `1b0a50a3`, 2026-11-23). First built on
+`work/sc-r06` (2026-11-17). Not owner accepted. **Nothing has been heard.** No browser,
 Playwright or live playback was run, and no AWS call was made: behaviour is proved with the fake
 audio engine (Vitest) and the fake Polly provider (pytest). The castle stays silent until audio
 files are uploaded, assigned and published through Django Admin, and its narration stays caption
@@ -31,7 +32,7 @@ equal); a missing cue is silent (or plays its listed fallback) and play goes on.
 | Page restored | `useGreatStorybook` `onPageRestored` (derived from the records) | `sfx.castle.page_restore`, else shared `sfx.treasure.reveal` | sfx | no |
 | Quest start | The tale, the secret-door story, or a new Painted Words run starts | `sfx.castle.quest_start` | sfx | no |
 | Quest complete | Each of the three sessions completes; the Storybook is whole | shared `sfx.quest.complete` | sfx | no |
-| NPC greet | `NpcApproached` for any entity (Quill today; Professor Orion and others once SC-R05 lands, no castle change needed) | `sfx.castle.npc_greet` | sfx | Quill only, 2.5 / 20 m |
+| NPC greet | `NpcApproached` for any entity (any NPC the engine reports, Keeper Quill included; a new NPC needs no castle change) | `sfx.castle.npc_greet` | sfx | Quill only, 2.5 / 20 m |
 | Right | The server grades an answer `correct` (`useCastleAnswerCues`) | shared `sfx.learning.correct` | sfx | no |
 | Try again | The server grades an answer `incorrect` | shared `sfx.learning.retry` (Sprouts: silent) | sfx | no |
 | Hint | The server's hint level rises on the same step | `sfx.castle.hint_chime` | sfx | no |

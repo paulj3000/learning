@@ -69,6 +69,43 @@ instead of confirming the first quest; not D8). Cosmetic: at 320px in full scree
 reaches 9px past the stage edge (still on screen). Unverified: phone landscape (667x375), where
 the 70vh cap leaves the panel less room; phone support is not expanded here.
 
+## FPV-D10: Area puzzle skill evidence (2026-11-23, `fix/FPV-D10-puzzle-skill-evidence` rebased onto `main` `bf622901`, Trello P1S0CXpL); Development Complete, NOT merged, NOT owner-accepted
+
+Area puzzles (Heart of Firepeak, North Pole) were graded and rewarded but recorded no
+`SkillEvidence`, so the parent dashboard showed no skill activity for them. This blocks Firepeak
+and North Pole completion. It does not block owner playthroughs.
+
+- **Persistence.** `education.services.record_puzzle_evidence` is called by
+  `game_sessions.play.solve_puzzle` inside its transaction, for every graded attempt, right or
+  wrong. It writes one row per attempt. The row is keyed by the new nullable one-to-one
+  `SkillEvidence.puzzle_attempt` (migration `education 0009`), so repeat practice creates rows
+  and a duplicate submission does not.
+  - It folds the row into `SkillProgress` once.
+  - The objective is the answered variant's `skill`, else the band's (`regions.puzzles.skill_for`).
+  - Mechanical kinds record nothing.
+  - An objective code the catalog does not hold is skipped with a content-only warning. The solve
+    and its reward are kept.
+  - Any other failure propagates, and the attempt, world change and reward roll back together.
+- **Schema.** A check constraint requires exactly one of the four sources per row. Chest
+  (challenge) and step evidence are unchanged.
+- **Support level.** Puzzles store no hint use, so the level is derived: a correct answer after an
+  earlier wrong one in the same visit counts as supported (1); otherwise 0. Needs owner review.
+- **Curriculum.** There are 12 new learning objectives and one retitle (`cause-and-effect`). The
+  mapping table is in [docs/regions/PUZZLE_SKILL_MAPPING.md](regions/PUZZLE_SKILL_MAPPING.md),
+  agreed with LAI 03; owner review is pending. Content changes are on LAI 03's branches.
+  - Puzzles also gained an optional per-variant `skill` override.
+  - `manage.py puzzle_skill_report [--strict]` lists published puzzle skills that are not in the
+    catalog.
+- **Not done.** There is no backfill of historical attempts. That needs separate authorization;
+  an idempotent dry-run command is proposed in the PR. Deployed environments need `load_content`
+  for the new objectives.
+- **Tests.**
+  - Django on PostgreSQL 18: `apps/education/tests/test_puzzle_evidence.py` (16 tests) and
+    `TestVariantSkill` in `test_puzzle_kinds.py`. The focused regression run (education, regions puzzle suites, game_sessions, scoring, catalog, progression, tenant isolation) gave 1485 passed, 0 failed.
+  - Vitest (adventures content, parent dashboard, mastery, area puzzles): 18 files, 283 passed.
+  - `npm run typecheck`, `content:check` and `golden:check` pass, and so does `makemigrations --check`.
+  - Deferred to merge readiness: full suites, lint and build gates, browser tests.
+
 ## LAI 01: Treasure Rush release verification (2026-11-23, `lai-01/treasure-rush-release`, rebased onto `main` `1b0a50a3`); verification only, owner playthrough pending, NOT owner-accepted
 
 Status: the core MVP is Complete (owner-accepted 2026-11-11) and was not rebuilt. This pass
@@ -147,6 +184,7 @@ beyond D7, which is now merged.
   D8 (LAI 05), the feather licence and the legacy-quest decisions, the GE-D9 flaky region-play hint
   test, and the `treasureRushAudio` cascade (Trello 9OdaKlbs). Neither flaky test reproduced in
   this pass.
+
 ## GE-090-D7: browser acceptance defects (2026-11-22, `fix/ge-090-d7-browser-acceptance` from `aa8adb33`, Trello VD4zv7WN); Development Complete, NOT merged, NOT owner-accepted
 
 The 19 desktop and tablet acceptance failures on `main` had four causes: two product defects and
@@ -202,18 +240,30 @@ This supersedes the "NOT merged" wording in the older castle entries below. Deta
   SC-JMP unit parts), through GE-090 step 20c and PR #44. GE-090-D1 (`ba4acdf0`) and D2
   (`8e7e3719`) are in `main` too. D2's four ids are owned by `HOME_ISLAND_PACK`, which is
   correct.
-- **Open castle defects on `main`:** two, both fixed on the unmerged GE-090-D7 branch
-  (`fix/ge-090-d7-browser-acceptance` @ `9b68e548`, Agent 5). The castle is silent because it
-  requests a region manifest that is a 404; the fix uses the Place manifest. NPC reach was
+- **Castle defects on `main`:** none known. Two were open at `aa8adb33` and are now fixed by
+  GE-090-D7 (PR #63, merged at `1b0a50a3` on 2026-11-23, Agent 5). The castle was silent because
+  it requested a region manifest that is a 404; it now uses the Place manifest. NPC reach was
   measured from the third-person camera, so Quill's prompt could fail to appear. I reviewed the
-  castle parts as owner and they are correct.
+  castle parts as owner and they are correct. `docs/regions/prep/sound_prep.md` now matches.
 - **Evidence (unit only):** Django on PostgreSQL 18.7, 1949 passed, 0 failed, 0 skipped, with no
   missing migrations. Vitest: 103 files, 1365 passed, 1 failed. The failure is `noAmplify`, a
   timeout while the host was paging; it passes alone (supporting information only). Typecheck,
   content:check and golden:check are clean. No browser, Playwright or EC2 run.
 - **Owner QA:** the focused checklist for desktop, touch and accessibility is in
-  `docs/regions/storykeeper_castle_acceptance.md` section 4.4 (Q-1 to Q-18). Run it after D7
-  merges.
+  `docs/regions/storykeeper_castle_acceptance.md` section 4.4 (Q-1 to Q-18). It is unblocked
+  now that D7 is in `main`. For sound, staff first assign the castle cues to the Place
+  `storykeeper-castle` and publish a sound release.
+- **SC-R12 against `main` `1b0a50a3` (2026-11-23):**
+  - **Criteria:** each criterion (A-1 to A-21 and SC-R12-02) has its implementation, the PR that
+    brought it to `main`, automated evidence, the manual acceptance still needed and any open defect,
+    in integration doc section 12.
+  - **Owner playthrough:** P-1 to P-16, by castle area, with expected outcomes and known limitations,
+    in acceptance guide section 4.5. None of it has been played.
+  - **Docs corrected:** `sound_prep.md` (Place manifest route; as-built differences) and the release
+    notes draft (now in `main`; ADR-065 Accepted; audio files missing; GE-090-D8). The
+    `STORYKEEPER_CASTLE_AUDIO.md` status line is current.
+  - **Code:** no castle code defect found. One stale code comment was corrected: Keeper Quill does
+    have a collider.
 
 ## LAI-07 Asset Library streamlining, W1 correctness (2026-11-22, `feature/asset-library-streamlining` rebased onto `ed6b0afc`, Trello #244); Development Complete, unit-tested on PostgreSQL 18.7, NOT merged
 
@@ -451,6 +501,61 @@ section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
 - **Not done:** browser and device QA (models fitted to engine platform boxes, platform sounds,
   riddle bridge in a real visit, the hint and Jump layout on a phone).
 
+## North Pole: The Missing Christmas Star (SEA-04, NP-001 to NP-060, GE-074); on `main`, owner QA pending, not owner-accepted, not deployed
+
+**Curriculum re-tag (2026-11-23, LAI 03, on FPV-D10 `f6d1a373`).** This branch merges LAI 06's
+contract commit (PR #73, not merged to `main`) and re-tags North Pole:
+- `north_pole_puzzles.SKILLS` holds each band's objective and the per-variant overrides from
+  `docs/north-pole/CURRICULUM_AUDIT.md` (26 catalog objectives; the 9 invalid ids are gone).
+  `_quiz` applies it and refuses an override for a missing variant. The engine definition lists
+  the same 26; the puzzle snapshot is regenerated; `NORTH_POLE_CURRICULUM.md` shows the new codes.
+- `np-obs-final` Explorer v2 to v5 are rewritten as two-step take-away within ten (v1 kept), so
+  the whole band is `subtraction-within-ten`. The mixed-operation helpers are removed.
+- Tests: every quiz band has a row, every code is an exported objective, overrides land on the
+  right variants, the final challenge stays within ten, and `puzzle_skill_report` is empty for
+  the Area after seed and publish.
+- Databases seeded earlier keep the old ids until staff publish a revision (ADR-047).
+
+**Curriculum, ADR and acceptance check (2026-11-23, LAI 03, `main` `1b0a50a3` merged in).**
+- ADR-080 matches the code:
+  - one Realm, Place and Area, and nine quests with world-change prerequisites;
+  - the full-playthrough test accepts only `np-q01`, and accepting later credits everything;
+  - a closure check reaches all 27 puzzles and all 5 chests;
+  - replay grants nothing.
+  The amendment fixes the stale ADR-070 reference and the set-completion note.
+- ADR-081 matches the code. Staff windows are set in Admin. Discovery hides the Place outside its
+  window, and launch and redeem refuse it on the server. Saves are kept. Two new tests in
+  `apps/seasons`: refused launch with saves intact, and the UTC date boundary (owner decision:
+  UTC or local date).
+- Accepted (architecture) for ADR-080 and ADR-081 by the owner's merge of PR #66. Gameplay
+  acceptance (SEA-04) stays separate.
+- Curriculum: `docs/north-pole/CURRICULUM_AUDIT.md`, agreed with LAI 06. 9 invalid skill ids,
+  several valid-but-wrong codes and 10 new objectives. `np-obs-final` Explorer v2 to v5 need
+  rewriting. Both are done (block above).
+- Regression: `apps/seasons` 37 passed (PostgreSQL 18.7). The North Pole layout, seed and puzzle
+  tests are in the Firepeak run (419 passed), and the React and engine runs are the same as
+  Firepeak's (628 and 36 passed).
+
+**Release-readiness check (2026-11-23, LAI 03, `main` `aa8adb33`).** North Pole is on `main`
+(GE-090 step 22, PR #44). Unit level only:
+- Content: 9 quests `np-q01-welcome` to `np-q09-christmas-eve` in the export; layout version 5.
+- Engine: `npm run engine:validate` on `north_pole_scene.json` with the standard capability
+  registry, 0 issues. The engine bridge carries 11 checkpoints (9 zones and 2 lake banks), the
+  open-water hazard, the village snow surface (footsteps only, grip unchanged), the lake ice bank
+  (friction 0.3, 2 m clear of the water) and the engine snow weather (follows the child).
+- Django (PostgreSQL 18.7, gated): 452 passed, 0 failed (North Pole cues, NPC seed, assets,
+  layout, puzzles, seed, engine bridge, puzzle kinds, scoring realms and collectors, seasons).
+- React (gated): 21 files, 329 passed, 0 failed (North Pole region, engine bridge, definition,
+  weather parity, content export, seasonal chips, islands API, region audio, area puzzles,
+  game-engine bridge, realms).
+- `npm run typecheck`, `content:check` and `golden:check`: pass on the same tree (run in the
+  Firepeak worktree at `aa8adb33`).
+- Defects: Area puzzle solves record no `SkillEvidence` (shared, with Firepeak) and 9 puzzle
+  skill ids are not learning objectives (corrected from 5 on the same day, `CURRICULUM_AUDIT.md`); every collectible plays the star-fragment cue.
+  Details in `docs/north-pole/NORTH_POLE_OWNER_QA.md` section 4.
+- Owner QA checklist refreshed for `main` with ids (R, W, S, P, T, E).
+- Not run (policy): Playwright, browser, device, full suites, lint, format, build.
+
 ## GE-100 to GE-110: universal scoring and progression engine (2026-11-19, `core/ge-scoring`); development complete, integration into `core/gameengine` pending, economy OFF and NOT owner-approved, NOT merged
 
 **Conflict raised, not resolved.** ADR-011 part A and the scoring standard (ADR-072, mandatory)
@@ -588,7 +693,56 @@ engine lead's migration-ready SHA on `core/gameengine`.
   (content decision). Clue and hint selection with two Pip quests needs a product decision.
 - **Not done:** browser, device, gamepad or Playwright checks (policy); owner QA.
 
-## The Heart of Firepeak (FPV-01 to FPV-24, 2026-11-18, `feature/firepeak-volcano-adventure`); development complete, unit-tested only, owner QA pending, NOT merged
+## The Heart of Firepeak (FPV-01 to FPV-24); on `main`, owner QA pending, not owner-accepted, not deployed
+
+**Curriculum re-tag (2026-11-23, LAI 03, on FPV-D10 `f6d1a373`).** This branch merges LAI 06's
+contract commit (PR #73, not merged to `main`) and re-tags the Heart of Firepeak:
+- `firepeak_heart_content.SKILLS` holds each band's objective and the per-variant overrides from
+  `docs/firepeak/CURRICULUM_AUDIT.md` (17 catalog objectives; the 10 invalid ids are gone). The
+  engine definition lists the same 17; the scene snapshot is regenerated.
+- Tests: every teaching band has a row, every code is an exported objective, overrides land on the
+  right variants, an override for a missing variant is refused, and `puzzle_skill_report` is empty
+  for the Area after seed and publish.
+- Gate: `puzzle_skill_report --strict` exits 0 on a fresh PostgreSQL 18 database.
+- Databases seeded earlier keep the old ids until staff publish a revision (ADR-047).
+
+**Curriculum, ADR and acceptance check (2026-11-23, LAI 03, `main` `1b0a50a3` merged in).**
+- ADR-073 matches the code: separate Place, one seven-zone Area with six gates, generic
+  `CHOOSE_ANSWER` (7) and `ORDER_SEQUENCE` (4), a no-jump required route, jumping still on,
+  no lives or timers, and two Firepeak Places. The amendment records that hazards now run through
+  the engine bridge and that rocks and steam are built. Accepted (architecture) by the owner's
+  merge of PR #66. Gameplay acceptance (FPV-24) stays separate.
+- Curriculum: `docs/firepeak/CURRICULUM_AUDIT.md`, agreed with LAI 06. 10 of 11 skill ids were
+  not objectives; there are per-variant overrides and new objectives (authored by LAI 06). The
+  re-tag is done (block above).
+- Regression on the merged tree:
+  - Django (PostgreSQL 18.7): 419 passed (Firepeak and North Pole layout, seed, play, import,
+    security, and the changed asset collision profiles).
+  - React: 51 files, 628 passed.
+  - Engine: platform hazards and checkpoint state, 36 passed.
+  - `npm run typecheck`: pass.
+  - `engine:validate` on both scenes with the standard registry: 0 issues.
+- Open: FPV-D10 (completion blocker, LAI 06); owner QA (FPV-24); FPV-22 owner decisions.
+
+**Release-readiness check (2026-11-23, LAI 03, `main` `aa8adb33`).** Firepeak is on `main`
+(GE-090 step 17, PR #44). Checked on this SHA, unit level only:
+- Engine: `npm run engine:validate` on `firepeak_heart_scene.json` with the standard capability
+  registry, 0 issues. Lava hazard, telegraphed falling rocks, steam push volume, the crumbling
+  engine platform and the eight checkpoints run through the engine bridge (layout version 5).
+- Django (PostgreSQL 18.7, gated): 430 passed, 0 failed (Firepeak cues, Heart import, authoring
+  forms, Heart security, NPC seed, engine bridge, Heart layout, play and seed, Firepeak Volcano,
+  platforming, puzzle kinds, scoring collectors, realms and rules).
+- React (gated): 41 files, 486 passed, 0 failed (region play and Firepeak, regionPlay extension,
+  engine bridge and stabilization, content export, realms, audio, Great Storybook, castle trophies).
+- `npm run typecheck`, `content:check` (13 files) and `golden:check` (8 files): pass.
+- Defect found: Area puzzle solves (`game_sessions/play.py` `solve_puzzle`) record a
+  `PuzzleAttempt` but no `SkillEvidence`, so the parent dashboard's by-skill view has no Firepeak
+  (or North Pole) puzzle learning. Shared code; routed to the progression owner (LAI 06).
+- FPV-22 reconciled with the merged castle: `docs/firepeak/STORYKEEPER_INTEGRATION.md`.
+- Owner QA checklist refreshed for `main`: `docs/firepeak/FIREPEAK_OWNER_QA.md`.
+- Not run (policy): Playwright, browser, device, full suites, lint, format, build.
+
+### Development history (2026-11-18 to 2026-11-19, `feature/firepeak-volcano-adventure`)
 
 Contract and decisions: `docs/firepeak/HEART_OF_FIREPEAK_DESIGN.md`, ADR-073 (Proposed). Based on
 `feature/treasure-rush-palm-trees` (420f1afd) for the shared jump, camera and platform engine.
@@ -647,10 +801,10 @@ fade. Hand-offs: `docs/firepeak/REALM_ENGINE_REQUIREMENTS.md` (Game Engine Core)
     `platforming.recoveryLeads`) and moves crumble-then-fall for `fh-stone-vanish` to the engine's
     `gameplay.platforms` with unchanged timing (design section 12 item 9). The steam push shipped
     in layout version 4. Every other platform stays on the live system until GE-076.
-  - ADR-073 still needs its Reserved row on `main` (owner registry-only change).
+  - ADR-073's registry row is on `main` (Proposed). The acceptance change is prepared on `docs/adr-073-080-081-acceptance` and needs the owner's merge (2026-11-23).
 - Browser, touch, gamepad and performance verification (owner QA, `docs/firepeak/FIREPEAK_OWNER_QA.md`).
 - Production GLBs and audio (owner-supplied; `FIREPEAK_ASSET_INVENTORY.md`, `FIREPEAK_AUDIO_INVENTORY.md`).
-- Great Storybook page and Trophy Room pedestal: Firepeak side only (`STORYKEEPER_INTEGRATION.md`).
+- Great Storybook page and Trophy Room pedestal: Firepeak side only; castle registration needs owner decisions (`STORYKEEPER_INTEGRATION.md`, reconciled 2026-11-23).
 - Question Studio bank for area puzzles: extension point only.
 - Falling rocks, steam push and the crumbling stone: adopted (GE-073, GE-073F).
 - Managed NPCs do not speak per-puzzle stage lines in their own panel (the puzzle panel shows them).

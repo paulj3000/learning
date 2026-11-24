@@ -314,6 +314,12 @@ Avoid storing raw audio or unrestricted free text by default.
 - `durationMs` (optional, same Phase 22 deliverable as `AdventureAction.durationMs`)
 - `observedAt`
 
+Exactly one source per row: an adventure session (step answers), a story progress (reflections),
+a challenge attempt (chests, `CHALLENGE`) or an Area puzzle attempt (`PUZZLE`, FPV-D10: one row
+per graded CHOOSE_ANSWER or ORDER_SEQUENCE attempt, right or wrong, whose skill is a catalog
+objective; support level 1 when the child had missed the puzzle earlier in the visit, since
+puzzles record no hint use).
+
 ## SkillProgress
 A compact derived record, owned by the Mastery Engine
 (`src/features/mastery/`, docs/ROADMAP.md Phase 20):
@@ -631,7 +637,7 @@ Treasure Rush's parallel Django models were consolidated into the canonical ones
 |---|---|---|
 | Session kind `REGION` | `game_sessions.AdventureSession.kind` | ADVENTURE needs an adventure and version; REGION a region slug and none of those (check constraint). One open (ACTIVE or PAUSED) REGION session per child and region |
 | `ChallengeAttempt` | `game_sessions.ChallengeAttempt` | Typed event (ADR-016) snapshotting the challenge; immutable once answered; one outstanding attempt per session and target |
-| Attempt evidence | `education.SkillEvidence.challenge_attempt` | A third evidence source; exactly one of adventure session, story progress, challenge attempt |
+| Attempt evidence | `education.SkillEvidence.challenge_attempt`, `.puzzle_attempt` | Evidence sources; exactly one of adventure session, story progress, challenge attempt, Area puzzle attempt (FPV-D10) |
 | `ChallengeSpec` | `education.ChallengeSpec` | Seed-authored challenge slot per age band (DRAFT, PUBLISHED, RETIRED) |
 | Inventory and grants | `inventory.InventoryItem`, `inventory.GrantedRule` | Foreign keys to `catalog.ItemDefinition` and `catalog.RewardRule`, plus source rule and session |
 | World changes | `progression.WorldChange` | Append-only (`save()` refuses an edit), non-empty key; the source session is a string id, checked to be the same child's by the service |

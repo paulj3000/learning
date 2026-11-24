@@ -844,7 +844,8 @@
         "symbol": "square"
        }
       ],
-      "prompt": "Which teddy is the big one?"
+      "prompt": "Which teddy is the big one?",
+      "skill": "measurement"
      },
      {
       "answer": "b",
@@ -1273,7 +1274,7 @@
      "Start with the step that has first. Then look for what comes right after it."
     ],
     "presentation": "SWITCHES",
-    "skill": "sequencing",
+    "skill": "following-instructions",
     "subject": "LOGIC",
     "variants": [
      {
@@ -1411,7 +1412,7 @@
      "Which part is the last thing you do?"
     ],
     "presentation": "SWITCHES",
-    "skill": "sequencing",
+    "skill": "following-instructions",
     "subject": "LOGIC",
     "variants": [
      {
@@ -1539,7 +1540,7 @@
      "What does the toy need before the next piece can go on?"
     ],
     "presentation": "SWITCHES",
-    "skill": "sequencing",
+    "skill": "following-instructions",
     "subject": "LOGIC",
     "variants": [
      {
@@ -2414,7 +2415,8 @@
         "symbol": "triangle"
        }
       ],
-      "prompt": "The sign has a picture of a snowman. What does the sign show?"
+      "prompt": "The sign has a picture of a snowman. What does the sign show?",
+      "skill": "observation"
      }
     ]
    }
@@ -2437,7 +2439,7 @@
      "Check each pair next to each other to see if they are in order."
     ],
     "presentation": "PATH",
-    "skill": "sequencing",
+    "skill": "comparing-lengths",
     "subject": "LOGIC",
     "variants": [
      {
@@ -2540,7 +2542,8 @@
         "label": "40"
        }
       ],
-      "prompt": "Put the stripe numbers in order, counting by 10s from the smallest."
+      "prompt": "Put the stripe numbers in order, counting by 10s from the smallest.",
+      "skill": "comparing-and-ordering-numbers"
      },
      {
       "answer": [
@@ -2569,7 +2572,8 @@
         "label": "A half"
        }
       ],
-      "prompt": "Put the candy cane pieces in order from the smallest part to the whole: a quarter, a half, three quarters, a whole."
+      "prompt": "Put the candy cane pieces in order from the smallest part to the whole: a quarter, a half, three quarters, a whole.",
+      "skill": "halves-and-fractions"
      },
      {
       "answer": [
@@ -2598,7 +2602,8 @@
         "label": "3 dots"
        }
       ],
-      "prompt": "The pattern doubles each time. Put the stripes in order: 3 dots, 6 dots, 12 dots, 24 dots."
+      "prompt": "The pattern doubles each time. Put the stripes in order: 3 dots, 6 dots, 12 dots, 24 dots.",
+      "skill": "patterns"
      }
     ]
    },
@@ -2609,7 +2614,7 @@
      "Start with the first thing in the rule."
     ],
     "presentation": "PATH",
-    "skill": "sequencing",
+    "skill": "measurement",
     "subject": "LOGIC",
     "variants": [
      {
@@ -2668,7 +2673,8 @@
         "label": "Green"
        }
       ],
-      "prompt": "Follow the rainbow order: red, orange, yellow, green."
+      "prompt": "Follow the rainbow order: red, orange, yellow, green.",
+      "skill": "following-instructions"
      },
      {
       "answer": [
@@ -2697,7 +2703,8 @@
         "label": "6 dots"
        }
       ],
-      "prompt": "Each stripe has 2 more dots than the one before. Put them in order, starting with 2 dots."
+      "prompt": "Each stripe has 2 more dots than the one before. Put them in order, starting with 2 dots.",
+      "skill": "patterns"
      },
      {
       "answer": [
@@ -2755,7 +2762,8 @@
         "label": "Stripe 1"
        }
       ],
-      "prompt": "Put the numbers on the stripes in order from 1 to 4."
+      "prompt": "Put the numbers on the stripes in order from 1 to 4.",
+      "skill": "comparing-and-ordering-numbers"
      }
     ]
    },
@@ -2766,7 +2774,7 @@
      "Which one goes at the bottom of the candy cane?"
     ],
     "presentation": "PATH",
-    "skill": "sequencing",
+    "skill": "following-instructions",
     "subject": "LOGIC",
     "variants": [
      {
@@ -2821,7 +2829,8 @@
         "symbol": "triangle"
        }
       ],
-      "prompt": "Put the stripes in order from the smallest to the biggest."
+      "prompt": "Put the stripes in order from the smallest to the biggest.",
+      "skill": "measurement"
      },
      {
       "answer": [
@@ -2848,7 +2857,8 @@
         "symbol": "triangle"
        }
       ],
-      "prompt": "Put the stripes in order: 1 dot, then 2 dots, then 3 dots."
+      "prompt": "Put the stripes in order: 1 dot, then 2 dots, then 3 dots.",
+      "skill": "comparing-and-ordering-numbers"
      },
      {
       "answer": [
@@ -2903,7 +2913,7 @@
      "c": "np-lake-floe-c"
     },
     "presentation": "PLATFORMS",
-    "skill": "addition-two-digit",
+    "skill": "addition-within-100",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -2964,7 +2974,8 @@
         "label": "37"
        }
       ],
-      "prompt": "Which floe has the answer? 58 - 21 = ?"
+      "prompt": "Which floe has the answer? 58 - 21 = ?",
+      "skill": "subtraction-within-100"
      },
      {
       "answer": "a",
@@ -3004,7 +3015,8 @@
         "label": "46"
        }
       ],
-      "prompt": "Which floe has the answer? 64 - 28 = ?"
+      "prompt": "Which floe has the answer? 64 - 28 = ?",
+      "skill": "subtraction-within-100"
      },
      {
       "answer": "c",
@@ -3024,7 +3036,8 @@
         "label": "45"
        }
       ],
-      "prompt": "Which floe has the answer? 90 - 45 = ?"
+      "prompt": "Which floe has the answer? 90 - 45 = ?",
+      "skill": "subtraction-within-100"
      }
     ]
    },
@@ -3081,7 +3094,8 @@
         "label": "4"
        }
       ],
-      "prompt": "Which floe has the answer? 9 - 4 = ?"
+      "prompt": "Which floe has the answer? 9 - 4 = ?",
+      "skill": "subtraction-within-ten"
      },
      {
       "answer": "c",
@@ -3121,7 +3135,8 @@
         "label": "2"
        }
       ],
-      "prompt": "Which floe has the answer? 8 - 5 = ?"
+      "prompt": "Which floe has the answer? 8 - 5 = ?",
+      "skill": "subtraction-within-ten"
      },
      {
       "answer": "b",
@@ -3161,7 +3176,8 @@
         "label": "7"
        }
       ],
-      "prompt": "Which floe has the answer? 10 - 3 = ?"
+      "prompt": "Which floe has the answer? 10 - 3 = ?",
+      "skill": "subtraction-within-ten"
      }
     ]
    },
@@ -3177,7 +3193,7 @@
      "c": "np-lake-floe-c"
     },
     "presentation": "PLATFORMS",
-    "skill": "counting-sets",
+    "skill": "number-recognition",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -3224,7 +3240,8 @@
         "symbol": "triangle"
        }
       ],
-      "prompt": "One penguin joins one more penguin. How many penguins are on the ice?"
+      "prompt": "One penguin joins one more penguin. How many penguins are on the ice?",
+      "skill": "addition-within-ten"
      },
      {
       "answer": "c",
@@ -3270,7 +3287,8 @@
         "symbol": "triangle"
        }
       ],
-      "prompt": "Two fish are in the water and one more swims up. How many fish are there?"
+      "prompt": "Two fish are in the water and one more swims up. How many fish are there?",
+      "skill": "addition-within-ten"
      },
      {
       "answer": "b",
@@ -3322,7 +3340,7 @@
      "d": "np-lake-order-floe-d"
     },
     "presentation": "PATH",
-    "skill": "number-order",
+    "skill": "comparing-and-ordering-numbers",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -3485,7 +3503,7 @@
      "d": "np-lake-order-floe-d"
     },
     "presentation": "PATH",
-    "skill": "number-order",
+    "skill": "comparing-and-ordering-numbers",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -3647,7 +3665,7 @@
      "c": "np-lake-order-floe-c"
     },
     "presentation": "PATH",
-    "skill": "number-order",
+    "skill": "comparing-and-ordering-numbers",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -3779,7 +3797,7 @@
      "A half is 2 equal groups. A quarter is 4 equal groups."
     ],
     "presentation": "SHAPES",
-    "skill": "fractions",
+    "skill": "halves-and-fractions",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -3959,7 +3977,7 @@
      "Equal parts must be the same size."
     ],
     "presentation": "SHAPES",
-    "skill": "shapes-and-halves",
+    "skill": "shapes-and-geometry",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -4020,7 +4038,8 @@
         "label": "A half"
        }
       ],
-      "prompt": "A cookie is cut into 2 equal parts. What do we call each part?"
+      "prompt": "A cookie is cut into 2 equal parts. What do we call each part?",
+      "skill": "halves-and-fractions"
      },
      {
       "answer": "a",
@@ -4060,7 +4079,8 @@
         "label": "A whole"
        }
       ],
-      "prompt": "A pizza is cut into 4 equal parts. What do we call one part?"
+      "prompt": "A pizza is cut into 4 equal parts. What do we call one part?",
+      "skill": "halves-and-fractions"
      }
     ]
    },
@@ -4071,7 +4091,7 @@
      "Count the straight sides with your finger."
     ],
     "presentation": "SHAPES",
-    "skill": "shapes",
+    "skill": "shapes-and-geometry",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -4666,7 +4686,8 @@
         "label": "Sleeping"
        }
       ],
-      "prompt": "The prints get farther apart. What is Snowball probably doing?"
+      "prompt": "The prints get farther apart. What is Snowball probably doing?",
+      "skill": "observation"
      },
      {
       "answer": "d",
@@ -4690,7 +4711,8 @@
         "label": "A big and a small reindeer walked together"
        }
       ],
-      "prompt": "Two sets of prints, one big and one small, walk side by side. What can you tell?"
+      "prompt": "Two sets of prints, one big and one small, walk side by side. What can you tell?",
+      "skill": "observation"
      },
      {
       "answer": "a",
@@ -4992,7 +5014,8 @@
         "label": "5"
        }
       ],
-      "prompt": "We have 12 handfuls of lichen. We share them equally among 3 reindeer. How many handfuls does each reindeer get?"
+      "prompt": "We have 12 handfuls of lichen. We share them equally among 3 reindeer. How many handfuls does each reindeer get?",
+      "skill": "equal-sharing"
      },
      {
       "answer": "c",
@@ -5016,7 +5039,8 @@
         "label": "13"
        }
       ],
-      "prompt": "Each reindeer eats 4 handfuls of lichen a day. For 3 reindeer, how many handfuls do we need for one day?"
+      "prompt": "Each reindeer eats 4 handfuls of lichen a day. For 3 reindeer, how many handfuls do we need for one day?",
+      "skill": "multiplication-facts"
      },
      {
       "answer": "d",
@@ -5156,7 +5180,8 @@
         "label": "6"
        }
       ],
-      "prompt": "The reindeer eat 2 bags of hay each day. How many bags for 2 days?"
+      "prompt": "The reindeer eat 2 bags of hay each day. How many bags for 2 days?",
+      "skill": "addition-within-ten"
      },
      {
       "answer": "b",
@@ -5337,7 +5362,7 @@
      "A 3D shape has faces, edges and corners."
     ],
     "presentation": "SHAPES",
-    "skill": "shapes",
+    "skill": "shapes-and-geometry",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -5469,7 +5494,7 @@
      "Check if the sides are the same length."
     ],
     "presentation": "SHAPES",
-    "skill": "shapes",
+    "skill": "shapes-and-geometry",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -5581,7 +5606,7 @@
      "Does it have corners or is it round?"
     ],
     "presentation": "SHAPES",
-    "skill": "shapes",
+    "skill": "shapes-and-geometry",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -6177,7 +6202,8 @@
         "label": "6 cups"
        }
       ],
-      "prompt": "Card: Use 3 cups of flour for one batch. How many cups for 2 batches?"
+      "prompt": "Card: Use 3 cups of flour for one batch. How many cups for 2 batches?",
+      "skill": "multiplication-facts"
      },
      {
       "answer": "a",
@@ -6212,7 +6238,7 @@
      "Find the word in the question on the card."
     ],
     "presentation": "CARDS",
-    "skill": "following-directions",
+    "skill": "reading-comprehension",
     "subject": "LITERACY",
     "variants": [
      {
@@ -6324,7 +6350,7 @@
      "Think about what the tool does."
     ],
     "presentation": "CARDS",
-    "skill": "following-directions",
+    "skill": "vocabulary",
     "subject": "LITERACY",
     "variants": [
      {
@@ -6653,7 +6679,8 @@
         "label": "A feather"
        }
       ],
-      "prompt": "Which is the best way to measure the length of a table: your feet or a cup?"
+      "prompt": "Which is the best way to measure the length of a table: your feet or a cup?",
+      "skill": "measurement"
      },
      {
       "answer": "b",
@@ -6673,7 +6700,8 @@
         "label": "3"
        }
       ],
-      "prompt": "A gingerbread fence is 9 cookies long. 5 cookies are painted. How many cookies are not painted?"
+      "prompt": "A gingerbread fence is 9 cookies long. 5 cookies are painted. How many cookies are not painted?",
+      "skill": "subtraction-within-ten"
      }
     ]
    },
@@ -6967,7 +6995,8 @@
         "label": "8"
        }
       ],
-      "prompt": "How many sides or arms does a snowflake have?"
+      "prompt": "How many sides or arms does a snowflake have?",
+      "skill": "observation"
      },
      {
       "answer": "c",
@@ -6991,7 +7020,8 @@
         "label": "Rock, sand and soil"
        }
       ],
-      "prompt": "Which three states can water be in?"
+      "prompt": "Which three states can water be in?",
+      "skill": "classification"
      },
      {
       "answer": "d",
@@ -7131,7 +7161,8 @@
         "label": "Steam"
        }
       ],
-      "prompt": "Which one is a solid?"
+      "prompt": "Which one is a solid?",
+      "skill": "classification"
      },
      {
       "answer": "b",
@@ -7209,7 +7240,8 @@
         "symbol": "triangle"
        }
       ],
-      "prompt": "What happens to ice in the warm sun?"
+      "prompt": "What happens to ice in the warm sun?",
+      "skill": "cause-and-effect"
      },
      {
       "answer": "c",
@@ -7410,7 +7442,7 @@
      "Stars show up best in the dark."
     ],
     "presentation": "CARDS",
-    "skill": "cause-and-effect",
+    "skill": "earth-and-space",
     "subject": "EARTH_SCIENCE",
     "variants": [
      {
@@ -7770,7 +7802,7 @@
      "Count the stars in the bowl and the handle."
     ],
     "presentation": "SHAPES",
-    "skill": "observation",
+    "skill": "earth-and-space",
     "subject": "EARTH_SCIENCE",
     "variants": [
      {
@@ -7791,7 +7823,8 @@
         "label": "Tree"
        }
       ],
-      "prompt": "The Big Dipper looks like a big..."
+      "prompt": "The Big Dipper looks like a big...",
+      "skill": "observation"
      },
      {
       "answer": "b",
@@ -7811,7 +7844,8 @@
         "label": "12"
        }
       ],
-      "prompt": "How many bright stars are in the Big Dipper?"
+      "prompt": "How many bright stars are in the Big Dipper?",
+      "skill": "counting-sets"
      },
      {
       "answer": "c",
@@ -7871,7 +7905,8 @@
         "label": "9"
        }
       ],
-      "prompt": "How many stars in the handle and bowl together?"
+      "prompt": "How many stars in the handle and bowl together?",
+      "skill": "counting-sets"
      }
     ]
    },
@@ -7882,7 +7917,7 @@
      "Count how many dots there are."
     ],
     "presentation": "SHAPES",
-    "skill": "shapes",
+    "skill": "shapes-and-geometry",
     "subject": "EARTH_SCIENCE",
     "variants": [
      {
@@ -7952,7 +7987,8 @@
         "symbol": "triangle"
        }
       ],
-      "prompt": "Stars can make a picture in the sky. What do we call it?"
+      "prompt": "Stars can make a picture in the sky. What do we call it?",
+      "skill": "earth-and-space"
      },
      {
       "answer": "a",
@@ -7975,7 +8011,8 @@
         "symbol": "square"
        }
       ],
-      "prompt": "Which one looks like a crescent in the night sky?"
+      "prompt": "Which one looks like a crescent in the night sky?",
+      "skill": "earth-and-space"
      }
     ]
    }
@@ -7998,7 +8035,7 @@
      "Words like then, next and last can help."
     ],
     "presentation": "STORY",
-    "skill": "cause-and-effect",
+    "skill": "earth-and-space",
     "subject": "EARTH_SCIENCE",
     "variants": [
      {
@@ -8141,7 +8178,7 @@
      "Which happens right after the sun sets?"
     ],
     "presentation": "STORY",
-    "skill": "cause-and-effect",
+    "skill": "earth-and-space",
     "subject": "EARTH_SCIENCE",
     "variants": [
      {
@@ -8761,11 +8798,11 @@
    "EXPLORER": {
     "hintAfterAttempts": 2,
     "hints": [
-     "Break the problem into two small steps and do the first one.",
-     "Write the answer from step one, then use it in step two."
+     "Take away the first number, then take away the second.",
+     "Write the answer from step one, then take away again from it."
     ],
     "presentation": "CARDS",
-    "skill": "multiplication-facts",
+    "skill": "subtraction-within-ten",
     "subject": "MATHEMATICS",
     "variants": [
      {
@@ -8794,55 +8831,55 @@
      },
      {
       "answer": "b",
-      "explanation": "4 sacks with 6 presents each are 4 x 6 = 24. Then 24 - 5 = 19.",
+      "explanation": "9 minus 3 is 6, then 6 minus 2 is 4.",
       "id": "v2",
       "options": [
        {
         "id": "a",
-        "label": "24"
+        "label": "6"
        },
        {
         "id": "b",
-        "label": "19"
+        "label": "4"
        },
        {
         "id": "c",
-        "label": "29"
+        "label": "5"
        },
        {
         "id": "d",
-        "label": "15"
+        "label": "3"
        }
       ],
-      "prompt": "Each of 4 sacks holds 6 presents. Santa takes 5 presents out. How many presents are left?"
+      "prompt": "Polaris has 9 glowing crystals. Jingle takes 3 to the workshop and Tinker takes 2 to the stables. How many crystals are still here?"
      },
      {
       "answer": "c",
-      "explanation": "2 elves with 2 each bring 2 x 2 = 4. Then 3 + 4 = 7.",
+      "explanation": "10 minus 2 is 8, then 8 minus 5 is 3.",
       "id": "v3",
       "options": [
        {
         "id": "a",
-        "label": "5"
+        "label": "8"
        },
        {
         "id": "b",
-        "label": "10"
+        "label": "5"
        },
        {
         "id": "c",
-        "label": "7"
+        "label": "3"
        },
        {
         "id": "d",
-        "label": "9"
+        "label": "4"
        }
       ],
-      "prompt": "The star needs 7 fragments. We have 3. Each of 2 elves brings 2 more. How many fragments do we have now?"
+      "prompt": "The big star has 10 points to light. Jingle lights 2 and Tinker lights 5. How many points are still dark?"
      },
      {
       "answer": "d",
-      "explanation": "20 divided by 4 is 5. Then 5 - 3 = 2.",
+      "explanation": "8 minus 3 is 5, then 5 minus 4 is 1.",
       "id": "v4",
       "options": [
        {
@@ -8851,42 +8888,42 @@
        },
        {
         "id": "b",
-        "label": "8"
+        "label": "2"
        },
        {
         "id": "c",
-        "label": "17"
+        "label": "0"
        },
        {
         "id": "d",
-        "label": "2"
+        "label": "1"
        }
       ],
-      "prompt": "20 lights are shared equally among 4 trees. Then 3 lights fall off one tree. How many lights does that tree have now?"
+      "prompt": "There are 8 lanterns on the path. Santa carries 3 to the sleigh, then 4 more. How many lanterns are left on the path?"
      },
      {
       "answer": "a",
-      "explanation": "3 stops with 9 presents each use 3 x 9 = 27. Then 30 - 27 = 3.",
+      "explanation": "10 minus 4 is 6, then 6 minus 4 is 2.",
       "id": "v5",
       "options": [
        {
         "id": "a",
-        "label": "3"
+        "label": "2"
        },
        {
         "id": "b",
-        "label": "27"
+        "label": "6"
        },
        {
         "id": "c",
-        "label": "21"
+        "label": "3"
        },
        {
         "id": "d",
-        "label": "6"
+        "label": "1"
        }
       ],
-      "prompt": "The sleigh has 30 presents. It visits 3 stops and leaves 9 presents at each. How many presents are left?"
+      "prompt": "The sleigh has 10 presents. It leaves 4 at the first house and 4 at the second house. How many presents are left?"
      }
     ]
    },
@@ -9018,7 +9055,8 @@
         "label": "9"
        }
       ],
-      "prompt": "Polaris shows 4 stars on one side of the sky and 5 on the other. How many stars is that in all?"
+      "prompt": "Polaris shows 4 stars on one side of the sky and 5 on the other. How many stars is that in all?",
+      "skill": "addition-within-ten"
      }
     ]
    },
