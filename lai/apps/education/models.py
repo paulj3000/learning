@@ -96,8 +96,21 @@ class ChallengeSpec(Authorable, models.Model):
         super().save(*args, **kwargs)
 
 
+#: Where a piece of evidence came from. Every row has exactly one; each is also a child link.
+EVIDENCE_SOURCES = ("adventure_session", "story_progress", "challenge_attempt", "puzzle_attempt")
+
+
+def _exactly_one_source(fields: tuple[str, ...]) -> Q:
+    """True when exactly one of `fields` is set: one `Q` term per field."""
+    condition = Q()
+    for chosen in fields:
+        term = Q(**{f"{name}__isnull": name != chosen for name in fields})
+        condition = term if not condition else condition | term
+    return condition
+
+
 class SkillEvidence(ChildOwnedModel):
-    CHILD_LINKS = ("adventure_session", "story_progress", "challenge_attempt")
+    CHILD_LINKS = EVIDENCE_SOURCES
 
     adventure_session = models.ForeignKey(
         "game_sessions.AdventureSession",
@@ -120,6 +133,14 @@ class SkillEvidence(ChildOwnedModel):
         blank=True,
         related_name="evidence",
     )
+    # FPV-D10: an Area puzzle attempt (CHOOSE_ANSWER, ORDER_SEQUENCE), one row per graded attempt.
+    puzzle_attempt = models.OneToOneField(
+        "game_sessions.PuzzleAttempt",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="evidence",
+    )
     learning_objective_code = models.CharField(max_length=100)
     evidence_type = models.CharField(max_length=32)
     difficulty = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -131,21 +152,7 @@ class SkillEvidence(ChildOwnedModel):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                condition=Q(
-                    adventure_session__isnull=False,
-                    story_progress__isnull=True,
-                    challenge_attempt__isnull=True,
-                )
-                | Q(
-                    adventure_session__isnull=True,
-                    story_progress__isnull=False,
-                    challenge_attempt__isnull=True,
-                )
-                | Q(
-                    adventure_session__isnull=True,
-                    story_progress__isnull=True,
-                    challenge_attempt__isnull=False,
-                ),
+                condition=_exactly_one_source(EVIDENCE_SOURCES),
                 name="evidence_exactly_one_source",
             ),
         ]

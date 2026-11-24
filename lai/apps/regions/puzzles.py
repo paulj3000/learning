@@ -326,6 +326,14 @@ def _quiz_common(kind: str, params: dict, problems: list[str], where: str, allow
     return variants
 
 
+def _variant_skill(variant: dict, problems: list[str], where: str) -> None:
+    """An optional per-variant `skill` (FPV-D10) overrides the band's `skill` for that variant."""
+    if "skill" in variant and (
+        not isinstance(variant["skill"], str) or not SLUG.match(variant["skill"])
+    ):
+        problems.append(f"{where}.skill: must be a lowercase slug")
+
+
 def _check_entities(mapping: dict, entries: list[dict], problems: list[str], where: str) -> None:
     if mapping and {e.get("id") for e in entries if isinstance(e, dict)} != set(mapping):
         problems.append(f"{where}: ids must equal the keys of the entity map")
@@ -344,7 +352,8 @@ def _choose_problems(params: dict, where: str) -> list[str]:
         _check_entities(mapping, options, problems, f"{at}.options")
         if variant.get("answer") not in {o.get("id") for o in options}:
             problems.append(f"{at}.answer: must be one of the options")
-        extra = set(variant) - {"id", "prompt", "options", "answer", "explanation"}
+        _variant_skill(variant, problems, at)
+        extra = set(variant) - {"id", "prompt", "options", "answer", "explanation", "skill"}
         if extra:
             problems.append(f"{at}: unknown settings {', '.join(sorted(extra))}")
     return problems
@@ -369,7 +378,8 @@ def _order_problems(params: dict, where: str) -> list[str]:
             or sorted(answer) != sorted(map(str, item_ids))
         ):
             problems.append(f"{at}.answer: must list every item exactly once")
-        extra = set(variant) - {"id", "prompt", "items", "answer", "explanation"}
+        _variant_skill(variant, problems, at)
+        extra = set(variant) - {"id", "prompt", "items", "answer", "explanation", "skill"}
         if extra:
             problems.append(f"{at}: unknown settings {', '.join(sorted(extra))}")
     return problems
@@ -469,3 +479,20 @@ def body_problems(kind: str, body: Any) -> list[str]:
 
 def grade(kind: str, params: dict, submission: object) -> bool:
     return RULES[kind].grade(params, submission)
+
+
+#: Kinds that teach a curriculum skill and carry `skill` in their parameters (FPV-D10).
+SKILL_KINDS = frozenset({PuzzleKind.CHOOSE_ANSWER, PuzzleKind.ORDER_SEQUENCE})
+
+
+def skill_for(kind: str, params: dict, submission: object) -> str | None:
+    """The skill a graded submission practised: its variant's `skill`, else the band's.
+
+    None for a kind that teaches no curriculum skill. Call it after `grade`, which has already
+    refused a malformed submission or an unknown variant.
+    """
+    if kind not in SKILL_KINDS:
+        return None
+    variant = _variant(params, submission) if isinstance(submission, dict) else {}
+    skill = variant.get("skill") or params.get("skill")
+    return skill if isinstance(skill, str) and skill else None
