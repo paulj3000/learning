@@ -1119,7 +1119,7 @@ records each model's bounding corners in `metadata["bounds"]`, which automatic p
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
 
-## 25. Dependency tracking (LAI-07 W2; W2-1 on `main`, W2-3 and W2-4 in review)
+## 25. Dependency tracking (LAI-07 W2; W2-1 on `main`, W2-3, W2-4 and W2-4b in review)
 
 Status:
 - **On `main`:** the registry, the aggregate retirement guard and `manage.py asset_usage` (W2-1,
@@ -1128,7 +1128,10 @@ Status:
   `feature/asset-library-w2-3-regions`). The NPC and avatar providers with their parity tests
   (W2-4, `feature/asset-library-w2-4-parity`, stacked on W2-3) are **not registered**, so their guards refuse exactly as
   before.
-- **Waiting:** the audio provider (W2-2) and the guard switch (W2-4b) for owner decisions; the
+- **Guard switch (W2-4b,** `feature/asset-library-w2-4b-guard-switch`, stacked on W2-4): the NPC
+  and avatar guards become usage providers. A single NPC or avatar refusal keeps its code and
+  wording; together with another blocker it becomes one `asset_in_use` refusal naming both.
+- **Waiting:** the audio provider (W2-2) for an owner decision; the
   "Used by" admin panel (W2-5) is unblocked by the Lambda merge (#71) and comes as its own PR.
 
 `apps/assets/services.py` and the Django Admin classes are unchanged. Integration plan: 25.7.

@@ -8,9 +8,9 @@ class AvatarsConfig(AppConfig):
 
     def ready(self):
         # LAI-JMP-01c: the asset library refuses to retire a model an available player avatar is
-        # served with. Registered here so `apps.assets` never imports this app.
-        from apps.assets.services import register_retirement_guard
+        # served with. Since LAI-07 W2-4b this is a usage provider on the asset library's
+        # registry (`apps.assets.dependencies`) instead of a separate retirement guard; it refuses
+        # with the same code and wording. Registered here so `apps.assets` never imports this app.
+        from .dependencies import register_usage_provider
 
-        from .dependencies import retirement_guard
-
-        register_retirement_guard(retirement_guard)
+        register_usage_provider()

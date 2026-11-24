@@ -39,15 +39,16 @@ def test_the_aggregate_guard_is_registered_by_the_app():
     assert dependencies.retirement_guard in services.RETIREMENT_GUARDS
 
 
-def test_the_npc_and_avatar_guards_stay_in_place_beside_the_registry():
-    """W2-1 changes no behaviour: the NPC and avatar guards keep refusing until each owner
-    agrees to move them to a provider (ASSET_LIBRARY.md s. 25.2)."""
+def test_the_npc_and_avatar_guards_are_now_usage_providers():
+    """W2-4b: the NPC and avatar guards moved to usage providers on the registry, with the
+    owner's approval (ASSET_LIBRARY.md s. 25.7)."""
     from apps.avatars import dependencies as avatar_dependencies
     from apps.npcs import dependencies as npc_dependencies
 
-    assert npc_dependencies.retirement_guard in services.RETIREMENT_GUARDS
-    assert avatar_dependencies.retirement_guard in services.RETIREMENT_GUARDS
-    assert not {"npcs", "avatars"} & set(dependencies.registered_sources())
+    # W2-4b: both moved to usage providers; only the aggregate guard is registered.
+    assert npc_dependencies.retirement_guard not in services.RETIREMENT_GUARDS
+    assert avatar_dependencies.retirement_guard not in services.RETIREMENT_GUARDS
+    assert {"npcs", "avatars"} <= set(dependencies.registered_sources())
 
 
 def test_with_no_providers_retirement_is_unchanged(registry):
