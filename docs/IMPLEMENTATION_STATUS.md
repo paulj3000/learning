@@ -45,8 +45,8 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 - **Unchanged:** a retired asset that is not shipped, a non-model asset, and a retired version of a
   live asset send no `collision`. No migration, no API shape change, no client change (the client
   already reads `collision` on every entry).
-- **Tests:** 4 new in `apps/assets/tests/test_collision_profiles.py`. The resolver, collision,
-  media and catalog usage suites pass on PostgreSQL 18 (108 passed); `makemigrations --check` is
+- **Tests:** 5 new in `apps/assets/tests/test_collision_profiles.py`. The resolver, collision,
+  media and catalog usage suites pass on PostgreSQL 18 (109 passed); `makemigrations --check` is
   clean. Deferred to merge readiness: full suites and browser tests.
 - **Docs:** `docs/ASSET_LIBRARY.md` section 7, `docs/ASSET_COLLISION_PROFILES.md`.
 

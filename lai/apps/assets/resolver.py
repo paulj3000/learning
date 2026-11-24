@@ -76,6 +76,7 @@ def _entry(ref, asset_id, number, asset, pinned) -> dict:
     elif asset is not None and _retired_but_shipped_model(asset):
         # A retired asset the app still ships keeps drawing its bundled model, so it keeps the
         # collision of its default version: retiring it never makes a bundled model walk-through.
+        # A pinned ref (`id@n`) gets the default version's profile too; shipped scenes never pin.
         _attach_collision(entry, asset, asset.default_version)
     entry.pop("_version", None)
     return entry

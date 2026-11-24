@@ -288,6 +288,25 @@ def test_a_retired_asset_the_app_still_ships_keeps_its_collision(api, families, 
     assert set(entry) == {"ref", "id", "status", "collision"}
 
 
+def test_a_retired_shipped_asset_with_no_version_keeps_its_manual_collision(api, families, cognito):
+    # The common case for shipped scenes: a bundled file and a profile, no uploaded version.
+    rock = make_definition(
+        "rock",
+        kind="kit-piece",
+        category="scenery",
+        bundled_path="models/rock.glb",
+    )
+    profile(rock, shape=CollisionShape.BOX, width=1.2, height=0.9, depth=1.0, offset_y=0)
+    before = resolve_one(api, families, "rock")
+    assert before["status"] == "unavailable"
+    services.retire_asset(rock)
+
+    after = resolve_one(api, families, "rock")
+    assert after["status"] == "retired"
+    assert after["collision"] == before["collision"]
+    assert span(after["collision"]["boxes"], "X") == 1.2
+
+
 def test_a_retired_asset_that_is_not_shipped_has_no_collision(api, families, cognito):
     crate = make_definition("crate", kind="kit-piece", category="prop")
     published(crate)
