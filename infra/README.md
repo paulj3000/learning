@@ -3,16 +3,17 @@
 The CDK app for the Django platform's AWS resources (`docs/DJANGO_MIGRATION_ROADMAP.md` Phase 10,
 LAI-1001 layout). This is the only infrastructure code in the repository. Nothing here is deployed by a push.
 
-| Stack                   | Scope              | What                                                                                     | Doc                                             |
-| ----------------------- | ------------------ | ---------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `LaiDevArtifacts-dev`   | dev                | Release tarballs, Lambda zips, job results, template uploads (ADR-055)                   | `docs/infrastructure/dev-native-environment.md` |
-| `LaiDevPlatform-dev`    | dev                | Native EC2 (ARM64), Elastic IP, private RDS, SQS, Lambda, power state machine, schedules | `docs/infrastructure/dev-native-environment.md` |
-| `LaiAssetStorage-<env>` | environment        | The asset library's private S3 bucket and the Django role policy                         | `docs/ASSET_LIBRARY.md` sections 12 and 19      |
-| `LaiChildPhotos-<env>`  | environment        | The private child photo bucket (separate from assets, ADR-042) and its Django policy     | `docs/platform/CHILD_PHOTO_STORAGE.md`          |
-| `LaiAiGuardrail-<env>`  | environment        | Child-safety Guardrail and the Django AI policy                                          | `docs/AI_SERVICE.md`                            |
-| `LaiFrontend-<env>`     | environment        | React site in us-east-1: private S3, CloudFront (OAC), `/api/*` to the API host          | `docs/infrastructure/domains-and-hosting.md`    |
-| `LaiDjangoRelease`      | account, prod only | ECR `lai/django`, the GitHub OIDC provider, the image publisher role                     | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`        |
-| `LaiDjangoEc2-prod`     | prod only          | VPC, ALB (ACM, WAF), EC2, RDS, SSM settings and release documents, deploy role, alarms   | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`        |
+| Stack                    | Scope                       | What                                                                                                                    | Doc                                             |
+| ------------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `LaiDevArtifacts-dev`    | dev                         | Release tarballs, Lambda zips, job results, template uploads (ADR-055)                                                  | `docs/infrastructure/dev-native-environment.md` |
+| `LaiDevPlatform-dev`     | dev                         | Native EC2 (ARM64), Elastic IP, private RDS, SQS, Lambda, power state machine, schedules                                | `docs/infrastructure/dev-native-environment.md` |
+| `LaiAssetStorage-<env>`  | environment                 | The asset library's private S3 bucket and the Django role policy                                                        | `docs/ASSET_LIBRARY.md` sections 12 and 19      |
+| `LaiChildPhotos-<env>`   | environment                 | The private child photo bucket (separate from assets, ADR-042) and its Django policy                                    | `docs/platform/CHILD_PHOTO_STORAGE.md`          |
+| `LaiAiGuardrail-<env>`   | environment                 | Child-safety Guardrail and the Django AI policy                                                                         | `docs/AI_SERVICE.md`                            |
+| `LaiFrontend-<env>`      | environment                 | React site in us-east-1: private S3, CloudFront (OAC), `/api/*` to the API host                                         | `docs/infrastructure/domains-and-hosting.md`    |
+| `LaiDjangoRelease`       | account, prod only          | ECR `lai/django`, the GitHub OIDC provider, the image publisher role                                                    | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`        |
+| `LaiDjangoEc2-prod`      | prod only                   | VPC, ALB (ACM, WAF), EC2, RDS, SSM settings and release documents, deploy role, alarms                                  | `docs/platform/DJANGO_EC2_DEPLOYMENT.md`        |
+| (in `LaiDjangoEc2-prod`) | prod, flag `prodProcessing` | Processing queues, DLQs, workers, artifacts bucket, redrive and worker release roles, alarms, optional budget (ADR-071) | `docs/processing/PRODUCTION_PROCESSING.md`      |
 
 `LAI_ENV=dev` (the default) synthesizes the native dev stacks and no longer synthesizes
 `LaiDjangoEc2-dev` or `LaiDjangoRelease` (ADR-055). The dev environment is provisioned with
@@ -46,6 +47,15 @@ bootstrapless synthesizer: they have no file assets or custom resources, so no `
 | Browser origins for presigned GETs     | `allowedOrigins`      | `LAI_ASSET_ALLOWED_ORIGINS`                 | none (right for `django` delivery)              |
 | Origins that `fetch()` photo URLs      | `photoAllowedOrigins` | `LAI_PHOTO_ALLOWED_ORIGINS`                 | none (`<img>` and native clients need no CORS)  |
 | Account and region baked into the name |                       | `CDK_DEFAULT_ACCOUNT`, `CDK_DEFAULT_REGION` | pseudo-parameters                               |
+| Production processing (ADR-071)        | `prodProcessing`      | `LAI_PROD_PROCESSING`                       | off (prod templates unchanged)                  |
+| GLB optimize worker (dev and prod)     | `optimizeWorker`      | `LAI_OPTIMIZE_WORKER`                       | off (runtime undecided, ADR-070)                |
+| Processing budget, USD per month       | `processingBudgetUsd` | `LAI_PROCESSING_BUDGET_USD`                 | **none**: no budget (owner decision P15)        |
+| Worker memory/timeout overrides (JSON) | `processingSizing`    | `LAI_PROCESSING_SIZING`                     | the `WORKLOADS` table in `processingWorkers.ts` |
+
+Production reads `prodProcessing`, `optimizeWorker`, `processingBudgetUsd` and `processingSizing`
+from the committed `infra/config/prod-processing.json` only (review F3); a context value or
+environment variable that disagrees with the file stops the synth. Dev takes them from context or
+the environment.
 
 ## Deploy (approval required)
 

@@ -2,6 +2,7 @@ import { CfnOutput, Duration, RemovalPolicy, Stack, Tags, type StackProps } from
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import type { Construct } from 'constructs';
+import { artifactPrefix, djangoArtifactStatements } from './processingWorkers';
 
 /**
  * Production storage for the Django asset library (LAI-2200, ADR-035;
@@ -33,7 +34,17 @@ export interface AssetStorageStackProps extends StackProps {
   allowedOrigins: readonly string[];
   /** The Django service's IAM role (ECS task role, EC2 instance role), when it exists. */
   djangoRoleArn?: string;
+  /**
+   * Create `lai-django-processing-artifacts-<env>` (ADR-066, ADR-071): Django's read, staff capture
+   * and retention-delete rights on `processing/artifacts/<env>/`. Dev always; prod only with the
+   * `prodProcessing` synth flag, so the production template is unchanged until it is turned on.
+   */
+  processingArtifacts?: boolean;
 }
+
+/** The name of Django's derived-artifact policy; the platform stacks attach it by name. */
+export const processingArtifactsPolicyName = (env: AssetEnvironment) =>
+  `lai-django-processing-artifacts-${env}`;
 
 /** An explicit https origin, or a loopback http origin for local development. */
 export function isAllowedOrigin(origin: string): boolean {
@@ -51,6 +62,7 @@ export function isAllowedOrigin(origin: string): boolean {
 export class AssetStorageStack extends Stack {
   readonly bucket: s3.Bucket;
   readonly djangoPolicy: iam.ManagedPolicy;
+  readonly processingArtifactsPolicy?: iam.ManagedPolicy;
 
   constructor(scope: Construct, id: string, props: AssetStorageStackProps) {
     super(scope, id, { terminationProtection: props.envName === 'prod', ...props });
@@ -122,6 +134,24 @@ export class AssetStorageStack extends Stack {
         }),
       ],
     });
+    /*
+      Derived artifacts (Option C) live in this bucket under processing/artifacts/<env>/. No
+      CloudFront or other public origin serves this bucket (FrontendStack's only S3 origin is the
+      site bucket), and no lifecycle rule expires current objects: retention is Django's job
+      (90 days unreviewed, 30 days superseded, promoted and referenced kept). The bucket-wide
+      abort-incomplete-uploads rule above already covers the prefix; nothing else is needed.
+    */
+    if (props.processingArtifacts) {
+      this.processingArtifactsPolicy = new iam.ManagedPolicy(
+        this,
+        'DjangoProcessingArtifactsPolicy',
+        {
+          managedPolicyName: processingArtifactsPolicyName(props.envName),
+          description: `Django derived artifacts: read, staff captures (create-only) and retention deletes under ${artifactPrefix(props.envName)} only.`,
+          statements: djangoArtifactStatements(this.bucket.bucketArn, props.envName),
+        },
+      );
+    }
     if (props.djangoRoleArn) {
       this.djangoPolicy.attachToRole(
         iam.Role.fromRoleArn(this, 'DjangoRole', props.djangoRoleArn, { mutable: true }),

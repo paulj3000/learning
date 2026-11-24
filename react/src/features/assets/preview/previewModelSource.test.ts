@@ -8,6 +8,7 @@ import {
   type PreviewErrorCode,
 } from './previewModelSource';
 import { fakeResponse, glbFile, gltfFile } from './previewFixtures';
+import { meshoptTriangleGlb } from '../../../test/compressedGltfFixtures';
 
 const OPTIONS = {
   url: '/admin/assets/assetversion/7/preview/model/',
@@ -103,6 +104,14 @@ describe('sniffFormat', () => {
 });
 
 describe('parsePreviewModel', () => {
+  it('decodes a Meshopt-compressed GLB without fetching anything (ADR-070)', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const { scene } = await parsePreviewModel(meshoptTriangleGlb(), 'glb');
+    expect(scene.getObjectByName('Compressed')).toBeInstanceOf(Mesh);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
   it('parses a GLB into a scene with its mesh', async () => {
     const { scene, clipNames } = await parsePreviewModel(glbFile(), 'glb');
     let meshes = 0;

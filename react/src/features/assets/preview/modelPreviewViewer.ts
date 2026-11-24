@@ -64,6 +64,8 @@ export interface ViewerDependencies {
 }
 
 export interface ModelPreviewViewer {
+  /** The viewer's renderer, so a loader can match textures to its GPU (KTX2, ADR-070). */
+  readonly renderer?: PreviewRenderer;
   /** Shows `model` (replacing any earlier one) and frames it. Throws `empty_model` if it has no extent. */
   showModel(model: Object3D): void;
   /** Back to the framing chosen when the model was shown. */
@@ -283,6 +285,7 @@ export function createModelPreviewViewer(
   resize();
 
   return {
+    renderer,
     showModel(next) {
       if (disposed) return;
       clearModel();

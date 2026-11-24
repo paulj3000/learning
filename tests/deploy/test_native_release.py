@@ -85,6 +85,10 @@ def make_source(path: Path) -> Path:
         (path / f"lai/apps/demo/management/commands/{command}.py").write_text("# fake\n")
     (path / "lai/apps/demo/__pycache__").mkdir()
     (path / "lai/apps/demo/__pycache__/x.cpython-312.pyc").write_bytes(b"\0")
+    # The processing library Django imports from beside lai/ (ADR-064); fixtures never ship.
+    (path / "processing/lai_processing/contracts/fixtures").mkdir(parents=True)
+    (path / "processing/lai_processing/__init__.py").write_text("# fake\n")
+    (path / "processing/lai_processing/contracts/fixtures/request.json").write_text("{}\n")
     (path / "content").mkdir()
     (path / "content/places.json").write_text("{}\n")
     (path / "react/public/models").mkdir(parents=True)
@@ -304,6 +308,9 @@ def test_first_release_is_downloaded_installed_switched_checked_and_recorded(box
     assert (release / "venv/.lai-complete").exists()
     assert (release / "lai/staticfiles").is_dir()
     assert os.readlink(release / "static") == "lai/staticfiles"
+    # settings.PROCESSING_DIR (lai/../processing) resolves inside the release; no test fixtures.
+    assert (release / "processing/lai_processing/__init__.py").is_file()
+    assert not (release / "processing/lai_processing/contracts/fixtures").exists()
     assert (release / "release.env").read_text() == f"LAI_RELEASE_SHA={sha(1)}\n"
     assert (box.state / "collectstatic_settings").read_text() == "config.settings.static_build"
     # Units, gunicorn config and the rendered nginx config are installed from the release.

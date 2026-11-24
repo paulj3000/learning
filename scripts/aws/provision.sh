@@ -18,6 +18,14 @@
 #   LAI_ALARM_EMAIL            optional
 #   LAI_GITHUB_REPOSITORY, LAI_DATABASE_MODE, LAI_CREATE_OIDC_PROVIDER, LAI_HOSTED_ZONE_ID,
 #   LAI_HOSTED_ZONE_NAME, LAI_DB_MULTI_AZ   passed to the CDK app (infra/bin/app.ts)
+#   LAI_CFN_TEMPLATE_BUCKET    bucket for templates over 51,200 bytes (CloudFormation's limit for
+#                              an inline body); default lai-<env>-artifacts-<account>-<region>,
+#                              which must exist (the first prod run names an existing private bucket)
+#   LAI_PROVISION_TEMPLATES    use templates already synthesized in this directory (no synth)
+#
+# Production processing (ADR-071) is not an option here: infra/bin/app.ts reads it from the
+# committed infra/config/prod-processing.json, so a run without any flag keeps the deployed
+# processing resources (review F3).
 #
 # Order: LaiAssetStorage-<env> (the asset policy the instance role attaches), LaiChildPhotos-<env>
 # (the private child photo bucket and the photo policy the instance role attaches, ADR-042),
@@ -43,11 +51,32 @@ done
 export AWS_REGION=${AWS_REGION:-us-west-1}
 account=$(aws sts get-caller-identity --query Account --output text)
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-out="$repo_root/infra/cdk.out"
+out=${LAI_PROVISION_TEMPLATES:-"$repo_root/infra/cdk.out"}
 echo "account $account, region $AWS_REGION, environment $env_name, execute=$execute"
 
-LAI_ENV=$env_name CDK_DEFAULT_ACCOUNT=$account CDK_DEFAULT_REGION=$AWS_REGION \
-    npm --prefix "$repo_root" run --silent infra:synth
+if [ -z "${LAI_PROVISION_TEMPLATES:-}" ]; then
+    LAI_ENV=$env_name CDK_DEFAULT_ACCOUNT=$account CDK_DEFAULT_REGION=$AWS_REGION \
+        npm --prefix "$repo_root" run --silent infra:synth
+fi
+
+# template_flags <stack> <region>: --template-file, plus --s3-bucket for a template over 51,200
+# bytes (as deploy-debug.sh's --template-url: the CLI uploads the template to the bucket and
+# CloudFormation reads it from there). Sets TEMPLATE_FLAGS.
+TEMPLATE_FLAGS=()
+template_flags() {
+    local stack=$1 region=$2 template="$out/$1.template.json" bucket
+    TEMPLATE_FLAGS=(--template-file "$template")
+    if [ "$(wc -c <"$template")" -lt 51200 ]; then
+        return 0
+    fi
+    bucket=${LAI_CFN_TEMPLATE_BUCKET:-lai-$env_name-artifacts-$account-$AWS_REGION}
+    if ! aws s3api head-bucket --region "$region" --bucket "$bucket" >/dev/null 2>&1; then
+        echo "$stack: template over 51,200 bytes and bucket $bucket is not reachable;" \
+            "set LAI_CFN_TEMPLATE_BUCKET to an existing private bucket in $region" >&2
+        exit 3
+    fi
+    TEMPLATE_FLAGS+=(--s3-bucket "$bucket" --s3-prefix tmp/cfn)
+}
 
 existing() { # existing() <stack> <parameter> [region]: the deployed value, or nothing
     aws cloudformation describe-stacks --region "${3:-$AWS_REGION}" --stack-name "$1" \
@@ -59,8 +88,9 @@ deploy_stack() { # deploy_stack <stack> [Key=Value ...]; STACK_REGION overrides 
     local stack=$1
     shift
     [ -z "$only" ] || [ "$only" = "$stack" ] || return 0
+    template_flags "$stack" "${STACK_REGION:-$AWS_REGION}"
     local flags=(--region "${STACK_REGION:-$AWS_REGION}" --stack-name "$stack"
-        --template-file "$out/$stack.template.json"
+        "${TEMPLATE_FLAGS[@]}"
         --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset
         --tags Project=learning-adventure-island)
     [ "$#" -eq 0 ] || flags+=(--parameter-overrides "$@")

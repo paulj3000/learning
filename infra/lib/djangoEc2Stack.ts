@@ -30,6 +30,7 @@ import { readFileSync } from 'node:fs';
 import type { Construct } from 'constructs';
 import { DJANGO_REPOSITORY_NAME } from './djangoReleaseStack';
 import { githubOidcProviderArn, githubPrincipal, isGithubRepository } from './githubOidc';
+import { ProductionProcessing, type ProductionProcessingOptions } from './productionProcessing';
 
 /**
  * One Django environment on a single EC2 instance (ADR-037,
@@ -90,6 +91,11 @@ export interface DjangoEc2StackProps extends StackProps {
   hostedZone?: { id: string; name: string };
   /** The admin path for the WAF login rate rule (default `/admin/`). */
   adminPath?: string;
+  /**
+   * Production background processing (ADR-071, `infra/lib/productionProcessing.ts`). Unset (the
+   * default, synth flag `prodProcessing` off): the template has no processing resource at all.
+   */
+  processing?: ProductionProcessingOptions;
 }
 
 /** Read a script from scripts/aws/ for embedding (user data, SSM documents). */
@@ -866,6 +872,17 @@ export class DjangoEc2Stack extends Stack {
       2,
     );
     statusFailed.addAlarmAction(new cwActions.Ec2Action(cwActions.Ec2InstanceAction.RECOVER));
+    if (props.processing) {
+      if (!prod) throw new Error('processing is defined for prod only (dev: LaiDevPlatform-dev)');
+      new ProductionProcessing(this, 'Processing', {
+        ...props.processing,
+        githubRepository: props.githubRepository,
+        instanceRole: this.instanceRole,
+        alarmTopic: topic,
+        appLogs,
+        deployLogs,
+      });
+    }
     if (database) {
       alarm(
         'DatabaseStorageLow',

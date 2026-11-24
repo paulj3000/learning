@@ -1,7 +1,13 @@
 """Import existing models into the asset library (LAI-2200 AM-8; `docs/ASSET_LIBRARY.md` s. 11).
 
 Two sources, both idempotent (a file whose SHA-256 is already a version of the asset is skipped),
-both producing `VALIDATED` versions only (publishing stays an administrator's decision):
+both going through `services.upload_version` and never publishing (publishing stays an
+administrator's decision). With `LAI_ASSET_ASYNC_VALIDATION` off every imported file is a
+`VALIDATED` version. With it on, an imported GLB is a `DRAFT` with a queued `asset.validate_model`
+job (ADR-064) until the background validator moves it to `VALIDATED` or `REJECTED` (with the
+inline jobs backend that happens before the import returns); other formats stay synchronous.
+Each imported entry in the report carries the version's `status` and, for a draft,
+`background_validation: "queued"`.
 
 - **Bundled**: every export-origin definition whose `bundled_path` exists under `react/public`.
 - **Amplify**: a JSON export of Amplify `Asset` records with their `versions` (the read-only
@@ -104,7 +110,15 @@ def _import_file(report, asset, path: Path, source: dict, *, dry_run: bool) -> N
             codes = sorted({f.code for f in refused.findings}) or [refused.code]
             report.unresolved.append({**source, "reason": refused.code, "codes": codes})
             return
-    report.imported.append({**source, "asset": asset.asset_id, "version": version.number})
+    entry = {
+        **source,
+        "asset": asset.asset_id,
+        "version": version.number,
+        "status": str(version.status),
+    }
+    if version.status == VersionStatus.DRAFT:
+        entry["background_validation"] = "queued"
+    report.imported.append(entry)
 
 
 def import_bundled(

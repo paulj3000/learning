@@ -33,3 +33,5 @@ DATABASES = {"default": compose_database()}
 LAI_STUDIO_RUN_MODE = "manual"
 # Background jobs run in-process through the worker's own task code (apps.jobs.core).
 LAI_JOBS_BACKEND = "inline"
+# Asynchronous model validation stays off unless a test turns it on (settings fixture).
+LAI_ASSET_ASYNC_VALIDATION = "off"

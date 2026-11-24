@@ -25,13 +25,18 @@ Logs carry job ids, kinds and codes only: never payloads, prompts, text or model
 import json
 import logging
 import re
+import uuid
 from datetime import timedelta
 from importlib import import_module
 
+from django.apps import apps as django_apps
 from django.conf import settings
-from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
+from django.db.models import ProtectedError, Q
 from django.utils.timezone import now
 
+from . import workloads
 from .core import envelope, tasks
 from .models import JobStatus, ProcessingJob
 
@@ -44,6 +49,16 @@ HANDLER_MODULES = {
     envelope.STUDIO_GENERATE_CHUNK: "apps.question_studio.jobs",
     envelope.SPEECH_SYNTHESIZE: "apps.speech.jobs",
     envelope.ASSET_INSPECT: "apps.assets.jobs",
+    envelope.ASSET_VALIDATE_MODEL: "apps.assets.processing",
+    envelope.REFERENCE_CHECKSUM: "apps.jobs.reference",
+    envelope.ASSET_ANALYZE_ANIMATION: "apps.npcs.animation_inspection",
+    envelope.ASSET_PROCESS_AUDIO: "apps.audio.inspection",
+    # Derived-artifact workloads (ADR-066): the shared handler records and verifies artifacts.
+    # A workload's own module may replace its entry to add subject-specific behaviour, and
+    # should call `apps.assets.artifact_results.apply_artifact_result` for the artifacts.
+    envelope.ASSET_TRANSCODE_AUDIO: "apps.assets.artifact_results",
+    envelope.ASSET_CONVERT_IMAGE: "apps.assets.artifact_results",
+    envelope.ASSET_OPTIMIZE: "apps.assets.artifact_results",
 }
 #: The largest work message accepted (SQS allows 256 KiB).
 MAX_WORK_BYTES = 240 * 1024
@@ -71,6 +86,19 @@ class JobsError(Exception):
 
 class JobsDisabled(JobsError):
     code = "jobs_disabled"
+
+
+class WorkloadUnavailable(JobsError):
+    """A derived-artifact workload is switched off or has no queue (apps.jobs.workloads). Nothing
+    was recorded or queued. `message` is safe to show staff."""
+
+    code = workloads.WORKLOAD_DISABLED
+
+    def __init__(self, code: str | None = None):
+        super().__init__(code)
+        self.message = workloads.MESSAGES.get(
+            self.code, workloads.MESSAGES[workloads.WORKLOAD_DISABLED]
+        )
 
 
 class ResultUnavailable(JobsError):
@@ -126,11 +154,27 @@ def _client(name: str):
 
 
 def queue_url_for(kind: str) -> str:
+    """The work queue URL of `kind`. Raises `WorkloadUnavailable` for a workload with none."""
     queue = envelope.KIND_QUEUE[kind]
-    return {
+    url = {
         "ai": settings.LAI_JOBS_AI_QUEUE_URL,
         "media": settings.LAI_JOBS_MEDIA_QUEUE_URL,
+        "audio": settings.LAI_JOBS_AUDIO_QUEUE_URL,
+        "image": settings.LAI_JOBS_IMAGE_QUEUE_URL,
+        "optimize": settings.LAI_JOBS_OPTIMIZE_QUEUE_URL,
     }[queue]
+    if not url:
+        raise WorkloadUnavailable(workloads.WORKLOAD_QUEUE_MISSING)
+    return url
+
+
+def require_workload(kind: str, *, variant: str | None = None) -> None:
+    """Raise `WorkloadUnavailable` unless `kind` may be submitted now (see `apps.jobs.workloads`).
+    Kinds that are not derived-artifact workloads always pass."""
+    code = workloads.refusal_code(kind, variant=variant)
+    if code is not None:
+        logger.info("jobs.workload refused kind=%s code=%s", kind, code)
+        raise WorkloadUnavailable(code)
 
 
 # --- submit -----------------------------------------------------------------------------------
@@ -146,13 +190,25 @@ def _subject_ref(subject) -> tuple[str, str]:
     return f"{meta.app_label}.{meta.model_name}", str(subject.pk)
 
 
-def submit(kind: str, payload: dict, *, user=None, subject=None) -> ProcessingJob:
-    """Record and dispatch one job. `subject` is a model instance or a (type, id) pair."""
+def submit(
+    kind: str,
+    payload: dict,
+    *,
+    user=None,
+    subject=None,
+    job_id=None,
+    idempotency_key: str = "",
+) -> ProcessingJob:
+    """Record and dispatch one job. `subject` is a model instance or a (type, id) pair.
+
+    `job_id` and `idempotency_key` are for contract kinds, whose payload (an ADR-061 request)
+    names its own job id and logical key (core/contract.py)."""
     if kind not in envelope.KINDS:
         raise JobsError("unknown_kind")
     mode = backend()
     if mode == "disabled":
         raise JobsDisabled
+    require_workload(kind)  # a switched-off or unqueued workload leaves no row and no message
     try:
         size = len(json.dumps(payload, separators=(",", ":")).encode())
     except (TypeError, ValueError):
@@ -160,7 +216,15 @@ def submit(kind: str, payload: dict, *, user=None, subject=None) -> ProcessingJo
     if size > MAX_WORK_BYTES:
         raise JobsError("payload_too_large")
     subject_type, subject_id = _subject_ref(subject)
+    try:
+        # Normalized so the returned job compares equal to the same row read back (a UUID pk on
+        # every backend, not the caller's str).
+        extra = {"id": uuid.UUID(str(job_id))} if job_id is not None else {}
+    except ValueError:
+        raise JobsError("invalid_job_id") from None
     job = ProcessingJob.objects.create(
+        **extra,
+        idempotency_key=idempotency_key,
         kind=kind,
         queue=envelope.KIND_QUEUE[kind],
         backend=mode,
@@ -191,6 +255,14 @@ def _send(job_id) -> str:
         )
         if job is None:
             return "skipped"  # already sent, finished, or being sent by another process
+        refusal = workloads.refusal_code(
+            job.kind, variant=workloads.dispatch_variant(job.kind, job.payload), backend="sqs"
+        )
+        if refusal is not None:
+            # The control was switched off (or the queue unset) after this job was committed:
+            # emit nothing (the RELEASE invariant) and finish the job so it is not stranded.
+            _finalize(job, JobStatus.FAILED, error_code=refusal)
+            return "failed"
         try:
             body = envelope.encode(envelope.build_work(str(job.pk), job.kind, job.payload))
             _client("sqs").send_message(QueueUrl=queue_url_for(job.kind), MessageBody=body)
@@ -376,8 +448,130 @@ def results_backlog() -> int | None:
         return None
 
 
+#: Kinds whose completed jobs are kept for their own period instead of `LAI_JOBS_RETENTION_DAYS`:
+#: a model validation job is the evidence the asset publication gate reads.
+RETENTION_SETTINGS = {envelope.ASSET_VALIDATE_MODEL: "LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS"}
+
+
+def retention_days(kind: str) -> int:
+    """Days a completed job of `kind` is kept before `sweep` deletes it."""
+    return int(getattr(settings, RETENTION_SETTINGS.get(kind, "LAI_JOBS_RETENTION_DAYS")))
+
+
+#: Outcomes after which a `pass` result counts as applied for its kind: the work is done and is
+#: reused, never resubmitted, so such a completed job holds no retry attempt.
+APPLIED_PASS_OUTCOMES = ("version_validated", "result_recorded", "artifacts_recorded")
+
+
+def prunable(stamp):
+    """Completed jobs `sweep` deletes at `stamp`: finished strictly more than their kind's
+    retention period before it (a job finished exactly that long ago is kept). Pending and
+    running jobs are never pruned, whatever their age. Failed jobs: see `prunable_failed_ids`.
+
+    Also kept: a keyed (contract-kind) job that did NOT end as an applied pass (a `fail` verdict,
+    `artifact_invalid`, `stale_source`, `processor_outdated`, `result_invalid`, a mismatch, or any
+    outcome not listed in `APPLIED_PASS_OUTCOMES`) while its subject record exists. Resubmission
+    counts the logical work's jobs against `LAI_ASSET_VALIDATION_MAX_ATTEMPTS`, so deleting such a
+    job would hand an attempt back (`attempts_exhausted` must survive a sweep). An applied pass is
+    reused instead of resubmitted and carries no attempt."""
+    # A job that still has a derived artifact row is that artifact's evidence (ADR-066): it is kept
+    # until retention expires the artifact and clears the link (DerivedArtifact.job is PROTECT).
+    base = ProcessingJob.objects.filter(_expired(stamp), status=JobStatus.COMPLETED).exclude(
+        derived_artifacts__isnull=False
+    )
+    holding = (
+        base.exclude(idempotency_key="")
+        .exclude(subject_outcome__in=APPLIED_PASS_OUTCOMES, result__verdict="pass")
+        .iterator()
+    )
+    keep = [job.pk for job in holding if _subject_exists(job)]
+    return base.exclude(pk__in=keep) if keep else base
+
+
+def _expired(stamp) -> Q:
+    """Rows finished strictly more than their kind's retention period before `stamp`."""
+    special = list(RETENTION_SETTINGS)
+    expired = Q(
+        ~Q(kind__in=special),
+        finished_at__lt=stamp - timedelta(days=settings.LAI_JOBS_RETENTION_DAYS),
+    )
+    for kind in special:
+        expired |= Q(kind=kind, finished_at__lt=stamp - timedelta(days=retention_days(kind)))
+    return expired
+
+
+def _protected_references() -> list[Q]:
+    """Filters that match a job another table still points at through a PROTECT foreign key
+    (for example a derived artifact's `job`). Generic on purpose: any model that protects its
+    job is honoured with no code here, so a new reference can never be silently severed."""
+    from django.db.models import Exists, OuterRef
+
+    out = []
+    for rel in ProcessingJob._meta.related_objects:
+        if not rel.one_to_many or rel.on_delete is not models.PROTECT:
+            continue
+        child = rel.related_model._default_manager.filter(**{rel.field.name: OuterRef("pk")})
+        out.append(Exists(child))
+    return out
+
+
+def _subject_exists(job: ProcessingJob) -> bool:
+    """True when the record a job worked for still exists, or cannot be resolved (unknown means
+    keep): a retry of that work counts this job's attempt (`attempts_exhausted` in
+    apps.assets.processing counts the logical work's jobs)."""
+    if not job.subject_type:
+        return False  # no subject record: nothing can be retried
+    try:
+        model = django_apps.get_model(job.subject_type)
+        return model._default_manager.filter(pk=job.subject_id).exists()
+    except (LookupError, ValueError, TypeError, ValidationError):
+        return True
+
+
+def prunable_failed_ids(stamp) -> list:
+    """Ids of FAILED jobs `sweep` deletes at `stamp`: finished strictly more than their kind's
+    retention period before it (`retention_days`: 30 days, 90 for model validation), and none of
+    - a job a PROTECT foreign key references (derived artifacts),
+    - a keyed (contract-kind) job whose subject record still exists: submitting the same logical
+      work again counts its jobs (a bounded number of attempts), so deleting one would hand back
+      an attempt. Once the subject is deleted the work cannot be retried, and the job goes,
+    - any job while the results queue holds (or may hold) messages: a late result for a failed
+      job must still find it.
+    Pending and running jobs are never candidates. The sweep re-checks each row under its lock."""
+    if results_backlog() != 0:
+        return []
+    candidates = ProcessingJob.objects.filter(_expired(stamp), status=JobStatus.FAILED)
+    for reference in _protected_references():
+        candidates = candidates.exclude(reference)
+    return [job.pk for job in candidates.iterator() if not _keeps_attempt(job)]
+
+
+def _keeps_attempt(job: ProcessingJob) -> bool:
+    return bool(job.idempotency_key) and _subject_exists(job)
+
+
+def _delete_failed(job_id, stamp) -> bool:
+    """Delete one failed job if it is still prunable, under its row lock (a concurrent result or
+    resubmission wins). A PROTECT reference that appeared meanwhile keeps the row."""
+    try:
+        with transaction.atomic():
+            job = ProcessingJob.objects.select_for_update().filter(pk=job_id).first()
+            if (
+                job is None
+                or job.status != JobStatus.FAILED
+                or not ProcessingJob.objects.filter(_expired(stamp), pk=job.pk).exists()
+                or _keeps_attempt(job)
+            ):
+                return False
+            job.delete()
+        return True
+    except ProtectedError:
+        return False
+
+
 def sweep(*, dry_run: bool = False) -> dict[str, int]:
-    """Fail stale unfinished jobs (`timeout`) and delete old completed ones.
+    """Fail stale unfinished jobs (`timeout`), delete old completed ones (`prunable`) and old
+    terminal failed ones (`prunable_failed_ids`).
 
     Timeouts wait while the results queue holds messages (or its depth cannot be read): after the
     overnight stop or a database outage, completions for "stale" jobs may still be queued, and
@@ -389,12 +583,16 @@ def sweep(*, dry_run: bool = False) -> dict[str, int]:
             created_at__lt=stamp - timedelta(minutes=settings.LAI_JOBS_STALE_MINUTES),
         ).values_list("pk", flat=True)
     )
-    old = ProcessingJob.objects.filter(
-        status=JobStatus.COMPLETED,
-        finished_at__lt=stamp - timedelta(days=settings.LAI_JOBS_RETENTION_DAYS),
-    )
-    report = {"stale": len(stale_ids), "timed_out": 0, "deferred": 0, "pruned": old.count()}
+    old = prunable(stamp)
+    report = {
+        "stale": len(stale_ids),
+        "timed_out": 0,
+        "deferred": 0,
+        "pruned": old.count(),
+        "pruned_failed": 0,
+    }
     if dry_run:
+        report["pruned_failed"] = len(prunable_failed_ids(stamp))
         return report
     if stale_ids:
         backlog = results_backlog()
@@ -404,8 +602,22 @@ def sweep(*, dry_run: bool = False) -> dict[str, int]:
     for job_id in stale_ids:
         if fail_job(job_id, "timeout"):
             report["timed_out"] += 1
-    old.delete()
+    # Failed jobs are chosen before the timeouts above fail more jobs, and at the same `stamp`:
+    # a job failed in this run is brand new and is never old enough to be deleted by it.
+    failed_ids = prunable_failed_ids(stamp)
+    _delete_completed(old)
+    report["pruned_failed"] = sum(1 for job_id in failed_ids if _delete_failed(job_id, stamp))
     return report
+
+
+def _delete_completed(old) -> None:
+    """Delete the completed jobs one by one, skipping any a PROTECT reference still holds."""
+    try:
+        old.delete()
+    except ProtectedError:
+        for reference in _protected_references():
+            old = old.exclude(reference)
+        old.delete()
 
 
 def latest_for(subject) -> ProcessingJob | None:

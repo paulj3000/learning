@@ -1,8 +1,10 @@
-import { InstancedMesh, LOD, Mesh, Object3D, type Material } from 'three';
+import { InstancedMesh, LOD, Mesh, Object3D, type Material, type WebGLRenderer } from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { getAssetManifestEntry } from './manifest';
 import { BUNDLED_ASSET_RESOLVER, type AssetResolver } from './assetResolver';
 import { cloneAssetScene } from './cloneAsset';
+import { configureGltfLoader, describeGltfLoadError, type Ktx2LoaderOptions } from './gltfDecoders';
+import { attachKtx2Renderer, beginParse, currentKtx2Loader } from './ktx2Support';
 
 /**
  * The runtime half of `docs/ROADMAP.md` Phase 34: loads assets through the
@@ -76,18 +78,49 @@ function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
 
-function createGltfFetcher(): GltfFetcher {
-  const loader = new GLTFLoader();
+/**
+ * One `GLTFLoader` per fetcher, configured with the decoders this build ships
+ * (`gltfDecoders.ts`, ADR-070). Uncompressed models never touch a decoder.
+ */
+/** A load that has not settled after this long is failed (and so evicted from the cache). */
+export const DEFAULT_LOAD_TIMEOUT_MS = 120_000;
+
+export interface GltfFetcherOptions {
+  /** Fail a load that has neither finished nor failed after this many ms. */
+  timeoutMs?: number;
+}
+
+export function createGltfFetcher(
+  loader: GLTFLoader = configureGltfLoader(new GLTFLoader()),
+  options: GltfFetcherOptions = {},
+): GltfFetcher {
+  const timeoutMs = options.timeoutMs ?? DEFAULT_LOAD_TIMEOUT_MS;
   return (url, onBytes) =>
     new Promise<GLTF>((resolve, reject) => {
+      // The app-wide KTX2 loader (null when no renderer is attached), for this load.
+      loader.setKTX2Loader(currentKtx2Loader());
+      const endParse = beginParse();
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        reject(new Error(`asset load did not finish within ${timeoutMs} ms`));
+      }, timeoutMs);
+      const finish = (action: () => void) => {
+        endParse();
+        clearTimeout(timer);
+        if (settled) return;
+        settled = true;
+        action();
+      };
       loader.load(
         resolveUrl(url),
-        resolve,
+        (gltf) => finish(() => resolve(gltf)),
         onBytes
           ? (event: ProgressEvent) =>
               onBytes(event.loaded, event.lengthComputable ? event.total : null)
           : undefined,
-        (error: unknown) => reject(toError(error)),
+        (error: unknown) => finish(() => reject(describeGltfLoadError(toError(error)))),
       );
     });
 }
@@ -294,7 +327,26 @@ export function createAssetLoader(
   return { loadAsset, instantiateAsset, createInstancedMeshFromAsset, instantiateWithLod };
 }
 
-const bundledLoader = createAssetLoader(BUNDLED_ASSET_RESOLVER);
+/** The one `GLTFLoader` behind the bundled asset loader (shared cache below). */
+const bundledGltfLoader = configureGltfLoader(new GLTFLoader());
+const bundledLoader = createAssetLoader(
+  BUNDLED_ASSET_RESOLVER,
+  createGltfFetcher(bundledGltfLoader),
+);
+
+/**
+ * Gives every game loader KTX2 support for `renderer` (ADR-070). Returns the
+ * detach. A thin name over `ktx2Support.attachKtx2Renderer`: the KTX2 loader
+ * is app-wide and reference counted, so the bundled loader, every
+ * `createAssetLoader` (region play, published Django models) and the NPC
+ * loader all decode KTX2 while any renderer is attached.
+ */
+export function enableKtx2Textures(
+  renderer: WebGLRenderer | unknown,
+  options: Ktx2LoaderOptions = {},
+): () => void {
+  return attachKtx2Renderer(renderer, options);
+}
 
 export const loadAsset = bundledLoader.loadAsset;
 export const instantiateAsset = bundledLoader.instantiateAsset;

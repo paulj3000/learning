@@ -34,7 +34,14 @@ from apps.jobs import services
 
 logger = logging.getLogger("lai.jobs")
 
+
 #: Outcomes after which the message is done with and deleted.
+def _artifact_storage_unavailable():
+    from apps.assets.artifact_storage import ArtifactStorageUnavailable
+
+    return ArtifactStorageUnavailable
+
+
 _DELETE = {services.APPLIED, services.RUNNING, services.DUPLICATE}
 #: Seconds to back off after a receive or database failure (capped exponential).
 _BACKOFF_MAX = 60
@@ -196,6 +203,10 @@ class Command(BaseCommand):
             outcome = services.apply_result(body)
         except services.ResultUnavailable:
             outcome = "result_unavailable"
+        except _artifact_storage_unavailable():
+            # A storage fault or a 403 while verifying a derived artifact: the whole application
+            # rolled back, so the message is left to reappear (SQS retries it). Not a handler bug.
+            outcome = "artifact_storage_unavailable"
         except DatabaseError as error:
             logger.warning(
                 "jobs.consumer database_error id=%s type=%s", job_id, type(error).__name__

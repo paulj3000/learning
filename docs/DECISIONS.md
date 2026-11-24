@@ -89,12 +89,12 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-063 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable | Proposed | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) | Owner QA pending. Numbered ADR-055 on the movement branches; renumbered ADR-063 by the owner's ADR reconciliation (2026-11-17), decision text unchanged. Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
 | ADR-064 | Background processing has one canonical path: apps.jobs on the ADR-055 queues and results consumer, zip-packaged Lambda workers, a transactional outbox and a database-outage-safe consumer; Bedrock runs in a configurable Region | Accepted | `main` (owner's DEV blocker resolution, 2026-11-17) | Owner decisions 1 to 8 of 2026-11-17: zip for dev Lambda workers, no ECR in dev, containers only by a later decision, `apps.jobs` + SQS + Lambda + ADR-055 canonical, PR #40 extends it, Studio roles automated, Bedrock Region independent, low-cost dev and its schedule kept. Amends ADR-055, ADR-061 and ADR-062 |
 | ADR-065 | The Castle Director may only pick an id from a server-recomputed set of authored ambient events; events grant nothing and repeat by visit count, never by time | Accepted (owner, 2026-11-18) | `work/sc-r08-09` (SC-R08-01, SC-R09-01, SC-R09-02); `work/final-a` (revisioned catalog) | Adds route `generateCastleDirector`, `CastleVisitState`, `CastleEventShown`, and the Django-owned, revisioned `CastleEvent` catalog (migration `regions.0008`). Reuses ADR-044 (pipeline, Guardrail), ADR-047 (revisions) and ADR-054 (`npc_hint`) |
-| ADR-066 | Derived artifacts, create-only worker writes and retention (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-014), `docs/processing/adr/` on that branch | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-067 | Native audio transcoding with LGPL FFmpeg (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-008b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-068 | Separate Pillow image function and image privacy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013a) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-069 | Staff browser GLB thumbnail capture (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-070 | GLB optimization policy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` | Reserved 2026-11-18 by the engineering-governance audit as a collision with the Heart of Firepeak decision; owner decision 2026-11-19: the GLB policy keeps 070 and the Heart of Firepeak decision is ADR-073. Not merged here |
-| ADR-071 | Compatibility-gated processing release and production processing infrastructure (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-012, 014) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-066 | Derived artifacts (Option C): staff-only records in the existing asset bucket under `processing/artifacts/<env>/`, create-only worker writes, explicit promotion into new unpublished versions, 90/30-day retention | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-014 | Body: `docs/processing/adr/ADR-066-derived-artifacts.md`. Open: D5 streamed vs presigned, D7 stale rows, D8 live proof of `s3:if-none-match`, O1 to O7 |
+| ADR-067 | Native audio transcoding with an LGPL FFmpeg layer: Opus primary, MP3 alternative, per-category loudness profiles, own `audio` queue, results on the canonical consumer | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-008b | Body: `docs/processing/adr/ADR-067-audio-transcoding.md`. Open: arm64 build and deploy, FFmpeg major version, sizing, final loudness values, game format negotiation |
+| ADR-068 | Separate Pillow image Lambda for conversion and image thumbnails; new public-facing derivatives are stripped of sensitive metadata; originals kept; no silent historical rewrite | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-013a | Body: `docs/processing/adr/ADR-068-image-conversion.md`. Open: O-1 to O-9 (sizing, 16-bit, normal maps, admin options) |
+| ADR-069 | Staff browser GLB thumbnail capture in Django Admin, stored as private derived artifacts; server-side rendering deferred | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-013b | Body: `docs/processing/adr/ADR-069-staff-thumbnail-capture.md`. Browser acceptance not yet run. Open: 8 items incl. server rendering, KTX2 in capture |
+| ADR-070 | GLB optimization: Meshopt first, then KTX2; compression extensions rejected unless verified and their control is on; no Draco, Batch, Fargate, Blender or server rendering | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-010 | Body: `docs/processing/adr/ADR-070-glb-optimization.md`. GLB validator 1.2.0 (drafts revalidate). Open: O1 production runtime, O2 enablement, O4 lossy, O5 KHR_meshopt, O6 heavy runtime, O7 decoder delivery |
+| ADR-071 | Compatibility-gated processing release and production processing infrastructure as code (no deployment) | Accepted (owner, 2026-11-18) for RELEASE and PRODUCTION (code only) | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-012 | Body: `docs/processing/adr/ADR-071-processing-release-and-production.md`. Open: O1 to O14 incl. every deployment, budget amount, concurrency, Lambda Insights |
 | ADR-072 | Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated | Accepted | `feature/engineering-standards` | Accepted 2026-11-18 |
 | ADR-073 | The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds | Accepted (architecture; owner approval in principle 2026-11-23, effective when the owner merges `docs/adr-073-080-081-acceptance`) | `feature/firepeak-volcano-adventure` (FPV-02), on `main` since PR #44 | Renumbered from ADR-070 by owner decision 2026-11-19 (collision with the GLB optimization policy). Heading and row on `main`, so no reservation is needed. Validated against `main` `1b0a50a3` with one amendment (hazards moved to the engine bridge). Gameplay owner acceptance is separate: FPV-24, pending |
 | ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes | Accepted (architecture; owner approval in principle 2026-11-23, effective when the owner merges `docs/adr-073-080-081-acceptance`) | `feature/north-pole-adventure` (SEA-04), on `main` | Reserved 2026-11-18 by the engineering-governance audit. Validated against `main` `1b0a50a3` with stale text corrected (amendment). Gameplay owner acceptance is separate: SEA-04 owner QA, pending |
@@ -4589,6 +4589,48 @@ it; retired events stop immediately; and the Director still cannot say anything 
 approved line. Retiring every published event leaves the castle with only the client's quiet
 lines, never the retired copy. Details: `docs/regions/prep/ai_director_prep.md`,
 `docs/AI_AND_CHILD_SAFETY.md`, `docs/PLAY_API.md`.
+## ADR-066: Derived artifacts (Option C): staff-only records in the existing asset bucket under `processing/artifacts/<env>/`, create-only worker writes, explicit promotion into new unpublished versions, 90/30-day retention
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-066-derived-artifacts.md`.
+
+## ADR-067: Native audio transcoding with an LGPL FFmpeg layer: Opus primary, MP3 alternative, per-category loudness profiles, own `audio` queue, results on the canonical consumer
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-067-audio-transcoding.md`.
+
+## ADR-068: Separate Pillow image Lambda for conversion and image thumbnails; new public-facing derivatives are stripped of sensitive metadata; originals kept; no silent historical rewrite
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-068-image-conversion.md`.
+
+## ADR-069: Staff browser GLB thumbnail capture in Django Admin, stored as private derived artifacts; server-side rendering deferred
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-069-staff-thumbnail-capture.md`.
+
+## ADR-070: GLB optimization: Meshopt first, then KTX2; compression extensions rejected unless verified and their control is on; no Draco, Batch, Fargate, Blender or server rendering
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-070-glb-optimization.md`.
+
+## ADR-071: Compatibility-gated processing release and production processing infrastructure as code (no deployment)
+
+Status: Accepted (owner, 2026-11-18) for RELEASE and PRODUCTION (code only). Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-071-processing-release-and-production.md`.
+
 ## ADR-072: Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated
 
 Status: Accepted (project owner, 2026-11-18). Branch `feature/engineering-standards`.

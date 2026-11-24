@@ -41,6 +41,22 @@ import {
   readScript,
 } from './djangoEc2Stack';
 import { GITHUB_OIDC_HOST, githubOidcProviderArn, githubPrincipal } from './githubOidc';
+import { processingArtifactsPolicyName } from './assetStorageStack';
+import {
+  CREATE_ONLY_CONDITION,
+  LAYER_KEY_PATTERN,
+  ProcessingWorker,
+  WORKER_CODE_KEY_PATTERN,
+  WORKLOADS,
+  workloadStorageStatements,
+  ffmpegLayer,
+  makeWorkQueue,
+  numberIf,
+  pinEnvironments,
+  type NativeWorkload,
+  type QueuePair,
+  type WorkloadSizing,
+} from './processingWorkers';
 
 /**
  * The native (no Docker) dev environment, `LaiDevPlatform-dev`. It replaces `LaiDjangoEc2-dev`
@@ -152,7 +168,22 @@ export interface DevPlatformStackProps extends StackProps {
    * that LaiAiGuardrail-dev cannot create from another Region. Unset: Bedrock runs here.
    */
   bedrockRegion?: string;
+  /**
+   * Define the GLB optimize worker (`lai-dev-jobs-optimize`). Default off: its runtime is
+   * undecided until the ADR-070 measurements (synth context `optimizeWorker=true`). The optimize
+   * queue exists either way; its URL setting is written only with the worker.
+   */
+  optimizeWorker?: boolean;
+  /** Native worker memory and timeout overrides (context `processingSizing`). */
+  sizing?: WorkloadSizing;
 }
+
+/** Native workload functions (COMPLETION_INTEGRATION.md section 3), each behind its own switch. */
+export const DEV_NATIVE_FUNCTIONS = {
+  audio: 'lai-dev-jobs-audio',
+  image: 'lai-dev-jobs-image',
+  optimize: 'lai-dev-jobs-optimize',
+} as const;
 
 export class DevPlatformStack extends Stack {
   readonly instance: ec2.Instance;
@@ -277,6 +308,57 @@ export class DevPlatformStack extends Stack {
       maxValue: 1000,
       description: 'SQS event source MaximumConcurrency per worker (minimum 2)',
     });
+    // Native workloads (audio, image; optimize only with the optimizeWorker flag). Each needs
+    // EnableLambdaProcessing as well, and its own zip in the artifacts bucket.
+    const enableAudio = bool(
+      'EnableAudioWorker',
+      false,
+      'Create the audio transcoding worker (needs AudioWorkerCodeKey and AudioLayerKey)',
+    );
+    const audioCodeKey = param('AudioWorkerCodeKey', {
+      type: 'String',
+      default: '',
+      allowedPattern: WORKER_CODE_KEY_PATTERN,
+      description: 'Key of the audio worker zip in the artifacts bucket (lambda/<name>.zip)',
+    });
+    const audioLayerKey = param('AudioLayerKey', {
+      type: 'String',
+      default: '',
+      allowedPattern: LAYER_KEY_PATTERN,
+      description:
+        'Key of the LGPL FFmpeg layer zip in the artifacts bucket (lambda/layers/<name>.zip); a build output, never committed',
+    });
+    const enableImage = bool(
+      'EnableImageWorker',
+      false,
+      'Create the Pillow image worker (needs ImageWorkerCodeKey)',
+    );
+    const imageCodeKey = param('ImageWorkerCodeKey', {
+      type: 'String',
+      default: '',
+      allowedPattern: WORKER_CODE_KEY_PATTERN,
+      description: 'Key of the image worker zip (worker plus Pillow) in the artifacts bucket',
+    });
+    const enableOptimize = props.optimizeWorker
+      ? bool(
+          'EnableOptimizeWorker',
+          false,
+          'Create the GLB optimize worker (runtime undecided; needs OptimizeWorkerCodeKey)',
+        )
+      : undefined;
+    const optimizeCodeKey = props.optimizeWorker
+      ? param('OptimizeWorkerCodeKey', {
+          type: 'String',
+          default: '',
+          allowedPattern: WORKER_CODE_KEY_PATTERN,
+          description: 'Key of the optimize worker zip in the artifacts bucket',
+        })
+      : undefined;
+    const reserveNative = bool(
+      'ReserveNativeWorkerConcurrency',
+      false,
+      'Reserve LambdaConcurrencyLimit executions for each native worker (shared account: off by default)',
+    );
     const enableSchedule = bool(
       'EnableScheduledShutdown',
       true,
@@ -420,6 +502,49 @@ export class DevPlatformStack extends Stack {
     const hasEmail = condition('HasAlarmEmail', notEmpty(alarmEmail));
     const multiAz = condition('MultiAz', isTrue(dbMultiAz));
     const deletionProtected = condition('DeletionProtected', isTrue(dbDeletionProtection));
+    const nativeOn: Partial<Record<NativeWorkload, CfnCondition>> = {
+      audio: new CfnCondition(this, 'AudioWorkerEnabled', {
+        expression: Fn.conditionAnd(lambdaOn, isTrue(enableAudio)),
+      }),
+      image: new CfnCondition(this, 'ImageWorkerEnabled', {
+        expression: Fn.conditionAnd(lambdaOn, isTrue(enableImage)),
+      }),
+    };
+    if (enableOptimize) {
+      nativeOn.optimize = new CfnCondition(this, 'OptimizeWorkerEnabled', {
+        expression: Fn.conditionAnd(lambdaOn, isTrue(enableOptimize)),
+      });
+    }
+    const reserveNativeOn = condition('ReserveNativeConcurrency', isTrue(reserveNative));
+    const requireKey = (
+      ruleId: string,
+      enable: CfnParameter,
+      key: CfnParameter,
+      description: string,
+    ) =>
+      new CfnRule(this, ruleId, {
+        ruleCondition: Fn.conditionAnd(
+          Fn.conditionEquals(enableLambda.valueAsString, 'true'),
+          Fn.conditionEquals(enable.valueAsString, 'true'),
+        ),
+        assertions: [
+          {
+            assert: Fn.conditionNot(Fn.conditionEquals(key.valueAsString, '')),
+            assertDescription: description,
+          },
+        ],
+      });
+    requireKey('AudioNeedsCode', enableAudio, audioCodeKey, 'AudioWorkerCodeKey is required');
+    requireKey('AudioNeedsLayer', enableAudio, audioLayerKey, 'AudioLayerKey is required');
+    requireKey('ImageNeedsCode', enableImage, imageCodeKey, 'ImageWorkerCodeKey is required');
+    if (enableOptimize && optimizeCodeKey) {
+      requireKey(
+        'OptimizeNeedsCode',
+        enableOptimize,
+        optimizeCodeKey,
+        'OptimizeWorkerCodeKey is required',
+      );
+    }
     new CfnRule(this, 'HttpChallengeNeedsPort80', {
       ruleCondition: Fn.conditionEquals(hostedZoneId.valueAsString, ''),
       assertions: [
@@ -590,6 +715,13 @@ export class DevPlatformStack extends Stack {
     // receives (ADR-064): the consumer checks PostgreSQL before every receive, so an RDS outage
     // spends no receives; a receive is spent only by a real application attempt.
     const resultsQueue = queue(DEV_QUEUES.results, 300, 14, 5);
+    // Native workload queues (audio, image, optimize), same family: visibility six times the
+    // function timeout, DLQ after three receives; results return on the one results queue.
+    const nativeQueues: Record<NativeWorkload, QueuePair> = {
+      audio: makeWorkQueue(this, DEV, 'audio', props.sizing),
+      image: makeWorkQueue(this, DEV, 'image', props.sizing),
+      optimize: makeWorkQueue(this, DEV, 'optimize', props.sizing),
+    };
 
     // =============================================================================================
     // Database
@@ -665,6 +797,13 @@ export class DevPlatformStack extends Stack {
           'ChildPhotoStoragePolicy',
           `lai-django-child-photos-${DEV}`,
         ),
+        // LaiAssetStorage-dev: derived artifacts under processing/artifacts/dev/ (read, staff
+        // captures, retention deletes).
+        iam.ManagedPolicy.fromManagedPolicyName(
+          this,
+          'ProcessingArtifactsPolicy',
+          processingArtifactsPolicyName(DEV),
+        ),
         // `lai-django-ai-dev` is attached by LaiAiGuardrail-dev, deployed after this stack.
       ],
     });
@@ -717,7 +856,11 @@ export class DevPlatformStack extends Stack {
       role,
       'SubmitJobs',
       ['sqs:SendMessage', 'sqs:GetQueueAttributes'],
-      [aiQueue.main.queueArn, mediaQueue.main.queueArn],
+      [
+        aiQueue.main.queueArn,
+        mediaQueue.main.queueArn,
+        ...Object.values(nativeQueues).map((q) => q.main.queueArn),
+      ],
     );
     allow(
       role,
@@ -802,6 +945,20 @@ export class DevPlatformStack extends Stack {
         stringValue: value,
         description: `Managed by ${DEV_PLATFORM_STACK}; change through the stack`,
       });
+    }
+    // A native kind's queue URL is configured only when its worker exists, so Django can never
+    // submit to a queue nobody consumes (the RELEASE invariant; the feature controls stay off).
+    for (const [workload, enabled] of Object.entries(nativeOn) as [
+      NativeWorkload,
+      CfnCondition,
+    ][]) {
+      const name = WORKLOADS[workload].queueUrlSetting;
+      const setting = new ssm.StringParameter(this, `Setting${name}`, {
+        parameterName: `/lai/${DEV}/django/${name}`,
+        stringValue: nativeQueues[workload].main.queueUrl,
+        description: `Managed by ${DEV_PLATFORM_STACK}; change through the stack`,
+      });
+      (setting.node.defaultChild as ssm.CfnParameter).cfnOptions.condition = enabled;
     }
     // Initial values only: the instance, the power state machine and the operator change them.
     const runtimeParameters: Record<string, string> = {
@@ -1075,11 +1232,19 @@ export class DevPlatformStack extends Stack {
         [work.queueArn],
       );
       allow(workerRoleResource, 'SendResults', ['sqs:SendMessage'], [resultsQueue.main.queueArn]);
+      // Large results: read any, create only (store_result sends If-None-Match: *, ADR-071 F11).
       allow(
         workerRoleResource,
-        'ResultObjects',
-        ['s3:GetObject', 's3:PutObject'],
+        'ReadResults',
+        ['s3:GetObject'],
         [`${artifactBucketArn}/jobs/results/*`],
+      );
+      allow(
+        workerRoleResource,
+        'CreateResults',
+        ['s3:PutObject'],
+        [`${artifactBucketArn}/jobs/results/*`],
+        CREATE_ONLY_CONDITION,
       );
       allow(workerRoleResource, 'ListResults', ['s3:ListBucket'], [artifactBucketArn], {
         StringLike: { 's3:prefix': ['jobs/results/*'] },
@@ -1122,7 +1287,19 @@ export class DevPlatformStack extends Stack {
     allow(mediaRole, 'ListSpeech', ['s3:ListBucket'], [speechBucket.bucketArn], {
       StringLike: { 's3:prefix': ['speech/*'] },
     });
-    allow(mediaRole, 'ReadAssets', ['s3:GetObject'], [`${assetBucketArn}/*`]);
+    // ADR-066 defect fix (Workstream B, ASSET_LIBRARY.md section 27): reads only under assets/*
+    // and processing/artifacts/dev/* (was the whole bucket), ListBucket scoped to the same two
+    // prefixes, create-only writes under processing/artifacts/dev/*. No delete, no other prefix.
+    for (const statement of workloadStorageStatements('media', assetBucketArn, DEV)) {
+      mediaRole.addToPolicy(statement);
+    }
+    /*
+      Owner decision 2026-11-17: ListBucket on the asset bucket so that a HeadObject or
+      GetObject of a missing key answers 404 (NoSuchKey) instead of 403 (AccessDenied). A HEAD or
+      GET carries no s3:prefix key, so the statement (processingWorkers.ts assetListStatement)
+      uses StringLikeIfExists, which is true when the key is absent and limits an explicit
+      listing to assets/* and processing/artifacts/dev/*. Live 404 verification: LAI-LAMBDA-011.
+    */
 
     const worker = (kind: 'ai' | 'media', workerRoleResource: iam.Role, work: sqs.Queue) => {
       const spec = DEV_FUNCTIONS[kind];
@@ -1168,6 +1345,45 @@ export class DevPlatformStack extends Stack {
     };
     worker('ai', aiRole, aiQueue.main);
     worker('media', mediaRole, mediaQueue.main);
+
+    // Native workers: own zip, queue, role and log group each; results to the one results queue.
+    const nativeCodeKeys: Partial<Record<NativeWorkload, CfnParameter>> = {
+      audio: audioCodeKey,
+      image: imageCodeKey,
+      optimize: optimizeCodeKey,
+    };
+    const audioLayer = ffmpegLayer(
+      this,
+      'AudioFfmpegLayer',
+      DEV,
+      artifactBucketName,
+      audioLayerKey.valueAsString,
+      nativeOn.audio,
+    );
+    const pins = pinEnvironments(this, Boolean(props.optimizeWorker));
+    const nativeWorkers: Partial<Record<NativeWorkload, ProcessingWorker>> = {};
+    for (const [workload, enabled] of Object.entries(nativeOn) as [
+      NativeWorkload,
+      CfnCondition,
+    ][]) {
+      nativeWorkers[workload] = new ProcessingWorker(this, `${kebabToPascal(workload)}Worker`, {
+        env: DEV,
+        workload,
+        queue: nativeQueues[workload].main,
+        resultsQueue: resultsQueue.main,
+        resultsBucketName: artifactBucketName,
+        assetBucket: assetBucketArn,
+        codeKey: nativeCodeKeys[workload]!.valueAsString,
+        layers: workload === 'audio' ? [audioLayer.ref] : undefined,
+        sizing: props.sizing,
+        maximumConcurrency: lambdaConcurrency.valueAsNumber,
+        reservedConcurrency: numberIf(reserveNativeOn, lambdaConcurrency.valueAsNumber),
+        logRetentionDays: logRetention.valueAsNumber,
+        condition: enabled,
+        environment: pins[workload],
+        description: `Learning Adventure Island dev ${workload} jobs worker`,
+      });
+    }
 
     // =============================================================================================
     // Power: Step Functions, Scheduler, the RDS seven-day restart
@@ -1329,7 +1545,11 @@ export class DevPlatformStack extends Stack {
       backendRole,
       'UpdateWorkers',
       ['lambda:UpdateFunctionCode', 'lambda:GetFunction', 'lambda:GetFunctionConfiguration'],
-      [functionArn(DEV_FUNCTIONS.ai.name), functionArn(DEV_FUNCTIONS.media.name)],
+      [
+        functionArn(DEV_FUNCTIONS.ai.name),
+        functionArn(DEV_FUNCTIONS.media.name),
+        ...Object.values(nativeWorkers).map((w) => functionArn(w!.functionName)),
+      ],
     );
     allow(backendRole, 'ReadStackOutputs', ['cloudformation:DescribeStacks'], devStacks);
     allow(
@@ -1465,6 +1685,9 @@ export class DevPlatformStack extends Stack {
       ['Ai', aiQueue],
       ['Media', mediaQueue],
       ['Results', resultsQueue],
+      ['Audio', nativeQueues.audio],
+      ['Image', nativeQueues.image],
+      ['Optimize', nativeQueues.optimize],
     ] as const) {
       alarm(
         `${name}DeadLetters`,

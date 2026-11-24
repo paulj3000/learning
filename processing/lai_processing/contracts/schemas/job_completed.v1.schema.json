@@ -1,0 +1,144 @@
+{
+  "$id": "https://lai.invalid/processing/schemas/job_completed.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Library-only; not used on the canonical path (ADR-064). The message a worker sends to the completion queue (lai_processing.contracts.events.CompletionEvent). Exactly one of result (inline) and result_ref (the canonical result JSON stored as a report.job_result artifact of the same attempt) is set. The event is not trusted on its own: Django accepts it only when job, attempt, idempotency key, namespace and input checksum match its record (core/lifecycle.py decide_completion). The Python decoder is authoritative and also checks that the envelope mirrors the inline result and that result_sha256 is the SHA-256 of the result's canonical JSON.",
+  "oneOf": [
+    {
+      "description": "Inline result.",
+      "properties": {
+        "result": {
+          "type": "object"
+        },
+        "result_ref": {
+          "type": "null"
+        }
+      }
+    },
+    {
+      "description": "Result by reference.",
+      "properties": {
+        "result": {
+          "type": "null"
+        },
+        "result_ref": {
+          "type": "object"
+        }
+      }
+    }
+  ],
+  "properties": {
+    "attempt_id": {
+      "$ref": "job_request.v1.schema.json#/$defs/uuid",
+      "description": "Mirrors the result's attempt_id."
+    },
+    "attempt_number": {
+      "description": "Mirrors the result's attempt_number.",
+      "maximum": 100,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "correlation_id": {
+      "description": "Mirrors the result's correlation_id.",
+      "pattern": "^[A-Za-z0-9._-]{8,64}$",
+      "type": "string"
+    },
+    "emitted_at": {
+      "$ref": "job_request.v1.schema.json#/$defs/timestamp",
+      "description": "When the worker emitted the event (UTC, Z suffix)."
+    },
+    "event_id": {
+      "$ref": "job_request.v1.schema.json#/$defs/uuid",
+      "description": "Unique id of this event (lowercase UUID). A redelivered message keeps it."
+    },
+    "idempotency_key": {
+      "description": "Mirrors the result's idempotency_key.",
+      "pattern": "^ik1:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "job_id": {
+      "$ref": "job_request.v1.schema.json#/$defs/uuid",
+      "description": "Mirrors the result's job_id."
+    },
+    "job_type": {
+      "description": "Mirrors the result's job_type.",
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "type": "string"
+    },
+    "kind": {
+      "const": "lai.processing.job_completed",
+      "description": "Message kind discriminator."
+    },
+    "namespace": {
+      "$ref": "job_request.v1.schema.json#/$defs/namespace",
+      "description": "Mirrors the result's namespace."
+    },
+    "result": {
+      "description": "The result inline, when the encoded event fits the message limit; otherwise null.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "job_result.v1.schema.json"
+        }
+      ]
+    },
+    "result_ref": {
+      "description": "Reference to the stored result (artifact_type report.job_result, same job and attempt, sha256 equal to result_sha256) when the result is not inline; otherwise null.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "job_result.v1.schema.json#/$defs/artifact_reference"
+        }
+      ]
+    },
+    "result_sha256": {
+      "$ref": "job_request.v1.schema.json#/$defs/sha256",
+      "description": "SHA-256 of the result's canonical JSON; the consumer checks the result it reads against it."
+    },
+    "retry_class": {
+      "description": "The result's retry class, carried on the event so a consumer can route a by-reference failure without fetching the result: null for succeeded, \"cancelled\" for cancelled, and the primary error's retry class (never \"cancelled\") for failed. It must equal the result's retry class, which verify_result checks for inline and fetched results alike.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "job_result.v1.schema.json#/$defs/retry_class"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": 1,
+      "description": "Contract schema version.",
+      "type": "integer"
+    },
+    "status": {
+      "description": "Mirrors the result's status.",
+      "enum": ["succeeded", "failed", "cancelled"]
+    }
+  },
+  "required": [
+    "kind",
+    "schema_version",
+    "event_id",
+    "emitted_at",
+    "job_id",
+    "job_type",
+    "namespace",
+    "idempotency_key",
+    "correlation_id",
+    "attempt_id",
+    "attempt_number",
+    "status",
+    "retry_class",
+    "result_sha256",
+    "result",
+    "result_ref"
+  ],
+  "title": "CompletionEvent v1",
+  "type": "object"
+}

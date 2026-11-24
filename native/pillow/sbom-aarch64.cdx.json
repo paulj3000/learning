@@ -1,0 +1,352 @@
+{
+  "bomFormat": "CycloneDX",
+  "components": [
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8bf295fe459343bc6093c8e5e0df60bfa189e0fcb775a22e2c2488fdeccc6c0d"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT-CMU"
+          }
+        }
+      ],
+      "name": "Pillow",
+      "properties": [
+        {
+          "name": "wheel",
+          "value": "pillow-13.0.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl"
+        }
+      ],
+      "purl": "pkg:pypi/pillow@13.0.0",
+      "type": "library",
+      "version": "13.0.0"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "53d2e589ef6bc08f5ad0d68ffe6cbd6195c6aff861a7a71a4866ca419271d318"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "X11"
+          }
+        }
+      ],
+      "name": "libXau",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libXau-7926f62a.so.6.0.0"
+        }
+      ],
+      "type": "library",
+      "version": "1.0.9"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "668f819ff49df3b7c0fe73af54c97d171e9635ffeede98fb1307c919b85e3cfa"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "IJG"
+          }
+        },
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "libjpeg-turbo",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libjpeg-80045241.so.62.4.0"
+        }
+      ],
+      "type": "library",
+      "version": "3.2.0"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f6fabe17c7391e4defccf3b7c033ea50168af851f8edac894ebd440ad3bf161d"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ],
+      "name": "Little CMS 2",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/liblcms2-4345ab8b.so.2.0.19"
+        }
+      ],
+      "type": "library",
+      "version": "2.19.1"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f56a2abaa7e3a67102ae39369f4334f38d71de621352e5ca3ac5a8fcc8da155d"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "0BSD"
+          }
+        }
+      ],
+      "name": "xz (liblzma)",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/liblzma-dcd007de.so.5.8.4"
+        }
+      ],
+      "type": "library",
+      "version": "5.8.4"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "1af46ffb196413dd58caa1fb719927e26458111d5b0b11cd4cde76d6d84bf4b7"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-2-Clause"
+          }
+        }
+      ],
+      "name": "OpenJPEG",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libopenjp2-4495a901.so.2.5.4"
+        }
+      ],
+      "type": "library",
+      "version": "2.5.4"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d29d52f026e8b7d23571a2fff3623564c2bff4e18d38d42a0ec6b28ce780d31a"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "libwebp (sharpyuv)",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libsharpyuv-5dac68d0.so.0.1.2"
+        }
+      ],
+      "type": "library",
+      "version": "1.6.0"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "330f0eaa7a5d2fa06985d6e472e47fc4fc9e2513188dcbec1e47fcc36a4db0a8"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "libtiff"
+          }
+        }
+      ],
+      "name": "libtiff",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libtiff-0c352bdc.so.6.3.0"
+        }
+      ],
+      "type": "library",
+      "version": "4.7.2"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "54e7e6e1e79491eed84e4ec1ae9bfdff4704a636ae8cb7953352346d3a3510d8"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "libwebp",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libwebp-bac0fc6b.so.7.2.0"
+        }
+      ],
+      "type": "library",
+      "version": "1.6.0"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c677c619ef13944e0a1eb9fc5fb19a01ad17afac4db0a74c7cf38037dd27f6b7"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "libwebp",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libwebpdemux-b0a60f8c.so.2.0.17"
+        }
+      ],
+      "type": "library",
+      "version": "1.6.0"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "2b2c4a94e49b23e5931dd283638977e1654f5c09b4da58d77cddf29cfc2a7e2a"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "libwebp",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libwebpmux-fec2c160.so.3.1.2"
+        }
+      ],
+      "type": "library",
+      "version": "1.6.0"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "61144ceaca75baab603c58e8c31c122e2deabd1b4c92aad92b16d33ec4487815"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "X11"
+          }
+        }
+      ],
+      "name": "libxcb",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libxcb-cbbede0a.so.1.1.0"
+        }
+      ],
+      "type": "library",
+      "version": "1.17.0"
+    },
+    {
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "b46e933af3b39347d33e8343ae48666fe0ce74b14574760f92149cf6dcc1bfd8"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-3-Clause"
+          }
+        }
+      ],
+      "name": "zstd",
+      "properties": [
+        {
+          "name": "file",
+          "value": "pillow.libs/libzstd-79fd2b21.so.1.5.7"
+        }
+      ],
+      "type": "library",
+      "version": "1.5.7"
+    }
+  ],
+  "metadata": {
+    "component": {
+      "name": "lai-image-worker",
+      "properties": [
+        {
+          "name": "arch",
+          "value": "aarch64"
+        },
+        {
+          "name": "python",
+          "value": "3.12"
+        },
+        {
+          "name": "zlib",
+          "value": "provided by the Lambda runtime (libz.so.1)"
+        }
+      ],
+      "type": "application",
+      "version": "0.1.0"
+    }
+  },
+  "properties": [
+    {
+      "name": "removed",
+      "value": "PIL/AvifImagePlugin.py, PIL/ImageGrab.py, PIL/ImageQt.py, PIL/ImageTk.py, PIL/_avif.cpython-312-aarch64-linux-gnu.so, PIL/_imagingft.cpython-312-aarch64-linux-gnu.so, PIL/_imagingtk.cpython-312-aarch64-linux-gnu.so, pillow.libs/libavif-ba04b566.so.16.4.2, pillow.libs/libbrotlicommon-f79e5820.so.1.2.0, pillow.libs/libbrotlidec-53ab751a.so.1.2.0, pillow.libs/libfreetype-6d43b1fe.so.6.20.6, pillow.libs/libharfbuzz-38f28207.so.0.61450.0, pillow.libs/libpng16-76a95936.so.16.58.0"
+    }
+  ],
+  "specVersion": "1.5",
+  "version": 1
+}
