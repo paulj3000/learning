@@ -48,7 +48,20 @@ Why: the 34 contract-schema tests in `tests/processing/test_processing_fixtures.
 `pytest.importorskip("jsonschema")`, and no requirements file declared it, so they were skipped
 everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it in, they run.
 
-## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, `main` `3132b151` merged in, Trello #247); Development Complete, NOT merged, NOT owner-accepted
+## LAI-07: retired shipped assets keep their collision (2026-11-24, `feature/asset-library-retired-bundled-collision` on `main` `9b881fda`, GE-247); Development Complete
+
+- **Rule** (owner decision, 2026-11-24): the resolver answers a retired 3D asset that has a
+  `bundled_path` with the `collision` of its default version's profile, because the client keeps
+  drawing the bundled model. Before, retiring it made that model walk-through.
+- **Unchanged:** a retired asset that is not shipped, a non-model asset, and a retired version of a
+  live asset send no `collision`. No migration, no API shape change, no client change (the client
+  already reads `collision` on every entry).
+- **Tests:** 5 new in `apps/assets/tests/test_collision_profiles.py`. The resolver, collision,
+  media and catalog usage suites pass on PostgreSQL 18 (109 passed); `makemigrations --check` is
+  clean. Deferred to merge readiness: full suites and browser tests.
+- **Docs:** `docs/ASSET_LIBRARY.md` section 7, `docs/ASSET_COLLISION_PROFILES.md`.
+
+## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, Trello #247); merged to `main` in PR #70 (`9b881fda`), follow-up `fix/ge-247-retirement-note-collision-kept` from `c9123f48`; NOT owner-accepted
 
 - Owner direction (2026-11-23): shipped-scene references are listed, never blocking (S6 not required). Collision-profile effects are reported. The hub becomes a Place only if that has no side effects.
 - Built:
@@ -60,7 +73,7 @@ everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it
   - the client test that a retired entry keeps the bundled model and any collision the server sends.
   - S1: the `catalog` usage provider (`apps/catalog/dependencies.py`) on LAI 07's W2-1 registry. It lists shipped scenes, the hub included, never blocks, returns nothing for a version question, and fails closed. `manage.py asset_usage` shows these usages.
 - Owner decisions (2026-11-24):
-  - a retired asset that still ships with the app keeps its collision profile. The resolver change is LAI 07's and is not on `main` yet, so the staff note still describes current behaviour;
+  - a retired asset that still ships with the app keeps its collision profile. LAI 07's resolver change is on `main` (#75, `c9123f48`); the follow-up makes the staff note say the profile keeps applying, with a test that the note matches the resolver;
   - the hub stays in the release report, not a Place.
 - Tests (PostgreSQL 18): `apps/catalog` and `apps/assets` pass, `djangoAssetResolver.test.ts` passes, and `makemigrations --check` is clean. Browser tests are not run.
 - S7 is not recommended now.

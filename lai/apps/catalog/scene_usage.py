@@ -14,14 +14,17 @@ Only the latest release is current. The importer never deletes a link, so a scen
 uses the asset keeps its row with an older `last_seen_release`. Such rows are reported as stale.
 
 Retiring an asset never removes it from a shipped scene: the scene keeps drawing the bundled
-model. What can change is collision. The Asset Manager's profile for the asset applies in these
-scenes too, so these usages are listed (never blocking) wherever staff retire an asset or edit its
+model, and (since LAI 07's resolver rule, #75) keeps the asset's collision profile when the
+asset is a model the app ships (`bundled_path`). Collision profile edits apply in these scenes
+too, so these usages are listed (never blocking) wherever staff retire an asset or edit its
 collision profile. Queries only; the module never writes.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from apps.assets.formats import KIND_FAMILY, MODEL
 
 from .importer import SCENE_ASSETS_WITHOUT_PLACE
 from .models import ContentAsset, ContentRelease
@@ -113,9 +116,12 @@ def shipped_scene_usages(asset: ContentAsset, latest=_FETCH) -> list[SceneUsage]
 def retirement_note(asset: ContentAsset) -> str:
     """What retiring `asset` does to the shipped scenes that use it, for staff."""
     note = "Shipped with the app: these scenes keep drawing the bundled model."
-    if asset.collision_profiles.exists():
-        note += (
-            " Its collision profile stops applying there, so the engine's built-in collision for"
-            " this asset is used instead (none, for most kit pieces)."
-        )
-    return note
+    if not asset.collision_profiles.exists():
+        return note
+    if asset.bundled_path and KIND_FAMILY.get(asset.kind) == MODEL:
+        # The resolver keeps a retired shipped model's collision (assets/resolver.py, #75).
+        return note + " Its collision profile keeps applying there."
+    return note + (
+        " Its collision profile stops applying there, so the engine's built-in collision for"
+        " this asset is used instead (none, for most kit pieces)."
+    )

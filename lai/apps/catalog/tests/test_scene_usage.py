@@ -181,15 +181,47 @@ def test_retiring_an_asset_a_shipped_scene_uses_succeeds_with_a_warning(tmp_path
     assert not [text for level, text in shown if level == "error"]
 
 
-def test_the_retirement_note_names_the_collision_change_only_when_there_is_a_profile(tmp_path):
+def test_the_retirement_note_names_collision_only_when_there_is_a_profile(tmp_path):
     import_content(write_export(tmp_path / "v1"))
     rock = ContentAsset.objects.get(asset_id="rock")
+    assert rock.bundled_path  # every shipped-scene asset is exported with its bundled file
     assert "collision" not in scene_usage.retirement_note(rock)
 
     CollisionProfile.objects.create(asset=rock)
     note = scene_usage.retirement_note(rock)
-    assert "keep drawing the bundled model" in note
-    assert "collision profile stops applying there" in note
+    assert note == (
+        "Shipped with the app: these scenes keep drawing the bundled model."
+        " Its collision profile keeps applying there."
+    )
+
+
+def test_the_retirement_note_says_collision_stops_for_an_asset_the_app_does_not_ship(tmp_path):
+    """The resolver keeps collision only for a retired model with a bundled file (#75)."""
+    import_content(write_export(tmp_path / "v1"))
+    rock = ContentAsset.objects.get(asset_id="rock")
+    CollisionProfile.objects.create(asset=rock)
+    ContentAsset.objects.filter(pk=rock.pk).update(bundled_path="")
+    rock.refresh_from_db()
+    assert "collision profile stops applying there" in scene_usage.retirement_note(rock)
+
+
+@pytest.mark.parametrize("bundled_path", ["models/rock.glb", ""])
+def test_the_note_agrees_with_the_resolver_after_retirement(tmp_path, bundled_path):
+    """The note's promise matches what the resolver sends for the retired asset (#75)."""
+    from apps.assets import resolver, services
+
+    import_content(write_export(tmp_path / "v1"))
+    ContentAsset.objects.filter(asset_id="rock").update(bundled_path=bundled_path)
+    rock = ContentAsset.objects.get(asset_id="rock")
+    CollisionProfile.objects.create(
+        asset=rock, shape="BOX", width=1.2, height=0.9, depth=1.0, offset_y=0
+    )
+    note = scene_usage.retirement_note(rock)
+    services.retire_asset(rock)
+
+    (entry,) = resolver.resolve([("rock", "rock", None)])
+    assert entry["status"] == "retired"
+    assert ("collision" in entry) == ("keeps applying" in note)
 
 
 def test_the_definition_page_lists_the_hub_and_stale_scenes(tmp_path):
