@@ -61,7 +61,7 @@ everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it
   clean. Deferred to merge readiness: full suites and browser tests.
 - **Docs:** `docs/ASSET_LIBRARY.md` section 7, `docs/ASSET_COLLISION_PROFILES.md`.
 
-## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, Trello #247); merged to `main` in PR #70 (`9b881fda`), follow-up `fix/ge-247-retirement-note-collision-kept` from `c9123f48`; NOT owner-accepted
+## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, Trello #247); merged to `main` in PR #70 (`9b881fda`) and #77 (`d834443f`), with LAI 07's resolver rule #75 (`c9123f48`); verified on `main` `f0de1087` (2026-11-24); NOT owner-accepted
 
 - Owner direction (2026-11-23): shipped-scene references are listed, never blocking (S6 not required). Collision-profile effects are reported. The hub becomes a Place only if that has no side effects.
 - Built:
@@ -73,7 +73,7 @@ everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it
   - the client test that a retired entry keeps the bundled model and any collision the server sends.
   - S1: the `catalog` usage provider (`apps/catalog/dependencies.py`) on LAI 07's W2-1 registry. It lists shipped scenes, the hub included, never blocks, returns nothing for a version question, and fails closed. `manage.py asset_usage` shows these usages.
 - Owner decisions (2026-11-24):
-  - a retired asset that still ships with the app keeps its collision profile. LAI 07's resolver change is on `main` (#75, `c9123f48`); the follow-up makes the staff note say the profile keeps applying, with a test that the note matches the resolver;
+  - a retired asset that still ships with the app keeps its collision profile. LAI 07's resolver change is on `main` (#75, `c9123f48`); the staff note says the profile keeps applying (#77), with a test that the note matches the resolver;
   - the hub stays in the release report, not a Place.
 - Tests (PostgreSQL 18): `apps/catalog` and `apps/assets` pass, `djangoAssetResolver.test.ts` passes, and `makemigrations --check` is clean. Browser tests are not run.
 - S7 is not recommended now.
@@ -551,8 +551,8 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
 - **GE-S1 fixed (2026-11-22, merged to main through PR #57 and the D6 baseline):** the last 8
   island-map engine shims are removed and react/ imports the engine only through listed
   exports-map entry points (branch `fix/GE-S1-import-shims`).
-- **GE-L16 raised Solid clearance (2026-11-22, owner-approved, Development Complete, not
-  merged):** a raised Solid collision part keeps its height and leaves a walk-under gap only with
+- **GE-L16 raised Solid clearance (2026-11-22, owner-approved, Development Complete; merged in
+  PR #59 `4b949994`, verified on `main` `f0de1087` 2026-11-24; not owner-accepted):** a raised Solid collision part keeps its height and leaves a walk-under gap only with
   clearance (the avatar's 1.7 m collision height plus a configurable margin); otherwise it blocks
   at every height. Elevation never makes a part jumpable. Branch
   `feature/ge-raised-solid-clearance`, Trello #245; design and audit in

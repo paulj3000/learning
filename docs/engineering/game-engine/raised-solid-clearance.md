@@ -1,8 +1,11 @@
 # GE-L16: raised Solid collision and walkable clearance
 
-Status: owner-approved 2026-11-22 (Trello #245, linked to #244, GE-002..GE-007 and GE-090).
-Branch `feature/ge-raised-solid-clearance`, baseline `origin/main` @ `92e55903` (includes the
-GE-090-D6 format pass and GE-S1). Shared engine feature: no realm-specific code.
+Status: owner-approved 2026-11-22 (Trello #245, linked to #244, GE-002..GE-007 and GE-090);
+**merged to `main` in PR #59 (`4b949994`)** and verified on `main` `f0de1087` (2026-11-24);
+not yet owner-accepted. Built on branch `feature/ge-raised-solid-clearance` from `origin/main` @
+`92e55903`. Shared engine feature: no realm-specific code. Deployed profiles: no environment with
+a database exists yet; `manage.py collision_clearance_audit` is a read-only step in LAI 05's
+first-DEV-deployment plan (section 4 says what it reports).
 
 ## 1. Audit (Phase A)
 
