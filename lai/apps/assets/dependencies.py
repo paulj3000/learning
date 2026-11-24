@@ -140,8 +140,22 @@ def default_refusal(
     )
 
 
+def _legacy_guards_first(asset: ContentAsset, version: AssetVersion | None) -> None:
+    """Run every other registered retirement guard before the providers.
+
+    Transitional (W2-4): an app whose guard has not moved to a usage provider keeps its exact
+    refusal, as it had before the registry, even when a provider would also block. Once its
+    owner switches it to a provider, its refusal is combined with the others instead."""
+    from . import services
+
+    for guard in list(services.RETIREMENT_GUARDS):
+        if guard is not retirement_guard:
+            guard(asset, version)
+
+
 def retirement_guard(asset: ContentAsset, version: AssetVersion | None = None) -> None:
     """Refuse to retire what any registered source still depends on, naming every blocker."""
+    _legacy_guards_first(asset, version)
     refusals: dict[str, AssetActionRefused] = {}
     for source, registration in _PROVIDERS.items():
         try:

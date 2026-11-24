@@ -168,6 +168,28 @@ def test_a_failing_provider_fails_closed_and_logs_ids_only(registry, caplog):
     assert "secret detail" not in logged
 
 
+def test_a_guard_not_yet_moved_to_a_provider_keeps_its_exact_refusal(registry, monkeypatch):
+    def legacy(asset, version):
+        raise AssetActionRefused("npc_release_dependency", "Legacy wording.", details={"r": 1})
+
+    monkeypatch.setattr(services, "RETIREMENT_GUARDS", [dependencies.retirement_guard, legacy])
+    register_usage_provider(
+        "regions", lambda asset, version: [blocking("regions", "region_placement", "3D Area")]
+    )
+    asset = make_definition("both")
+    with pytest.raises(AssetActionRefused) as refused:
+        services.retire_asset(asset)
+    assert (refused.value.code, refused.value.message, refused.value.details) == (
+        "npc_release_dependency",
+        "Legacy wording.",
+        {"r": 1},
+    )
+    monkeypatch.setattr(services, "RETIREMENT_GUARDS", [dependencies.retirement_guard])
+    with pytest.raises(AssetActionRefused) as refused:
+        services.retire_asset(asset)  # once moved, the provider's own refusal applies
+    assert refused.value.code == "region_placement"
+
+
 def test_usages_are_reported_in_registration_order(registry):
     register_usage_provider("npcs", lambda asset, version: [listed("npcs", "draft")])
     register_usage_provider("audio", lambda asset, version: [listed("audio", "cue")])
