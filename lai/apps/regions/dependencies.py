@@ -8,8 +8,8 @@ Registered with `apps.assets.dependencies` from `RegionsConfig.ready()`. Rules: 
   or any `...AssetId` key (backdrop, ground, layout props, vegetation, procedural, scenery,
   jump-platform specs, building wall/roof/door), or in an `assetIds`/`...AssetIds` list.
   A client-derived id (the LOD low-detail twin) is not in the JSON and is not seen (#247).
-  Children would see the bundled model or a placeholder, and the Asset Manager's
-  collision profile would no longer apply.
+  Children would see the bundled model or a placeholder, and the placement could lose its
+  collision (a model the app ships keeps it: `docs/ASSET_LIBRARY.md` section 7, #75).
 - Placements in DRAFT or RETIRED 3D Areas are reported only.
 - Retiring a **version** is unchanged. Placements store an asset id, never a version, so they
   are served the default, and the default cannot be retired without naming a replacement
