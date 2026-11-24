@@ -15,6 +15,7 @@ from apps.catalog.models import AssetStatus, ContentAsset
 
 from .collision import profile_for, runtime_collision
 from .delivery import deliver, ttl
+from .formats import KIND_FAMILY, MODEL
 from .models import AssetVersion, VersionStatus
 
 REFERENCE = re.compile(r"^(?P<id>[a-z0-9]+(?:-[a-z0-9]+)*)(?:@(?P<number>[1-9][0-9]{0,5}))?$")
@@ -71,11 +72,30 @@ def _entry(ref, asset_id, number, asset, pinned) -> dict:
         # Collision applies wherever the asset is drawn, bundled fallback included (collision.py).
         version = entry.pop("_version", None) or (asset.default_version if number is None else None)
         if entry.get("family", "model") == "model":
-            collision = runtime_collision(profile_for(asset, version), version)
-            if collision is not None:
-                entry["collision"] = collision
+            _attach_collision(entry, asset, version)
+    elif asset is not None and _retired_but_shipped_model(asset):
+        # A retired asset the app still ships keeps drawing its bundled model, so it keeps the
+        # collision of its default version: retiring it never makes a bundled model walk-through.
+        # A pinned ref (`id@n`) gets the default version's profile too; shipped scenes never pin.
+        _attach_collision(entry, asset, asset.default_version)
     entry.pop("_version", None)
     return entry
+
+
+def _attach_collision(entry: dict, asset, version) -> None:
+    collision = runtime_collision(profile_for(asset, version), version)
+    if collision is not None:
+        entry["collision"] = collision
+
+
+def _retired_but_shipped_model(asset) -> bool:
+    """A retired 3D asset whose bundled model the app still draws (its `bundled_path`). A retired
+    version of an asset that is still live is not covered: it keeps no collision, as before."""
+    return (
+        asset.status == AssetStatus.RETIRED
+        and bool(asset.bundled_path)
+        and KIND_FAMILY.get(asset.kind) == MODEL
+    )
 
 
 def _delivery_entry(ref, asset_id, number, asset, pinned) -> dict:

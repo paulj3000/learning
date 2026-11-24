@@ -1,9 +1,9 @@
 # GE-247: bundled asset references in Asset Library dependency reporting
 
-Status: **Owner-approved direction (2026-11-23); in implementation** (Agent 4 / LAI 04, Game Engine
-Core). Trello #247. Shipped-scene references are listed, never blocking (S6 not required). Branch
-`feature/ge-247-bundled-asset-references`, from `main` @ `1b0a50a3`, with `main` merged in at
-`3132b151` (LAI 07's W2-1 registry, #65). Section 8 records what is built.
+Status: **Implemented; merged to `main`, not yet owner-accepted** (Agent 4 / LAI 04, Game Engine
+Core). Trello #247. Shipped-scene references are listed, never blocking (S6 not required). PR #70
+(`9b881fda`, on LAI 07's W2-1 registry #65), LAI 07's resolver rule #75 (`c9123f48`), and the
+staff-note follow-up `fix/ge-247-retirement-note-collision-kept`. Section 8 records what is built.
 
 ## 1. Summary
 
@@ -159,7 +159,7 @@ checklist (LAI 05).
 | Piece | Where | Behaviour |
 |---|---|---|
 | Hub references survive import | `lai/apps/catalog/importer.py` (`SCENE_ASSETS_WITHOUT_PLACE`) | A scene with no Place record keeps its skip message. Its asset ids are now also stored in `ContentRelease.report["scene_assets_without_place"]`, for example `{"welcome-harbor": [11 ids]}`. No migration. |
-| Which shipped scenes use an asset | `lai/apps/catalog/scene_usage.py` | `shipped_scene_usages(asset)` returns `SceneUsage(scene, has_place, release_id, current)` from `LocationAsset` rows (current = last seen in the latest release) and the latest release's hub entry. A missing or malformed entry lists nothing and never raises. `retirement_note(asset)` describes current behaviour; it mentions collision only when the asset has a profile. |
+| Which shipped scenes use an asset | `lai/apps/catalog/scene_usage.py` | `shipped_scene_usages(asset)` returns `SceneUsage(scene, has_place, release_id, current)` from `LocationAsset` rows (current = last seen in the latest release) and the latest release's hub entry. A missing or malformed entry lists nothing and never raises. `retirement_note(asset)` mentions collision only when the asset has a profile: it keeps applying for a model the app ships (since #75), and stops otherwise. |
 | Asset definition page | `catalog/admin.py` `used_by` | `bay; welcome-harbor (no Place record)`, with stale scenes marked `last seen in release N`. |
 | Retire action | `catalog/admin.py` `retire_assets` | Never refused for a shipped scene. After retiring, a warning names the current scenes and the note. |
 | Collision profile page (S4) | `assets/admin.py` `CollisionProfileAdmin.shipped_scenes` (read-only; additive) | Lists the current shipped scenes and says saving changes collision there on the child's next visit. A profile for a non-default version says it does not change them. |
@@ -207,15 +207,20 @@ which needs a `discovery.py` change).
 - **The model never disappears.** Every shipped-scene id is an `ASSET_MANIFEST` entry, and shipped
   regions load only through the bundled loader (`regionAssets.test.ts` "keeps the bundled loader
   for a source-controlled region").
-- **Collision can disappear today.** The resolver drops `collision` for a retired asset. 75 of the
-  104 shipped-scene ids have no built-in footprint (kit pieces such as `archway`, `bookshelf`,
-  `shipwreck`, `wall-stone`), so a staff profile on one of them is the only derived collider. The
-  scene's authored colliders and building walls are separate and unaffected.
-- **Fix approved by the owner (2026-11-24); LAI 07 writes it (`assets/resolver.py`):** a retired
-  asset with a `bundled_path` keeps its `collision` (status stays `retired`, no URL). The client
-  half is already pinned (section 8.1). Until the resolver change is on `main`, the staff note
-  still describes current behaviour (the profile stops applying). The note changes together with
-  the resolver, so it never claims protection the server does not give.
+- **Collision no longer disappears (fixed by #75, `c9123f48`, 2026-11-24).** Before it, the
+  resolver dropped `collision` for a retired asset, and 75 of the 104 shipped-scene ids have no
+  built-in footprint (kit pieces such as `archway`, `bookshelf`, `shipwreck`, `wall-stone`), so a
+  staff profile on one of them was the only derived collider. The scene's authored colliders and
+  building walls are separate and were never affected.
+- **The rule (owner, 2026-11-24; LAI 07, `assets/resolver.py`):** a retired asset with a
+  `bundled_path` and a model kind keeps the collision of its default version (status stays
+  `retired`, no URL). A retired version of a live asset keeps none, and no shipped scene asks for
+  one (they request unpinned ids, and a default version cannot be retired). All 104 shipped-scene
+  ids are exported with a bundled file and a model kind, so every shipped scene is covered. The
+  client half is pinned (section 8.1).
+- **Staff wording follows it.** `retirement_note` says the profile keeps applying for such an
+  asset, and stops applying otherwise. A test retires an asset and checks that the note's promise
+  matches what the resolver sends.
 - **Deployed profiles: nothing to audit yet.** LAI 05 verified on 2026-11-23, read-only, that no
   DEV stack or deploy run exists. When an environment exists, LAI 05 runs
   `collision_clearance_audit` and the profiled-and-shipped query read-only and reports ids only.

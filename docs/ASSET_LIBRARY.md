@@ -149,7 +149,10 @@ absolute `https://` presigned URL. Methods other than GET are 405.
 - `unavailable`: unknown id, nothing published, a draft-only asset, or a pin to a version that is
   not published. Indistinguishable on purpose, so drafts cannot be discovered.
 - `retired`: the definition or the pinned version was retired. The client uses the bundled
-  file if one exists, otherwise its placeholder.
+  file if one exists, otherwise its placeholder. A retired 3D asset that the app still ships (it
+  has a `bundled_path`) keeps its `collision`, from its default version's profile, so retiring it
+  never makes the bundled model walk-through (owner decision, 2026-11-24). A retired version of
+  an asset that is still live carries no `collision`.
 - Malformed ids are a 400. Two queries per request regardless of how many ids.
 
 ## 8. Delivery
