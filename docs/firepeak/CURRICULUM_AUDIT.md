@@ -1,8 +1,16 @@
 # Heart of Firepeak: curriculum audit of puzzle skills (FPV-24, FPV-D10)
 
-Status: **audit done, content not changed yet.** Checked on `main` `1b0a50a3`, 2026-11-23, by
-LAI 03 with LAI 06 (scoring and progression). The content change waits for LAI 06's per-variant
-contract (below).
+Status: **audit done, content re-tagged** on LAI 06's FPV-D10 contract `f6d1a373` (PR #73, not
+merged), 2026-11-23. Audited on `main` `1b0a50a3` by LAI 03 with LAI 06 (scoring and progression).
+Every band and override below is now in `firepeak_heart_content.SKILLS`, and
+`manage.py puzzle_skill_report --strict` exits 0 after `load_content`, `seed_firepeak_heart` and
+`publish_firepeak_heart` on a fresh PostgreSQL 18 database.
+
+**Existing databases.** The seed never overwrites a puzzle's authored revisions (ADR-047), so a
+database seeded before this change keeps the old ids until staff publish a revision with the new
+`skill` values (Django Admin, 3D Area puzzles) or the database is re-seeded. Until then those
+puzzles record no evidence, and `puzzle_skill_report` lists them, so run it on any shared
+database before relying on the dashboard.
 
 Realm: the home Island `learning-adventure-island` (ADR-073: Realm = Island). Place and Area:
 `firepeak-heart`. Quest: `the-heart-of-firepeak` (one quest, seven zones). Bands: Pathfinder and

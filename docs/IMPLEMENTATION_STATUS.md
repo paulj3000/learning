@@ -596,15 +596,26 @@ engine lead's migration-ready SHA on `core/gameengine`.
 
 ## The Heart of Firepeak (FPV-01 to FPV-24); on `main`, owner QA pending, not owner-accepted, not deployed
 
+**Curriculum re-tag (2026-11-23, LAI 03, on FPV-D10 `f6d1a373`).** This branch merges LAI 06's
+contract commit (PR #73, not merged to `main`) and re-tags the Heart of Firepeak:
+- `firepeak_heart_content.SKILLS` holds each band's objective and the per-variant overrides from
+  `docs/firepeak/CURRICULUM_AUDIT.md` (17 catalog objectives; the 10 invalid ids are gone). The
+  engine definition lists the same 17; the scene snapshot is regenerated.
+- Tests: every teaching band has a row, every code is an exported objective, overrides land on the
+  right variants, an override for a missing variant is refused, and `puzzle_skill_report` is empty
+  for the Area after seed and publish.
+- Gate: `puzzle_skill_report --strict` exits 0 on a fresh PostgreSQL 18 database.
+- Databases seeded earlier keep the old ids until staff publish a revision (ADR-047).
+
 **Curriculum, ADR and acceptance check (2026-11-23, LAI 03, `main` `1b0a50a3` merged in).**
 - ADR-073 matches the code: separate Place, one seven-zone Area with six gates, generic
   `CHOOSE_ANSWER` (7) and `ORDER_SEQUENCE` (4), a no-jump required route, jumping still on,
   no lives or timers, and two Firepeak Places. The amendment records that hazards now run through
-  the engine bridge and that rocks and steam are built. Accepted (architecture) is prepared in
-  PR #66 and takes effect on the owner's merge. Gameplay acceptance (FPV-24) stays separate.
-- Curriculum: `docs/firepeak/CURRICULUM_AUDIT.md`, agreed with LAI 06. 10 of 11 skill ids are
-  not objectives; there are per-variant overrides and 8 new objectives (authored by LAI 06).
-  The content re-tag waits for LAI 06's contract commit (FPV-D10).
+  the engine bridge and that rocks and steam are built. Accepted (architecture) by the owner's
+  merge of PR #66. Gameplay acceptance (FPV-24) stays separate.
+- Curriculum: `docs/firepeak/CURRICULUM_AUDIT.md`, agreed with LAI 06. 10 of 11 skill ids were
+  not objectives; there are per-variant overrides and new objectives (authored by LAI 06). The
+  re-tag is done (block above).
 - Regression on the merged tree:
   - Django (PostgreSQL 18.7): 419 passed (Firepeak and North Pole layout, seed, play, import,
     security, and the changed asset collision profiles).
