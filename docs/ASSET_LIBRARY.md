@@ -1119,14 +1119,14 @@ records each model's bounding corners in `metadata["bounds"]`, which automatic p
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
 
-## 25. Dependency tracking (LAI-07 W2; W2-1 on `main`, W2-3 in review)
+## 25. Dependency tracking (LAI-07 W2; W2-1 on `main`, W2-3 and W2-4 in review)
 
 Status:
 - **On `main`:** the registry, the aggregate retirement guard and `manage.py asset_usage` (W2-1,
   PR #65), and the `catalog` provider for shipped scenes (GE-247, Agent 4, PR #70).
 - **In review** (Trello #246): the regions provider (W2-3,
   `feature/asset-library-w2-3-regions`). The NPC and avatar providers with their parity tests
-  (W2-4) follow in a stacked PR; they are **not registered**, so their guards refuse exactly as
+  (W2-4, `feature/asset-library-w2-4-parity`, stacked on W2-3) are **not registered**, so their guards refuse exactly as
   before.
 - **Waiting:** the audio provider (W2-2) and the guard switch (W2-4b) for owner decisions; the
   "Used by" admin panel (W2-5) is unblocked by the Lambda merge (#71) and comes as its own PR.
