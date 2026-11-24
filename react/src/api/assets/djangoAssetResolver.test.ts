@@ -367,6 +367,40 @@ describe('collision profiles from the asset resolver (Asset Manager)', () => {
     expect(request).toHaveBeenCalledTimes(1);
   });
 
+  // GE-247: a retired asset that a shipped scene still draws from the bundle keeps its profile.
+  it('keeps the profile of a retired asset and still loads the bundled model', async () => {
+    const archway = [{ minX: -1, minY: 2, minZ: -0.2, maxX: 1, maxY: 2.6, maxZ: 0.2 }];
+    const { client } = fakeClient(() => ({
+      assets: [
+        {
+          ref: 'archway',
+          id: 'archway',
+          status: 'retired',
+          collision: { behavior: 'SOLID', shape: 'COMPOUND', boxes: archway },
+        },
+        { ref: 'rock', id: 'rock', status: 'retired' },
+      ],
+    }));
+    const resolver = createDjangoAssetResolver({
+      client,
+      childId: 'c1',
+      now: () => NOW,
+      onIssue: () => {},
+    });
+    const profiles = await resolver.collisionProfiles(['archway', 'rock']);
+    expect(profiles.get('archway')).toEqual({
+      behavior: 'SOLID',
+      shape: 'COMPOUND',
+      boxes: archway,
+    });
+    // Retired with no profile: the engine's built-in footprint applies.
+    expect(profiles.has('rock')).toBe(false);
+    // The model never comes from the retired record: the bundled file is drawn.
+    await expect(resolver.resolve('archway')).resolves.toEqual(
+      await BUNDLED_ASSET_RESOLVER.resolve('archway'),
+    );
+  });
+
   it('answers no profiles when the request fails, so every default stays', async () => {
     const client = {
       request: vi.fn(async () => {

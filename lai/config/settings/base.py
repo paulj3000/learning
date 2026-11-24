@@ -2,12 +2,18 @@
 
 import os
 import re
+import sys
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # lai/
+# The standard-library processing library (ADR-061, ADR-064) ships as processing/ beside lai/ in
+# the repository, the native release and the Django image; the contract job kinds import it.
+PROCESSING_DIR = BASE_DIR.parent / "processing"
+if PROCESSING_DIR.is_dir() and str(PROCESSING_DIR) not in sys.path:
+    sys.path.append(str(PROCESSING_DIR))
 # The versioned content export and its schema (LAI-0302); the catalog imports from here.
 CONTENT_DIR = BASE_DIR.parent / "content"
 
@@ -215,7 +221,31 @@ LAI_ASSET_REGION = os.environ.get("LAI_ASSET_REGION", "").strip()
 LAI_ASSET_LOCAL_ROOT = BASE_DIR / ".asset-storage"
 LAI_ASSET_DELIVERY = os.environ.get("LAI_ASSET_DELIVERY", "django").strip()
 LAI_ASSET_URL_TTL_SECONDS = int(os.environ.get("LAI_ASSET_URL_TTL_SECONDS", "3600"))
-LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))  # 50 MB
+# 50 MiB = 52,428,800 bytes. The upload limit for 3D models (.glb and .gltf); images and audio
+# have their own (LAI_ASSET_MAX_IMAGE_BYTES, LAI_ASSET_MAX_AUDIO_BYTES).
+LAI_ASSET_MAX_UPLOAD_BYTES = int(os.environ.get("LAI_ASSET_MAX_UPLOAD_BYTES", "52428800"))
+# GLB processing and inspection limit (owner decision 2026-11-17; docs/ASSET_LIBRARY.md section
+# 13): one number for the Admin upload of a .glb, the `asset.validate_model` request's
+# `max_input_bytes` and the `asset.inspect` payload's `max_bytes`. Default 50 MiB = 52,428,800
+# bytes. Bounds: at least 1 MiB, at most LAI_ASSET_GLB_CEILING_BYTES. The effective limit is
+# min(LAI_ASSET_MAX_GLB_BYTES, LAI_ASSET_MAX_UPLOAD_BYTES), so lowering the model upload limit
+# still lowers it (apps.assets.validation.max_glb_bytes).
+# The ceiling is the GLB validator profile's own input limit (`glb-default` v1,
+# lai_processing GLB_LIMITS.max_input_bytes, 50 MiB), which is below the 64 MiB `asset.inspect`
+# hard ceiling (apps.jobs.core.tasks.MAX_ASSET_BYTES). A larger GLB could be uploaded but never
+# validated in the background, so raising it needs a new profile version first. Not configurable;
+# lai/apps/assets/tests/test_glb_limit.py keeps it equal to the profile.
+LAI_ASSET_GLB_CEILING_BYTES = 50 * 1024 * 1024
+_glb_bytes_raw = os.environ.get("LAI_ASSET_MAX_GLB_BYTES", "52428800").strip()
+try:
+    LAI_ASSET_MAX_GLB_BYTES = int(_glb_bytes_raw)
+except ValueError:
+    raise ImproperlyConfigured("LAI_ASSET_MAX_GLB_BYTES must be a whole number of bytes.") from None
+if not 1024 * 1024 <= LAI_ASSET_MAX_GLB_BYTES <= LAI_ASSET_GLB_CEILING_BYTES:
+    raise ImproperlyConfigured(
+        "LAI_ASSET_MAX_GLB_BYTES must be between 1048576 (1 MiB) and "
+        f"{LAI_ASSET_GLB_CEILING_BYTES} (50 MiB) bytes."
+    )
 if LAI_ASSET_STORAGE not in {"s3", "local", "memory"}:
     raise ImproperlyConfigured("LAI_ASSET_STORAGE must be s3, local or memory.")
 if LAI_ASSET_DELIVERY not in {"django", "s3"}:
@@ -518,12 +548,25 @@ if LAI_STUDIO_RUN_MODE not in {"thread", "manual", "inline", "jobs"}:
 LAI_JOBS_BACKEND = os.environ.get("LAI_JOBS_BACKEND", "inline").strip()
 LAI_JOBS_AI_QUEUE_URL = os.environ.get("LAI_JOBS_AI_QUEUE_URL", "").strip()
 LAI_JOBS_MEDIA_QUEUE_URL = os.environ.get("LAI_JOBS_MEDIA_QUEUE_URL", "").strip()
+# Native workload queues (ADR-066): optional, empty unless the matching feature control is on.
+LAI_JOBS_AUDIO_QUEUE_URL = os.environ.get("LAI_JOBS_AUDIO_QUEUE_URL", "").strip()
+LAI_JOBS_IMAGE_QUEUE_URL = os.environ.get("LAI_JOBS_IMAGE_QUEUE_URL", "").strip()
+LAI_JOBS_OPTIMIZE_QUEUE_URL = os.environ.get("LAI_JOBS_OPTIMIZE_QUEUE_URL", "").strip()
 LAI_JOBS_RESULTS_QUEUE_URL = os.environ.get("LAI_JOBS_RESULTS_QUEUE_URL", "").strip()
 LAI_JOBS_RESULTS_BUCKET = os.environ.get("LAI_JOBS_RESULTS_BUCKET", "").strip()
 # Pending or running jobs older than this are failed by `jobs_sweep` (error code `timeout`).
 LAI_JOBS_STALE_MINUTES = int(os.environ.get("LAI_JOBS_STALE_MINUTES", "60"))
 # Completed jobs older than this are deleted by `jobs_sweep`. Failed jobs are kept for review.
 LAI_JOBS_RETENTION_DAYS = int(os.environ.get("LAI_JOBS_RETENTION_DAYS", "30"))
+# Completed `asset.validate_model` jobs (the publication gate's evidence) are kept this long
+# instead (owner decision 2026-11-17). An unpublished GLB whose passing job was pruned must be
+# validated again before it can be published; published versions are never affected.
+LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS = int(
+    os.environ.get("LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS", "90")
+)
+# Validation jobs allowed per logical validation (one version, file and processor version):
+# bounds staff resubmissions after failures (owner decision 2026-11-17).
+LAI_ASSET_VALIDATION_MAX_ATTEMPTS = int(os.environ.get("LAI_ASSET_VALIDATION_MAX_ATTEMPTS", "5"))
 if LAI_JOBS_BACKEND not in {"inline", "sqs", "disabled"}:
     raise ImproperlyConfigured("LAI_JOBS_BACKEND must be inline, sqs or disabled.")
 if LAI_JOBS_BACKEND == "sqs":
@@ -541,9 +584,90 @@ if LAI_JOBS_BACKEND == "sqs":
             raise ImproperlyConfigured(f"{_name} must be an https SQS queue URL.")
     if not _queue_url.fullmatch(LAI_JOBS_RESULTS_QUEUE_URL):
         raise ImproperlyConfigured("LAI_JOBS_RESULTS_QUEUE_URL must be an https SQS queue URL.")
+    # The native workload queues may be empty (the workload is then refused), but never malformed.
+    for _name in (
+        "LAI_JOBS_AUDIO_QUEUE_URL",
+        "LAI_JOBS_IMAGE_QUEUE_URL",
+        "LAI_JOBS_OPTIMIZE_QUEUE_URL",
+    ):
+        if globals()[_name] and not _queue_url.fullmatch(globals()[_name]):
+            raise ImproperlyConfigured(f"{_name} must be an https SQS queue URL.")
 if not 5 <= LAI_JOBS_STALE_MINUTES <= 1440:
     raise ImproperlyConfigured("LAI_JOBS_STALE_MINUTES must be between 5 and 1440.")
 if not 1 <= LAI_JOBS_RETENTION_DAYS <= 365:
     raise ImproperlyConfigured("LAI_JOBS_RETENTION_DAYS must be between 1 and 365.")
+if not 1 <= LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS <= 730:
+    raise ImproperlyConfigured("LAI_ASSET_VALIDATION_JOB_RETENTION_DAYS must be between 1 and 730.")
+if not 1 <= LAI_ASSET_VALIDATION_MAX_ATTEMPTS <= 20:
+    raise ImproperlyConfigured("LAI_ASSET_VALIDATION_MAX_ATTEMPTS must be between 1 and 20.")
 if LAI_STUDIO_RUN_MODE == "jobs" and LAI_JOBS_BACKEND == "disabled":
     raise ImproperlyConfigured("LAI_STUDIO_RUN_MODE=jobs needs LAI_JOBS_BACKEND inline or sqs.")
+
+# Asynchronous model validation (LAI-LAMBDA-006, owner-approved 2026-11-17, ADR-064). `off` (the
+# default in every environment): uploads behave exactly as before. `on`: a GLB upload that passes
+# the synchronous checks is stored as a DRAFT version and an `asset.validate_model` job (media
+# queue) is submitted in the same transaction; its result moves the draft to VALIDATED or
+# REJECTED, and publishing a GLB needs a matching passing result. Refused with the jobs backend
+# disabled. Never switched on by a deployment.
+LAI_ASSET_ASYNC_VALIDATION = os.environ.get("LAI_ASSET_ASYNC_VALIDATION", "off").strip().lower()
+if LAI_ASSET_ASYNC_VALIDATION not in {"off", "on"}:
+    raise ImproperlyConfigured("LAI_ASSET_ASYNC_VALIDATION must be off or on.")
+if LAI_ASSET_ASYNC_VALIDATION == "on" and LAI_JOBS_BACKEND == "disabled":
+    raise ImproperlyConfigured(
+        "LAI_ASSET_ASYNC_VALIDATION=on needs LAI_JOBS_BACKEND inline or sqs."
+    )
+
+# Derived-artifact workload controls (ADR-066, COMPLETION_INTEGRATION.md section 3). Each is `off`
+# in every environment until the owner turns it on after the compatibility-gated release. A kind
+# is submitted only while its control is `on` and (with the sqs backend) its queue URL is set;
+# `apps.jobs.workloads` is the one place that decides. LAI_THUMBNAIL_CAPTURE gates the staff
+# browser capture view (no job, no queue).
+LAI_AUDIO_TRANSCODING = os.environ.get("LAI_AUDIO_TRANSCODING", "off").strip().lower()
+LAI_IMAGE_CONVERSION = os.environ.get("LAI_IMAGE_CONVERSION", "off").strip().lower()
+LAI_GLB_MESHOPT = os.environ.get("LAI_GLB_MESHOPT", "off").strip().lower()
+LAI_GLB_KTX2 = os.environ.get("LAI_GLB_KTX2", "off").strip().lower()
+LAI_THUMBNAIL_CAPTURE = os.environ.get("LAI_THUMBNAIL_CAPTURE", "off").strip().lower()
+for _name in (
+    "LAI_AUDIO_TRANSCODING",
+    "LAI_IMAGE_CONVERSION",
+    "LAI_GLB_MESHOPT",
+    "LAI_GLB_KTX2",
+    "LAI_THUMBNAIL_CAPTURE",
+):
+    if globals()[_name] not in {"off", "on"}:
+        raise ImproperlyConfigured(f"{_name} must be off or on.")
+if LAI_JOBS_BACKEND == "disabled" and "on" in (
+    LAI_AUDIO_TRANSCODING,
+    LAI_IMAGE_CONVERSION,
+    LAI_GLB_MESHOPT,
+    LAI_GLB_KTX2,
+):
+    raise ImproperlyConfigured("A workload control set to on needs LAI_JOBS_BACKEND inline or sqs.")
+
+# Optional release manifest (ADR-071, docs/processing/PROCESSING_RELEASE.md section 4): the path of
+# the JSON written by `scripts/release/processing_release.py manifest create` for the workers
+# deployed with this release. When set, a derived-artifact kind is submitted only if some manifest
+# artifact lists it in `supported_kinds` (an unreadable or invalid file refuses every workload),
+# and when LAI_RELEASE_SHA is also set the manifest's `git_sha` must equal it. Unset (the default,
+# and local development) adds no check.
+LAI_PROCESSING_RELEASE_MANIFEST = os.environ.get("LAI_PROCESSING_RELEASE_MANIFEST", "").strip()
+LAI_RELEASE_SHA = os.environ.get("LAI_RELEASE_SHA", "").strip()
+
+# Derived artifact retention (ADR-066, owner-approved 2026-11-18): an artifact nobody reviewed
+# expires this many days after it was created; a superseded or rejected one this many days after.
+# Accepted and promoted artifacts, held artifacts and artifacts of active jobs never expire.
+LAI_ARTIFACT_RETENTION_UNREVIEWED_DAYS = int(
+    os.environ.get("LAI_ARTIFACT_RETENTION_UNREVIEWED_DAYS", "90")
+)
+LAI_ARTIFACT_RETENTION_SUPERSEDED_DAYS = int(
+    os.environ.get("LAI_ARTIFACT_RETENTION_SUPERSEDED_DAYS", "30")
+)
+# Objects under processing/artifacts/ with no row are orphans (a failed attempt, a lost result);
+# the reconciliation leaves any younger than this many hours alone (an attempt may be committing).
+LAI_ARTIFACT_ORPHAN_GRACE_HOURS = int(os.environ.get("LAI_ARTIFACT_ORPHAN_GRACE_HOURS", "48"))
+if not 1 <= LAI_ARTIFACT_RETENTION_UNREVIEWED_DAYS <= 730:
+    raise ImproperlyConfigured("LAI_ARTIFACT_RETENTION_UNREVIEWED_DAYS must be 1 to 730.")
+if not 1 <= LAI_ARTIFACT_RETENTION_SUPERSEDED_DAYS <= 365:
+    raise ImproperlyConfigured("LAI_ARTIFACT_RETENTION_SUPERSEDED_DAYS must be 1 to 365.")
+if not 1 <= LAI_ARTIFACT_ORPHAN_GRACE_HOURS <= 720:
+    raise ImproperlyConfigured("LAI_ARTIFACT_ORPHAN_GRACE_HOURS must be 1 to 720.")

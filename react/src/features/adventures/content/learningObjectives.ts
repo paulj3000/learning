@@ -38,7 +38,7 @@ export const LEARNING_OBJECTIVES: LearningObjective[] = [
   {
     code: 'cause-and-effect',
     domain: 'science',
-    title: 'Understanding cause and effect in nature',
+    title: 'Understanding cause and effect',
   },
   { code: 'observation', domain: 'science', title: 'Careful observation of the natural world' },
   {
@@ -63,4 +63,26 @@ export const LEARNING_OBJECTIVES: LearningObjective[] = [
     domain: 'literacy',
     title: 'Hearing rhymes and the sounds in words',
   },
+  // FPV-D10: Area puzzle objectives (Heart of Firepeak, North Pole). Mapping and reasons:
+  // docs/regions/PUZZLE_SKILL_MAPPING.md.
+  { code: 'number-recognition', domain: 'numeracy', title: 'Recognizing written numbers' },
+  {
+    code: 'comparing-and-ordering-numbers',
+    domain: 'numeracy',
+    title: 'Comparing and ordering numbers',
+  },
+  { code: 'addition-within-100', domain: 'numeracy', title: 'Addition within 100' },
+  { code: 'subtraction-within-100', domain: 'numeracy', title: 'Subtraction within 100' },
+  { code: 'equal-sharing', domain: 'numeracy', title: 'Sharing equally into groups' },
+  { code: 'halves-and-fractions', domain: 'numeracy', title: 'Halves and simple fractions' },
+  { code: 'shapes-and-geometry', domain: 'numeracy', title: 'Naming and describing shapes' },
+  { code: 'symmetry', domain: 'numeracy', title: 'Finding symmetry' },
+  { code: 'sight-words', domain: 'literacy', title: 'Reading common sight words' },
+  { code: 'simple-circuits', domain: 'science', title: 'How simple circuits work' },
+  {
+    code: 'earth-science',
+    domain: 'science',
+    title: 'Rocks, volcanoes and how the land changes',
+  },
+  { code: 'earth-and-space', domain: 'science', title: 'The Sun, Moon and stars' },
 ];

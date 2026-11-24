@@ -60,6 +60,28 @@ class TestKeys:
             MemorySpeechStorage().put(key, b"x")
 
 
+@pytest.fixture(autouse=True)
+def _no_ambient_aws(monkeypatch, tmp_path):
+    """Isolate every client in this module from the developer's or runner's AWS configuration.
+
+    boto3 resolves a profile, shared config files and cached default-session credentials from
+    the environment; an `AWS_PROFILE` naming a missing profile, partial or expired credentials, or a
+    default session created by an earlier test made results depend on the machine and on test
+    order. Nothing here contacts AWS: clients are stubbed or only sign URLs locally."""
+    for name in (
+        "AWS_PROFILE",
+        "AWS_DEFAULT_PROFILE",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_SESSION_TOKEN",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(tmp_path / "no-aws-config"))
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(tmp_path / "no-aws-credentials"))
+    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
+    monkeypatch.setattr(boto3, "DEFAULT_SESSION", None)
+
+
 class TestS3:
     def test_put_is_private_encrypted_and_typed(self):
         raw = _s3()
@@ -136,8 +158,17 @@ class TestS3:
         SignatureDoesNotMatch because the signature covers the original host (2026-11-11)."""
         from urllib.parse import urlsplit
 
-        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
-        monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+        # boto3 caches a default session across tests; changing the environment after
+        # an earlier client has resolved credentials does not refresh that session.
+        # Use an isolated session with explicit dummy credentials, then restore it.
+        monkeypatch.setattr(
+            boto3,
+            "DEFAULT_SESSION",
+            boto3.Session(
+                aws_access_key_id="testing",
+                aws_secret_access_key="testing",  # noqa: S106 - local signing only
+            ),
+        )
         settings.LAI_SPEECH_STORAGE = "s3"
         settings.LAI_SPEECH_BUCKET = "speech-bucket"
         settings.LAI_SPEECH_S3_REGION = "us-west-2"

@@ -32,6 +32,10 @@ Django Admin: Assets > Collision profiles          (staff, apps/assets/admin.py)
 - **Source-controlled locations** (Welcome Harbor, Pirate Builder Bay, ...) keep their bundled
   models but still read profiles from Django when the Django API is on. Without the Django API
   (`VITE_BACKEND` unset in a build) only the built-in defaults apply.
+- **Retired assets that still ship keep their collision.** When a 3D asset with a `bundled_path`
+  is retired, the resolver still sends the profile of its default version, because the client
+  keeps drawing the bundled model (owner decision, 2026-11-24). A retired asset that is not
+  shipped, or a retired version of a live asset, sends none.
 
 ## Profile fields
 

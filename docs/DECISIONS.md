@@ -20,7 +20,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 
 **Format recommendation.** Keep this single file plus the registry table. Individually named ADR files would force moving about 4,500 lines and rewriting links for no collision benefit the check does not already give. Revisit only if the log passes roughly 50 decisions.
 
-**Next free identifier number: 073.** (065 to 071 are reserved for branch decisions; 080 and 081 are also reserved.)
+**Next free identifier number: 074.** (065 to 071 are reserved for branch decisions; 073, 080 and 081 are in use. 074 to 079 are free; no open branch used them on 2026-11-23.)
 
 | ID | Title | Status | Origin | Notes |
 |---|---|---|---|---|
@@ -89,16 +89,16 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-063 | Jumping is standard movement in the shared first-person controller; only authored low obstacles are jumpable | Proposed | `feature/shared-jump-controller` (LAI-JMP-01, PR #26) | Owner QA pending. Numbered ADR-055 on the movement branches; renumbered ADR-063 by the owner's ADR reconciliation (2026-11-17), decision text unchanged. Merged into `core/gameengine` (stacked on PR #36) on 2026-11-18; the heading moves to `main` when the movement stack merges |
 | ADR-064 | Background processing has one canonical path: apps.jobs on the ADR-055 queues and results consumer, zip-packaged Lambda workers, a transactional outbox and a database-outage-safe consumer; Bedrock runs in a configurable Region | Accepted | `main` (owner's DEV blocker resolution, 2026-11-17) | Owner decisions 1 to 8 of 2026-11-17: zip for dev Lambda workers, no ECR in dev, containers only by a later decision, `apps.jobs` + SQS + Lambda + ADR-055 canonical, PR #40 extends it, Studio roles automated, Bedrock Region independent, low-cost dev and its schedule kept. Amends ADR-055, ADR-061 and ADR-062 |
 | ADR-065 | The Castle Director may only pick an id from a server-recomputed set of authored ambient events; events grant nothing and repeat by visit count, never by time | Accepted (owner, 2026-11-18) | `work/sc-r08-09` (SC-R08-01, SC-R09-01, SC-R09-02); `work/final-a` (revisioned catalog) | Adds route `generateCastleDirector`, `CastleVisitState`, `CastleEventShown`, and the Django-owned, revisioned `CastleEvent` catalog (migration `regions.0008`). Reuses ADR-044 (pipeline, Guardrail), ADR-047 (revisions) and ADR-054 (`npc_hint`) |
-| ADR-066 | Derived artifacts, create-only worker writes and retention (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-014), `docs/processing/adr/` on that branch | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-067 | Native audio transcoding with LGPL FFmpeg (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-008b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-068 | Separate Pillow image function and image privacy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013a) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-069 | Staff browser GLB thumbnail capture (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-013b) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
-| ADR-070 | GLB optimization policy (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` | Reserved 2026-11-18 by the engineering-governance audit as a collision with the Heart of Firepeak decision; owner decision 2026-11-19: the GLB policy keeps 070 and the Heart of Firepeak decision is ADR-073. Not merged here |
-| ADR-071 | Compatibility-gated processing release and production processing infrastructure (open branch, not merged) | Reserved | `feature/lambda-derived-artifacts` (LAI-LAMBDA-012, 014) | Reserved 2026-11-18 by the engineering-governance audit. Not merged here |
+| ADR-066 | Derived artifacts (Option C): staff-only records in the existing asset bucket under `processing/artifacts/<env>/`, create-only worker writes, explicit promotion into new unpublished versions, 90/30-day retention | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-014 | Body: `docs/processing/adr/ADR-066-derived-artifacts.md`. Open: D5 streamed vs presigned, D7 stale rows, D8 live proof of `s3:if-none-match`, O1 to O7 |
+| ADR-067 | Native audio transcoding with an LGPL FFmpeg layer: Opus primary, MP3 alternative, per-category loudness profiles, own `audio` queue, results on the canonical consumer | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-008b | Body: `docs/processing/adr/ADR-067-audio-transcoding.md`. Open: arm64 build and deploy, FFmpeg major version, sizing, final loudness values, game format negotiation |
+| ADR-068 | Separate Pillow image Lambda for conversion and image thumbnails; new public-facing derivatives are stripped of sensitive metadata; originals kept; no silent historical rewrite | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-013a | Body: `docs/processing/adr/ADR-068-image-conversion.md`. Open: O-1 to O-9 (sizing, 16-bit, normal maps, admin options) |
+| ADR-069 | Staff browser GLB thumbnail capture in Django Admin, stored as private derived artifacts; server-side rendering deferred | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-013b | Body: `docs/processing/adr/ADR-069-staff-thumbnail-capture.md`. Browser acceptance not yet run. Open: 8 items incl. server rendering, KTX2 in capture |
+| ADR-070 | GLB optimization: Meshopt first, then KTX2; compression extensions rejected unless verified and their control is on; no Draco, Batch, Fargate, Blender or server rendering | Accepted (owner, 2026-11-18) for the approved items | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-010 | Body: `docs/processing/adr/ADR-070-glb-optimization.md`. GLB validator 1.2.0 (drafts revalidate). Open: O1 production runtime, O2 enablement, O4 lossy, O5 KHR_meshopt, O6 heavy runtime, O7 decoder delivery |
+| ADR-071 | Compatibility-gated processing release and production processing infrastructure as code (no deployment) | Accepted (owner, 2026-11-18) for RELEASE and PRODUCTION (code only) | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-012 | Body: `docs/processing/adr/ADR-071-processing-release-and-production.md`. Open: O1 to O14 incl. every deployment, budget amount, concurrency, Lambda Insights |
 | ADR-072 | Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated | Accepted | `feature/engineering-standards` | Accepted 2026-11-18 |
-| ADR-073 | The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds | Proposed | `feature/firepeak-volcano-adventure` (FPV-02) | Renumbered from ADR-070 by owner decision 2026-11-19 (collision with the GLB optimization policy). Development only; owner QA pending. Needs reserving in the `main` registry (governance rule) |
-| ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes | Proposed | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit; written on this branch. Development only; owner QA pending |
-| ADR-081 | Seasonal events are Django content in their own app; availability never removes progress | Proposed | `feature/north-pole-adventure` (SEA-04) | Reserved 2026-11-18 by the engineering-governance audit; written on this branch. Development only; owner QA pending |
+| ADR-073 | The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds | Accepted (architecture; owner approval in principle 2026-11-23, effective when the owner merges `docs/adr-073-080-081-acceptance`) | `feature/firepeak-volcano-adventure` (FPV-02), on `main` since PR #44 | Renumbered from ADR-070 by owner decision 2026-11-19 (collision with the GLB optimization policy). Heading and row on `main`, so no reservation is needed. Validated against `main` `1b0a50a3` with one amendment (hazards moved to the engine bridge). Gameplay owner acceptance is separate: FPV-24, pending |
+| ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes | Accepted (architecture; owner approval in principle 2026-11-23, effective when the owner merges `docs/adr-073-080-081-acceptance`) | `feature/north-pole-adventure` (SEA-04), on `main` | Reserved 2026-11-18 by the engineering-governance audit. Validated against `main` `1b0a50a3` with stale text corrected (amendment). Gameplay owner acceptance is separate: SEA-04 owner QA, pending |
+| ADR-081 | Seasonal events are Django content in their own app; availability never removes progress | Accepted (architecture; owner approval in principle 2026-11-23, effective when the owner merges `docs/adr-073-080-081-acceptance`) | `feature/north-pole-adventure` (SEA-04), on `main` | Reserved 2026-11-18 by the engineering-governance audit. Validated against `main` `1b0a50a3`; the amendment records the UTC date boundary (owner decision open) and server-side gating. Gameplay owner acceptance is separate: SEA-04 owner QA, pending |
 
 ## ADR-001: Parent-owned accounts
 
@@ -4589,6 +4589,48 @@ it; retired events stop immediately; and the Director still cannot say anything 
 approved line. Retiring every published event leaves the castle with only the client's quiet
 lines, never the retired copy. Details: `docs/regions/prep/ai_director_prep.md`,
 `docs/AI_AND_CHILD_SAFETY.md`, `docs/PLAY_API.md`.
+## ADR-066: Derived artifacts (Option C): staff-only records in the existing asset bucket under `processing/artifacts/<env>/`, create-only worker writes, explicit promotion into new unpublished versions, 90/30-day retention
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-066-derived-artifacts.md`.
+
+## ADR-067: Native audio transcoding with an LGPL FFmpeg layer: Opus primary, MP3 alternative, per-category loudness profiles, own `audio` queue, results on the canonical consumer
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-067-audio-transcoding.md`.
+
+## ADR-068: Separate Pillow image Lambda for conversion and image thumbnails; new public-facing derivatives are stripped of sensitive metadata; originals kept; no silent historical rewrite
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-068-image-conversion.md`.
+
+## ADR-069: Staff browser GLB thumbnail capture in Django Admin, stored as private derived artifacts; server-side rendering deferred
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-069-staff-thumbnail-capture.md`.
+
+## ADR-070: GLB optimization: Meshopt first, then KTX2; compression extensions rejected unless verified and their control is on; no Draco, Batch, Fargate, Blender or server rendering
+
+Status: Accepted (owner, 2026-11-18) for the approved items. Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-070-glb-optimization.md`.
+
+## ADR-071: Compatibility-gated processing release and production processing infrastructure as code (no deployment)
+
+Status: Accepted (owner, 2026-11-18) for RELEASE and PRODUCTION (code only). Recorded on the Lambda branches (`feature/lambda-derived-artifacts` and its
+successors, LAI-LAMBDA), reconciled with `main` on `feature/lambda-reconcile-main`
+(2026-11-23); in `main` only when the owner merges that branch.
+Full record (context, decision, consequences, open items): `docs/processing/adr/ADR-071-processing-release-and-production.md`.
+
 ## ADR-072: Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated
 
 Status: Accepted (project owner, 2026-11-18). Branch `feature/engineering-standards`.
@@ -4696,7 +4738,10 @@ so the Trophy Room door's landing point stays clear. A development-only collisio
 
 ## ADR-073: The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds
 
-Status: Proposed (2026-11-18). Development only; owner review and browser QA pending.
+Status: Accepted (architecture). Owner approval in principle 2026-11-23; the acceptance takes
+effect when the owner merges the registry change `docs/adr-073-080-081-acceptance`. This accepts
+the architecture only. Gameplay acceptance of the Heart of Firepeak is the owner QA gate FPV-24,
+which is still pending. Proposed 2026-11-18.
 Numbering: first written as ADR-070, which collided with the GLB optimization policy on
 `feature/lambda-derived-artifacts`; renumbered to ADR-073 by owner decision (2026-11-19).
 Builds on ADR-033 (one Django backbone), ADR-041 (Island, Place, 3D Area), ADR-047 (Django
@@ -4732,11 +4777,42 @@ unknown kind fails the bootstrap parse). Falling rocks and timed steam pushes ar
 need a telegraphed moving-hazard runtime. Great Storybook and Trophy Room registration waits for
 the Storykeeper branch.
 
+**Validation against `main` `1b0a50a3` (2026-11-23, LAI 03).**
+
+| Property | Where it holds | Evidence |
+|---|---|---|
+| Separate Place, existing Place untouched | `firepeak-heart` and `firepeak-volcano` in `content/exported/locations.json` | `test_firepeak_heart_import.py::test_existing_firepeak_volcano_content_is_unchanged` |
+| One Area of seven zones, six gates | `firepeak_heart_layout.ZONES`, gates opened by world changes (`effects.openings`) | `test_firepeak_heart_layout.py::test_seven_zones_in_order_with_six_gates`, `test_each_zone_is_reachable_once_the_gates_before_it_are_open` |
+| Generic `CHOOSE_ANSWER` and `ORDER_SEQUENCE`, multi-instance, practice after solve | `firepeak_heart_content.PUZZLES` (7 choose, 4 order), `regions.0007` | `test_firepeak_heart_seed.py`, `test_firepeak_heart_play.py::test_practice_replay_on_a_solved_choose_answer_records_nothing`, `AreaPuzzleLayer.test.tsx` |
+| Required routes walkable without a jump | grid walk with every jump removed | `test_firepeak_heart_layout.py::test_every_jump_has_a_no_jump_alternative_to_what_it_leads_to` and the stairs and shard route tests |
+| Jumping kept as an optional shared capability | `JumpConfiguration.enabled` defaults to true and nothing in the Heart scene turns it off; optional hop routes, the jump log and the crumbling stone | the hop-limit tests (`test_every_hop_rises_little_and_gaps_are_short`) |
+| No lives, timers or loss | no lives, countdown or time limit anywhere in the Heart's code; a hazard only returns the child to a checkpoint | hazard and checkpoint tests in `test_firepeak_heart_layout.py` |
+| Two Firepeak Places on the map | both Places are on the home Island | `PlaceCard.test.tsx`, `firepeakRegion.test.ts`, `firepeakHeartRegion.test.ts` |
+
+**Amendment (2026-11-23).** This records what was built after the decision. It does not change
+any approved behaviour:
+- Decision 3 mechanism: lava is still drawn by `effects.lava` (`visualOnly`), but the respawn now
+  runs through the shared engine bridge (`gameplay.hazards` plus `gameplay.checkpoints`, eight
+  checkpoints, GE-073 and GE-090), not `platforming.hazards`. It is still height aware: jumping
+  over the lava is safe and touching it returns the child to the last checkpoint.
+- The Consequences paragraph is stale. The telegraphed falling rocks (2 s ground mark and rumble,
+  optional summit route only) and the steam push (`environment.volumes`, which never pushes toward
+  a hazard and switches off once the forge is restored) are built on the shared runtime
+  (`firepeakHeartVersion` 5).
+- Storykeeper's Castle is on `main`. Firepeak is not registered there. Whether it gets a page or a
+  seventh pedestal is an owner decision (FPV-22, `docs/firepeak/STORYKEEPER_INTEGRATION.md`).
+- Open gameplay defect, not architectural: Area puzzle solves record no skill evidence
+  (FPV-D10, owned by LAI 06). Ten of Firepeak's eleven puzzle skill ids are not learning
+  objectives (`docs/firepeak/CURRICULUM_AUDIT.md`).
+
 
 ## ADR-080: North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes
 
-**Status.** Accepted for development on `feature/north-pole-adventure` (2026-11-18). Not merged,
-not owner-accepted. Contract: `docs/north-pole/NORTH_POLE_DESIGN.md`.
+Status: Accepted (architecture). Owner approval in principle 2026-11-23; the acceptance takes
+effect when the owner merges the registry change `docs/adr-073-080-081-acceptance`. Gameplay
+acceptance is the SEA-04 owner QA, which is still pending. History: accepted for development on
+`feature/north-pole-adventure` on 2026-11-18 and Proposed in the registry; now on `main`.
+Contract: `docs/north-pole/NORTH_POLE_DESIGN.md`.
 
 **Context.** North Pole: The Missing Christmas Star is the first seasonal adventure (Trello SEA-04).
 It needs nine progressive quests, nine explorable locations, jumping throughout, all three age
@@ -4770,9 +4846,34 @@ the North Pole branch's diff against `main` also contains Firepeak.
 Cosmetics are owned, not equipped; collectible-set completion items are not granted server-side
 (shared gaps, documented).
 
+**Validation against `main` `1b0a50a3` (2026-11-23, LAI 03).**
+
+| Property | Evidence |
+|---|---|
+| One Realm `north-pole`, one Place and Area `north-pole-village`, nine zones | `test_north_pole_seed.py`, `test_north_pole_layout.py::test_each_gate_alone_opens_exactly_its_own_zone` |
+| Nine quests `np-q01` to `np-q09`, each with a `WORLD_CHANGE` prerequisite (`np-q01` is `ALWAYS`) | `content/exported/quests.json`; the seed test checks the offered quests equal `QUEST_IDS` |
+| Puzzles depend on world changes, never on quest acceptance | `test_north_pole_seed.py`: one test plays the whole adventure with only `np-q01` accepted, then accepting the other eight credits them as completed (NP-D3) |
+| No deadlocks | `test_north_pole_puzzles.py::test_keys_unique_and_chain_is_acyclic_and_ordered`. A 2026-11-23 closure check also found all 27 puzzles and all 5 chests reachable from the start state |
+| Replay | the rewards-once-and-practice test: solved puzzles grade as practice and grant nothing, and the post-story practice chests repeat without granting |
+| Walking route for every jump; falls return to a checkpoint | `test_every_required_thing_is_reachable_on_foot_with_the_gates_open`, the water hazard and 11 checkpoints |
+
+**Amendment (2026-11-23).** These corrections do not change any approved behaviour:
+- Decision 3: the shared puzzle kinds are ADR-073, not ADR-070. ADR-070 is the GLB optimization
+  policy; the owner renumbered the Firepeak decision on 2026-11-19.
+- Decision 6 is historical. Both branches are on `main`, so the diff note no longer applies.
+- Consequences: collectible-set completion is now granted server-side (`inventory.services`,
+  FPV-18). The tenth snowflake grants the scarf once.
+- Open gameplay defects, not architectural: Area puzzle solves record no skill evidence
+  (FPV-D10, LAI 06). Nine North Pole skill ids are not learning objectives
+  (`docs/north-pole/CURRICULUM_AUDIT.md`). Every collectible plays the star-fragment cue
+  (`docs/north-pole/NORTH_POLE_OWNER_QA.md`, known gap 8).
+
 ## ADR-081: Seasonal events are Django content in their own app; availability never removes progress
 
-**Status.** Accepted for development on `feature/north-pole-adventure` (2026-11-18).
+Status: Accepted (architecture). Owner approval in principle 2026-11-23; the acceptance takes
+effect when the owner merges the registry change `docs/adr-073-080-081-acceptance`. Gameplay
+acceptance is the SEA-04 owner QA, which is still pending. History: accepted for development on
+`feature/north-pole-adventure` on 2026-11-18 and Proposed in the registry; now on `main`.
 
 **Context.** Trello SEA-01/SEA-03 ask for seasonal scheduling and featuring. Nothing in the backend
 models seasons; `react/src/features/island/seasons.ts` is a client-only calendar note.
@@ -4788,3 +4889,25 @@ Admin. Content stays year-round unless staff restrict it.
 **Consequences.** Holidays are data, not engine branches; Hanukkah, Thanksgiving, Halloween, Easter
 and Lunar New Year need content only. Hidden content keeps every save and reward. Parent
 preferences for cultural or religious themes (SEA-03) remain a later task.
+
+**Validation against `main` `1b0a50a3` (2026-11-23, LAI 03).**
+
+| Property | Evidence |
+|---|---|
+| Staff control dates in Django Admin | `SeasonalEvent` is registered with activate and deactivate actions; `SeasonalCompletion` is not in Admin (child data). `test_admin_registration_and_actions` |
+| Invalid windows rejected | `clean()` and the all-or-none check constraint; `test_invalid_events_are_rejected`, `test_valid_event_with_feb_29_passes_and_db_requires_all_or_none` |
+| Outside the window, content is unavailable, not deleted | `discovery._visible_regions` excludes hidden Places; `test_window_only_place_hidden_outside_and_shown_inside`, `test_islands_api_hides_and_marks` |
+| Enforced on the server | `launch.create_launch` and `redeem_ticket` both call `discovery.visible_region`. New test `test_launch_outside_the_window_is_refused_and_saves_survive`: 404 outside the window, 201 back inside |
+| Saves and rewards preserved | the same test: world changes, inventory and `SeasonalCompletion` are unchanged while hidden |
+| Date boundaries | `test_window_crossing_the_new_year`, `test_window_inside_one_year`, `test_feb_29_edges`, `test_a_single_day_window_and_no_window`, `test_season_year`, `test_receiver_uses_season_year_for_january`. New test `test_the_window_opens_on_the_server_date_in_the_configured_time_zone` |
+| Reusable for future holidays | holidays are `Theme` choices and data; no holiday name appears in engine code |
+
+**Amendment (2026-11-23).** These clarifications do not change any approved behaviour:
+- The date is the server's: `timezone.localdate()` in `settings.TIME_ZONE`, which is `UTC`. A
+  window therefore opens and closes at midnight UTC, not at the family's local midnight. An
+  owner decision is open on whether to keep UTC or move to a family-local date.
+- Gating applies when a game is launched or redeemed. A game session started inside the window
+  is not cut off when the window closes (no time limits, CLAUDE.md section 11). The next launch
+  outside the window is refused.
+- Seasonal `reward_items` link items to an event for authoring only; no code reads them yet. Availability
+  never revokes an item.

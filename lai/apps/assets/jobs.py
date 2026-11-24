@@ -19,14 +19,20 @@ SUBJECT = "assets.assetversion"
 
 
 def submit_inspection(version, user):
+    """Submit `asset.inspect` for `version`. A GLB carries the GLB limit as `max_bytes`
+    (`max_glb_bytes()`), and one above it is refused here with `JobsError("object_too_large")`
+    before any job exists. Other formats keep the worker's 64 MiB ceiling."""
     from apps.jobs import services as jobs
 
-    return jobs.submit(
-        ASSET_INSPECT,
-        {"storage_key": version.storage_key, "format": version.format},
-        user=user,
-        subject=version,
-    )
+    from .validation import max_glb_bytes
+
+    payload = {"storage_key": version.storage_key, "format": version.format}
+    if version.format == "glb":
+        limit = max_glb_bytes()
+        if version.size_bytes > limit:
+            raise jobs.JobsError("object_too_large")
+        payload["max_bytes"] = limit
+    return jobs.submit(ASSET_INSPECT, payload, user=user, subject=version)
 
 
 def apply(job) -> None:
@@ -53,6 +59,9 @@ class InlinePorts:
             with get_storage().open(key) as stream:
                 stream.seek(start)
                 return stream.read(length)
+        except ObjectMissing:
+            # Gone between the size check and the read: permanent, like the worker's NoSuchKey.
+            raise TaskError("object_missing") from None
         except StorageError:
             raise TaskError("storage", retryable=True) from None
 

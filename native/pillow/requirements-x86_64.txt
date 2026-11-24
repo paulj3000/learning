@@ -1,0 +1,6 @@
+# Pillow for local tests and benchmarks on an x86_64 workstation (not deployed). Same release as
+# requirements-aarch64.txt.
+# Wheel: pillow-13.0.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
+# (7,144,542 bytes). Digest cross-checked against the PyPI release metadata on 2026-11-18.
+Pillow==13.0.0 \
+    --hash=sha256:42d63be3af4f9b951b199b0a9d23365d37ab14687e6d77b74940432c8515c4ca

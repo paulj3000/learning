@@ -385,8 +385,8 @@ export const KEEPER_QUILL_ID = 'keeper-quill';
  * stationary and never follows - the same call `storykeeperCastleDecor.ts`
  * already makes in the Phaser castle.
  *
- * SC-2/SC-3 owe Quill a collider of their own; nothing in this file gives
- * one, so today the child could walk through them.
+ * Quill's standing collider (`collider:keeper-quill`, 0.45 m half-width,
+ * 2 m tall) is in the castle manifest (`storykeeperCastle.ts`), not here.
  */
 export const KEEPER_QUILL_SPOT: EntitySpot = { entityId: KEEPER_QUILL_ID, x: -4.5, z: 0 };
 

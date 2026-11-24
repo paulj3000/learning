@@ -17,7 +17,10 @@ server_tokens off;
 access_log off;
 error_log /var/log/nginx/error.log crit;
 
-client_max_body_size 55m; # asset uploads are capped at 50 MB by Django
+# Asset uploads are capped by Django at 50 MiB = 52,428,800 bytes (LAI_ASSET_MAX_UPLOAD_BYTES; GLB
+# models LAI_ASSET_MAX_GLB_BYTES, never above 50 MiB). 55m is 55 MiB = 57,671,680 bytes: the
+# file plus 5 MiB of multipart overhead (boundaries, part headers, CSRF token, asset, notes).
+client_max_body_size 55m;
 client_body_timeout 60s;
 proxy_read_timeout 35s; # gunicorn's own timeout is 30 s
 proxy_http_version 1.1;

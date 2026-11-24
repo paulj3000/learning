@@ -66,7 +66,7 @@ def process(body: str, context, rt: aws.Runtime | None = None) -> str:
                 final = envelope.build_result(
                     job_id, kind, envelope.FAILED, error_code="wrong_queue", **worker
                 )
-                rt.store_result(final)
+                final = rt.store_result(final)
                 rt.send_result(envelope.for_message(final))
                 aws.log("job.rejected", job=job_id, kind=kind, code="wrong_queue")
                 return "rejected"
@@ -89,7 +89,7 @@ def process(body: str, context, rt: aws.Runtime | None = None) -> str:
         final = envelope.build_result(
             job_id, kind, envelope.FAILED, error_code=error.code, **worker
         )
-    rt.store_result(final)
+    final = rt.store_result(final)
     rt.send_result(envelope.for_message(final))
     code = final["error"]["code"] if final["error"] else None
     aws.log("job.finished", job=job_id, kind=kind, status=final["status"], code=code)

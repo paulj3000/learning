@@ -4,7 +4,8 @@
 
 Idempotent, like `ensure_asset_roles`: each group ends with exactly these permissions.
 
-- Sound editors: create and edit cues and assignments, preview audio, and read releases.
+- Sound editors: create and edit cues and assignments, preview audio, read releases, and
+  inspect audio files in the background (read-only; LAI-LAMBDA-008).
 - Sound publishers: everything editors can, plus publish the library and roll it back.
 
 Uploading and publishing the audio files themselves stays with the Asset Library groups.
@@ -30,6 +31,13 @@ EDITOR_PERMISSIONS = (
     # Choosing an audio asset and hearing it needs a read-only view of the Asset Library.
     "catalog.view_contentasset",
     "assets.view_assetversion",
+    # Background audio inspection (LAI-LAMBDA-008 phase 1): read-only, never publishes.
+    "audio.view_audiofile",
+    "audio.inspect_audiofile",
+    # Background transcoding and normalising (ADR-067): outputs are private artifacts that staff
+    # review; promoting one is a separate Asset Library permission, publishing another.
+    "audio.transcode_audiofile",
+    "assets.view_derivedartifact",
 )
 PUBLISHER_PERMISSIONS = (
     *EDITOR_PERMISSIONS,

@@ -392,3 +392,36 @@ def _constraint_definition() -> str:
             "WHERE conname = 'regions_puzzle_kind_valid'"
         )
         return cursor.fetchone()[0]
+
+
+class TestVariantSkill:
+    """FPV-D10: a variant may name its own skill; evidence uses the answered variant's."""
+
+    @pytest.mark.parametrize(
+        ("kind", "params"),
+        [(PuzzleKind.CHOOSE_ANSWER, CHOOSE), (PuzzleKind.ORDER_SEQUENCE, ORDER)],
+    )
+    def test_a_variant_skill_slug_is_accepted_and_a_bad_one_reported(self, kind, params):
+        good = edited(params, lambda p: p["variants"][0].update(skill="counting-sets"))
+        assert problems_for(kind, good) == []
+        for bad in ("Not A Slug", "", 7):
+            clone = edited(params, lambda p, bad=bad: p["variants"][0].update(skill=bad))
+            assert "$.variants[0].skill: must be a lowercase slug" in problems_for(kind, clone)
+
+    def test_the_answered_variant_overrides_the_band_skill(self):
+        params = edited(CHOOSE, lambda p: p["variants"][1].update(skill="addition-within-ten"))
+        kind = PuzzleKind.CHOOSE_ANSWER
+        assert puzzles.skill_for(kind, params, {"variantId": "v1", "choice": "b"}) == (
+            "addition-within-10"
+        )
+        assert puzzles.skill_for(kind, params, {"variantId": "v2", "choice": "a"}) == (
+            "addition-within-ten"
+        )
+        assert puzzles.skill_for(PuzzleKind.ORDER_SEQUENCE, ORDER, RIGHT_ORDER) == "sequencing"
+
+    @pytest.mark.parametrize(
+        "kind",
+        [k for k in PuzzleKind.values if k not in puzzles.SKILL_KINDS],
+    )
+    def test_mechanical_kinds_teach_no_curriculum_skill(self, kind):
+        assert puzzles.skill_for(kind, {"skill": "patterns"}, {}) is None

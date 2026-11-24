@@ -457,3 +457,12 @@ class TestPublish:
         region = WorldRegion.objects.get(region_id=REGION_ID)
         assert region.status == ContentStatus.PUBLISHED
         assert set(region.puzzles.values_list("status", flat=True)) == {ContentStatus.PUBLISHED}
+
+    @override_settings(DEBUG=True)
+    def test_every_published_puzzle_skill_is_a_learning_objective(self, families):
+        from apps.education.services import puzzle_skill_report
+
+        import_content()
+        call_command("seed_north_pole")
+        call_command("publish_north_pole")
+        assert [r for r in puzzle_skill_report() if r["region"] == REGION_ID] == []
