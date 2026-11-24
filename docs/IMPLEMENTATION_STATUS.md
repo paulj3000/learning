@@ -54,6 +54,58 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 - S7 is not recommended now.
 - Design and evidence: `docs/engineering/game-engine/bundled-asset-references.md`.
 
+## GE-090-D8: adult exits clear of dialogue panels in full screen (2026-11-23, `fix/ge-090-d8-adult-exit` from `1b0a50a3`); Development Complete, NOT merged
+
+At 375x667 in full screen, Pip's panel covered "Exit full screen" (`portal-adult-exit:142`, found
+by GE-090-D7). The panels sat `--child-stage-exits-inset` (7.5rem) above the viewport's bottom,
+but the exits sit on the stage's bottom edge, and the camera view and sprint settings shown below
+the stage in full screen lift that edge. `WorldStage` now measures the gap between the stage's
+bottom and the viewport's while in full screen (and on resize), and sets
+`--child-stage-bottom-gap` on the full-screen element; `ChildShell.module.css` adds it to the
+inset. Both Pip panels (NPC Manager and legacy) and every Treasure Rush dialog use that inset, so
+all of them clear the exits. With nothing below the stage the gap is 0, so the tablet layout is
+unchanged; the camera button stays on the HUD. Follow-up from LAI 01's review: with a larger
+inset, a tall panel's `max-height` could put its top 16px from the screen top, over the HUD's "Go
+back to the harbor" link; in full screen `--child-header-inset` now reserves the HUD's top row
+(0.75rem + 2.75rem, pinned to WorldHud.module.css by a test), so a panel stops below the link.
+Tests (gated): `WorldStage.test.tsx` (4 new; 3 fail without the fix), `childNavInsets.test.ts`
+(new HUD-row pairing test), `portal/shell`, `npc-manager` and `RegionPlayCompanion*.test.tsx`: 31
+files, 476 passed. Typecheck and lint pass.
+
+Browser run (owner-authorized 2026-11-23, after the VM network fix) found two more causes:
+`IslandWorldView.module.css`'s full-screen column rule (`.wrapper:fullscreen > :not(...)`,
+specificity 0,3,0) also matched Pip's fixed panel and replaced its height cap with 45vh, so the
+panel ran off the top of the screen; it is now wrapped in `:where()`. And at 375x667 the settings
+below the stage left it 311px tall, too short for a 10rem panel between the harbor link and the
+exits. Owner decision: shrink the settings, not the panel. The full-screen stage is at least 23rem
+(capped at 70vh) and the harbor link stays one row in full screen only. Measured: stage 368px,
+panel 72-244px, link 24-68px. Playwright on `30578905`: `portal-adult-exit.spec.ts` 7/7 and
+`treasure-rush.spec.ts` controls, full screen and exit (desktop and tablet) pass; the quest
+journey (`treasure-rush:83`) fails identically on `main` `bf622901` (Pip offers Pirate's Leap
+instead of confirming the first quest; not D8). Cosmetic: at 320px in full screen the link
+reaches 9px past the stage edge (still on screen). Unverified: phone landscape (667x375), where
+the 70vh cap leaves the panel less room; phone support is not expanded here.
+
+## LAI-07 Asset Library W2-1: usage registry and aggregate retirement guard (2026-11-23, `feature/asset-library-w2-1-registry` on `main` `1b0a50a3`, Trello #246); Development Complete, NOT merged
+
+- **Delivers** (`docs/ASSET_LIBRARY.md` section 25):
+  - `apps/assets/dependencies.py`: `Usage`, `register_usage_provider`, `usages_for`,
+    `registered_sources`, and `retirement_guard`, registered from `AssetsConfig.ready()`
+    through the existing `services.register_retirement_guard`.
+  - The read-only command `manage.py asset_usage <asset_id> [--number N] [--json]`.
+- **Behaviour:** none changes yet. No app registers a provider, so retirement refuses exactly
+  what it refused before, and the NPC and avatar guards stay registered. A provider that raises
+  refuses retirement (`dependency_check_failed`, logged with ids only).
+- **Scope:** no migration, no `services.py` or admin change, no API or client change.
+- **Commits:** b5890533 and ecf46521 (W2-0 contract), e88d6eca (W2-1), 40a726f5 (ruff format),
+  then a merge of `main` `1b0a50a3`.
+- **Tests:** 19 registry and command tests. Two are new for the standalone PR: the NPC and avatar
+  guards stay in place, and a refused retirement with a replacement keeps the default. Results
+  are on Trello #246 and in the PR.
+- **Follows:** W2-3 (regions) and W2-4 (NPC and avatar parity) in a separate PR; W2-2 waits for
+  the Sound Manager owner; W2-5 waits for the Lambda reconciliation. GE-247 (Agent 4) builds the
+  catalog provider on this API once it is on `main`.
+
 ## FPV-D10: Area puzzle skill evidence (2026-11-23, `fix/FPV-D10-puzzle-skill-evidence` rebased onto `main` `bf622901`, Trello P1S0CXpL); Development Complete, NOT merged, NOT owner-accepted
 
 Area puzzles (Heart of Firepeak, North Pole) were graded and rewarded but recorded no
@@ -90,6 +142,28 @@ and North Pole completion. It does not block owner playthroughs.
   - Vitest (adventures content, parent dashboard, mastery, area puzzles): 18 files, 283 passed.
   - `npm run typecheck`, `content:check` and `golden:check` pass, and so does `makemigrations --check`.
   - Deferred to merge readiness: full suites, lint and build gates, browser tests.
+
+## LAI 01: TR-D9 the legacy Pip skips "Quest accepted!" and offers Pirate's Leap (2026-11-24, `fix/TR-D9-pip-dialog-active-quest` from `main` `5c4974c2`); Development Complete, NOT owner-accepted
+
+- **Defect (LAI 05 authorized browser run, `treasure-rush.spec.ts:83`):**
+  - Happens on a fresh stack, when no NPC release is published so the legacy Pip answers.
+  - The child presses "Yes, I will help!" for Pip's Missing Treasure. Pip then asks the Pirate's Leap question ("Pip hid a secret treasure beyond the old pirate training course… Will you help me?") instead of confirming.
+  - The same thing happens on every later visit until that quest is finished. The child never sees the steps or Pip's clue (TR-14), and is offered a second quest straight away.
+  - Order-dependent: in the full suite, `npc-1-admin` has already published the managed Pip first, so the test passes.
+- **Cause:**
+  - The cove offers both of Pip's quests: `pirates_leap_seed.py` adds `pirates-leap` to the region's `offered_quests`.
+  - `PipDialog` showed the first AVAILABLE quest before the ACTIVE one. The HUD (`questObjective`) already puts ACTIVE first.
+  - Present since Pirate's Leap joined the cove (GE-070, `25ffb8bb`). The single-quest unit fixtures hid it.
+- **Fix:**
+  - `PipDialog` now shows ACTIVE first, then AVAILABLE, then the first quest.
+  - Pirate's Leap is offered once Pip's Missing Treasure is finished. That matches the HUD.
+- **Tests:** three cases added in `RegionPlayCompanion.test.tsx`.
+  - Accept with a second offer present: confirms the quest and shows its steps.
+  - Later visit while the quest is active: shows progress.
+  - After the first quest is completed: the second quest is offered.
+  - The first two failed on `main` and pass with the fix.
+  - `regionPlay/`, `region-play/` and `npc-manager/` run from `react/`: 83 files, 1,084 tests pass. Typecheck passes; Prettier is clean.
+- **Deferred:** the ESLint run (no flat config is found locally; merge gate), and the browser rerun of `treasure-rush.spec.ts:83` on a fresh stack (needs owner authorization).
 
 ## LAI 01: Treasure Rush release verification (2026-11-23, `lai-01/treasure-rush-release`, rebased onto `main` `1b0a50a3`); verification only, owner playthrough pending, NOT owner-accepted
 

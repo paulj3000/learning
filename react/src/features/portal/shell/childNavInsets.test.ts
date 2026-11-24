@@ -55,19 +55,35 @@ describe('child nav insets', () => {
     expect(shellTsx).not.toMatch(/\bpb-20\b|\bmd:pl-56\b/);
   });
 
-  it('drop to zero in full screen, where the stage covers the nav', () => {
+  it('drop to zero in full screen, where the stage covers the nav (the HUD top row stays reserved)', () => {
     const full = rules(shellCss).find((rule) => rule.selector.includes(':fullscreen'));
     expect(full).toBeDefined();
     expect(declaration(full!.body, '--child-nav-inset-bottom')).toBe('0px');
     expect(declaration(full!.body, '--child-nav-inset-left')).toBe('0px');
-    expect(declaration(full!.body, '--child-header-inset')).toBe('0px');
+    // GE-090-D8: the top bar is hidden, but the HUD's top row (the harbor link) is reserved.
+    expect(declaration(full!.body, '--child-header-inset')).toBe('calc(0.75rem + 2.75rem)');
+  });
+
+  it("reserve exactly the HUD's top row in full screen, so a tall panel never covers the harbor link", () => {
+    const hud = rules(read('features/island-map/three/WorldHud.module.css'));
+    expect(declaration(hud.find((rule) => rule.selector === '.overlay')!.body, 'padding')).toBe(
+      'var(--space-3)',
+    );
+    expect(declaration(hud.find((rule) => rule.selector === '.exitLink')!.body, 'min-height')).toBe(
+      '2.75rem',
+    );
+    const full = rules(shellCss).find((rule) => rule.selector.includes(':fullscreen'))!;
+    expect(declaration(full.body, '--child-header-inset')).toBe('calc(0.75rem + 2.75rem)');
   });
 
   it("make room for the stage's own exits in full screen, and only there", () => {
     const [phone] = rules(shellCss).filter((rule) => rule.selector === '.shell');
     expect(declaration(phone.body, '--child-stage-exits-inset')).toBe('0px');
     const full = rules(shellCss).find((rule) => rule.selector.includes(':fullscreen'))!;
-    expect(declaration(full.body, '--child-stage-exits-inset')).toBe('7.5rem');
+    // GE-090-D8: plus the measured gap below the stage (WorldStage), 0 when nothing is below it.
+    expect(declaration(full.body, '--child-stage-exits-inset')).toBe(
+      'calc(7.5rem + var(--child-stage-bottom-gap, 0px))',
+    );
     for (const path of [
       'features/island-map/three/extensions/regionPlay/ui/RegionPlayPanels.module.css',
       'features/npc-manager/ui/NpcInteraction.module.css',
@@ -124,5 +140,33 @@ describe('child nav insets', () => {
         expect(left, `${selector} left`).toContain('var(--child-nav-inset-left, 0px)');
       }
     }
+  });
+  it("leave the game layers' own height caps alone in full screen (zero-specificity column rule)", () => {
+    // Pip's panel is a direct child of the full-screen wrapper. A `.wrapper:fullscreen > *`
+    // max-height (0,3,0) beat the panel's own cap (0,1,0): at 375x667 it grew to 45vh and ran
+    // off the top over "Go back to the harbor" (GE-090-D8). The column rule must not compete.
+    const column = rules(read('features/island-map/IslandWorldView.module.css')).filter(
+      (rule) =>
+        rule.selector.includes('.wrapper:fullscreen >') &&
+        declaration(rule.body, 'max-height') !== undefined,
+    );
+    expect(column.length).toBeGreaterThan(0);
+    for (const { selector } of column) {
+      expect(selector, 'full-screen column rule').toMatch(/^:where\(.*\)$/);
+    }
+  });
+  it('give the full-screen stage room for a panel between the HUD top row and the exits', () => {
+    // header inset 3.5rem + 1rem + the panel's 10rem floor + 1rem + the exits 7.5rem = 23rem.
+    // At 375x667 a 311px stage left the panel over "Go back to the harbor" (GE-090-D8).
+    const stage = rules(read('features/island-map/three/WorldStage.module.css')).find(
+      (rule) => rule.selector === ':fullscreen > .stage',
+    );
+    expect(declaration(stage!.body, 'min-height')).toBe('max(40vh, min(23rem, 70vh))');
+    const link = rules(read('features/island-map/three/WorldHud.module.css')).find(
+      (rule) => rule.selector === ':fullscreen .exitLink',
+    );
+    // One 2.75rem row in full screen, the height the full-screen header inset reserves.
+    expect(declaration(link!.body, 'white-space')).toBe('nowrap');
+    expect(declaration(link!.body, 'flex-shrink')).toBe('0');
   });
 });
