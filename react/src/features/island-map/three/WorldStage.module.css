@@ -2,9 +2,17 @@
   position: relative;
 }
 
+/*
+  In full screen the stage must be tall enough for a dialogue panel to fit between the HUD's
+  top row and the stage's own exits (GE-090-D8): the header inset (3.5rem) + 1rem + the panel's
+  10rem floor + 1rem + the exits (7.5rem) = 23rem from the top of the screen
+  (ChildShell.module.css, RegionPlayPanels.module.css). On a 375x667 phone the settings below
+  the stage otherwise left it 311px tall and the panel covered "Go back to the harbor"; they
+  shrink and scroll inside themselves instead. Capped at 70vh for very short screens.
+*/
 :fullscreen > .stage {
   flex: 1 1 0;
-  min-height: 40vh;
+  min-height: max(40vh, min(23rem, 70vh));
 }
 
 .fullscreenButton {

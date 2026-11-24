@@ -37,6 +37,38 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## GE-090-D8: adult exits clear of dialogue panels in full screen (2026-11-23, `fix/ge-090-d8-adult-exit` from `1b0a50a3`); Development Complete, NOT merged
+
+At 375x667 in full screen, Pip's panel covered "Exit full screen" (`portal-adult-exit:142`, found
+by GE-090-D7). The panels sat `--child-stage-exits-inset` (7.5rem) above the viewport's bottom,
+but the exits sit on the stage's bottom edge, and the camera view and sprint settings shown below
+the stage in full screen lift that edge. `WorldStage` now measures the gap between the stage's
+bottom and the viewport's while in full screen (and on resize), and sets
+`--child-stage-bottom-gap` on the full-screen element; `ChildShell.module.css` adds it to the
+inset. Both Pip panels (NPC Manager and legacy) and every Treasure Rush dialog use that inset, so
+all of them clear the exits. With nothing below the stage the gap is 0, so the tablet layout is
+unchanged; the camera button stays on the HUD. Follow-up from LAI 01's review: with a larger
+inset, a tall panel's `max-height` could put its top 16px from the screen top, over the HUD's "Go
+back to the harbor" link; in full screen `--child-header-inset` now reserves the HUD's top row
+(0.75rem + 2.75rem, pinned to WorldHud.module.css by a test), so a panel stops below the link.
+Tests (gated): `WorldStage.test.tsx` (4 new; 3 fail without the fix), `childNavInsets.test.ts`
+(new HUD-row pairing test), `portal/shell`, `npc-manager` and `RegionPlayCompanion*.test.tsx`: 31
+files, 476 passed. Typecheck and lint pass.
+
+Browser run (owner-authorized 2026-11-23, after the VM network fix) found two more causes:
+`IslandWorldView.module.css`'s full-screen column rule (`.wrapper:fullscreen > :not(...)`,
+specificity 0,3,0) also matched Pip's fixed panel and replaced its height cap with 45vh, so the
+panel ran off the top of the screen; it is now wrapped in `:where()`. And at 375x667 the settings
+below the stage left it 311px tall, too short for a 10rem panel between the harbor link and the
+exits. Owner decision: shrink the settings, not the panel. The full-screen stage is at least 23rem
+(capped at 70vh) and the harbor link stays one row in full screen only. Measured: stage 368px,
+panel 72-244px, link 24-68px. Playwright on `30578905`: `portal-adult-exit.spec.ts` 7/7 and
+`treasure-rush.spec.ts` controls, full screen and exit (desktop and tablet) pass; the quest
+journey (`treasure-rush:83`) fails identically on `main` `bf622901` (Pip offers Pirate's Leap
+instead of confirming the first quest; not D8). Cosmetic: at 320px in full screen the link
+reaches 9px past the stage edge (still on screen). Unverified: phone landscape (667x375), where
+the 70vh cap leaves the panel less room; phone support is not expanded here.
+
 ## FPV-D10: Area puzzle skill evidence (2026-11-23, `fix/FPV-D10-puzzle-skill-evidence` rebased onto `main` `bf622901`, Trello P1S0CXpL); Development Complete, NOT merged, NOT owner-accepted
 
 Area puzzles (Heart of Firepeak, North Pole) were graded and rewarded but recorded no
