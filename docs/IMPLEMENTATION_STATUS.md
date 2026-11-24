@@ -126,6 +126,28 @@ and North Pole completion. It does not block owner playthroughs.
   - `npm run typecheck`, `content:check` and `golden:check` pass, and so does `makemigrations --check`.
   - Deferred to merge readiness: full suites, lint and build gates, browser tests.
 
+## LAI 01: TR-D9 the legacy Pip skips "Quest accepted!" and offers Pirate's Leap (2026-11-24, `fix/TR-D9-pip-dialog-active-quest` from `main` `5c4974c2`); Development Complete, NOT owner-accepted
+
+- **Defect (LAI 05 authorized browser run, `treasure-rush.spec.ts:83`):**
+  - Happens on a fresh stack, when no NPC release is published so the legacy Pip answers.
+  - The child presses "Yes, I will help!" for Pip's Missing Treasure. Pip then asks the Pirate's Leap question ("Pip hid a secret treasure beyond the old pirate training course… Will you help me?") instead of confirming.
+  - The same thing happens on every later visit until that quest is finished. The child never sees the steps or Pip's clue (TR-14), and is offered a second quest straight away.
+  - Order-dependent: in the full suite, `npc-1-admin` has already published the managed Pip first, so the test passes.
+- **Cause:**
+  - The cove offers both of Pip's quests: `pirates_leap_seed.py` adds `pirates-leap` to the region's `offered_quests`.
+  - `PipDialog` showed the first AVAILABLE quest before the ACTIVE one. The HUD (`questObjective`) already puts ACTIVE first.
+  - Present since Pirate's Leap joined the cove (GE-070, `25ffb8bb`). The single-quest unit fixtures hid it.
+- **Fix:**
+  - `PipDialog` now shows ACTIVE first, then AVAILABLE, then the first quest.
+  - Pirate's Leap is offered once Pip's Missing Treasure is finished. That matches the HUD.
+- **Tests:** three cases added in `RegionPlayCompanion.test.tsx`.
+  - Accept with a second offer present: confirms the quest and shows its steps.
+  - Later visit while the quest is active: shows progress.
+  - After the first quest is completed: the second quest is offered.
+  - The first two failed on `main` and pass with the fix.
+  - `regionPlay/`, `region-play/` and `npc-manager/` run from `react/`: 83 files, 1,084 tests pass. Typecheck passes; Prettier is clean.
+- **Deferred:** the ESLint run (no flat config is found locally; merge gate), and the browser rerun of `treasure-rush.spec.ts:83` on a fresh stack (needs owner authorization).
+
 ## LAI 01: Treasure Rush release verification (2026-11-23, `lai-01/treasure-rush-release`, rebased onto `main` `1b0a50a3`); verification only, owner playthrough pending, NOT owner-accepted
 
 Status: the core MVP is Complete (owner-accepted 2026-11-11) and was not rebuilt. This pass

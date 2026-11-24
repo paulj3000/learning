@@ -333,6 +333,95 @@ describe('talking to Pip', () => {
     expect(screen.getByRole('list', { name: 'Treasure Rush' })).toHaveTextContent('Done');
   });
 
+  // TR-D9: Pip gives two quests in the cove (Pip's Missing Treasure and Pirate's Leap). Accepting
+  // one must confirm it and show its steps, not jump straight to the other offer.
+  const leap = (overrides: Record<string, unknown> = {}) =>
+    questJson({
+      questId: 'pirates-leap',
+      title: "Pirate's Leap",
+      summary: 'Pip hid a secret treasure beyond the old pirate training course.',
+      stages: [
+        {
+          id: 'find-the-secret-treasure',
+          title: 'Find the secret treasure',
+          complete: false,
+          objectives: [
+            {
+              id: 'pirates-leap-open-chest',
+              label: "Open Pip's secret treasure",
+              optional: false,
+              complete: false,
+            },
+          ],
+        },
+      ],
+      ...overrides,
+    });
+
+  it('confirms the quest the child accepted when Pip has a second quest to offer', async () => {
+    let accepted = false;
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        bootstrap({
+          quests: [
+            accepted
+              ? questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' })
+              : questJson(),
+            leap(),
+          ],
+        }),
+      ),
+      acceptQuest: vi.fn(async () => {
+        accepted = true;
+        return {
+          value: read(
+            questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' }),
+            parse.quest,
+          ),
+          created: true,
+        };
+      }),
+    });
+    apis.set(CHILD_A, api);
+    render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(PIP) })} />);
+    const dialog = await screen.findByRole('dialog', { name: 'Pirate Pip' });
+    expect(dialog).toHaveTextContent('Find the treasure chest in the cove');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Yes, I will help!' }));
+    await waitFor(() =>
+      expect(api.acceptQuest).toHaveBeenCalledWith('treasure-rush-cove', expect.any(AbortSignal)),
+    );
+    expect(await screen.findByText(/Quest accepted!/)).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Treasure Rush' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keep exploring' })).toBeInTheDocument();
+    expect(screen.queryByText(/secret treasure beyond/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Yes, I will help!' })).not.toBeInTheDocument();
+  });
+
+  it('keeps showing the quest in progress, not the second offer, on a later visit', async () => {
+    const active = questJson({ status: 'ACTIVE', currentStageId: 'open-the-chest' });
+    apis.set(
+      CHILD_A,
+      fakeApi({ getRegion: vi.fn(async () => bootstrap({ quests: [active, leap()] })) }),
+    );
+    render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(PIP) })} />);
+    expect(
+      await screen.findByText('The treasure is waiting for you. Here is what to do.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/secret treasure beyond/)).not.toBeInTheDocument();
+  });
+
+  it('offers the second quest once the first is finished', async () => {
+    const done = questJson({ status: 'COMPLETED', completedAt: '2026-10-24T18:02:41Z' });
+    apis.set(
+      CHILD_A,
+      fakeApi({ getRegion: vi.fn(async () => bootstrap({ quests: [done, leap()] })) }),
+    );
+    render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(PIP) })} />);
+    const dialog = await screen.findByRole('dialog', { name: 'Pirate Pip' });
+    expect(await within(dialog).findByText(/secret treasure beyond/)).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Yes, I will help!' })).toBeInTheDocument();
+  });
+
   it('says hello when Pip has nothing to offer', async () => {
     apis.set(CHILD_A, fakeApi({ getRegion: vi.fn(async () => bootstrap({ quests: [] })) }));
     render(<RegionPlayCompanion {...props({ claimedInteraction: interaction(PIP) })} />);
