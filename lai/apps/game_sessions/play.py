@@ -37,7 +37,7 @@ from apps.education.challenges import (
     generate_challenge,
     grade_answer,
 )
-from apps.education.services import record_attempt_evidence
+from apps.education.services import record_attempt_evidence, record_puzzle_evidence
 from apps.inventory.services import RewardGrant, grant_reward_rule, owned_item_ids
 from apps.progression.models import NpcRelationship, RelationshipLevel, WorldChange
 from apps.progression.services import record_world_change
@@ -748,6 +748,12 @@ def solve_puzzle(child, session_id, puzzle_id: str, submission: object) -> Puzzl
             correct=correct,
             attempt_number=attempts_before + 1,
             submitted_at=at,
+        )
+        # FPV-D10: the learning evidence for this attempt, right or wrong (parent by-skill view).
+        record_puzzle_evidence(
+            attempt,
+            puzzles.skill_for(puzzle.kind, params, submission),
+            failed_before=failed_before,
         )
         session.last_activity_at = at
         session.save(update_fields=["last_activity_at"])

@@ -60,9 +60,13 @@ export function PipDialog({
   stageLine = null,
   returnAction = null,
 }: PipDialogProps) {
+  // A quest the child is on comes first, as in the HUD (`questObjective`): with a second quest
+  // from the same NPC (Pip gives Pip's Missing Treasure and Pirate's Leap in the cove), accepting
+  // one confirms it and shows its steps and clue; the next offer waits until it is finished
+  // (TR-D9).
   const quest =
-    quests.find((q) => q.status === 'AVAILABLE') ??
     quests.find((q) => q.status === 'ACTIVE') ??
+    quests.find((q) => q.status === 'AVAILABLE') ??
     quests[0];
   const greeting = dialogue.find((node) => !node.followUpOnly) ?? null;
   const [nodeId, setNodeId] = useState<string | null>(null);

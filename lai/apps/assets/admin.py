@@ -1066,6 +1066,7 @@ class CollisionProfileAdmin(admin.ModelAdmin):
     readonly_fields = (
         "measured_bounds",
         "runtime_preview",
+        "shipped_scenes",
         "preview_links",
         "updated_by",
         "updated_at",
@@ -1085,7 +1086,7 @@ class CollisionProfileAdmin(admin.ModelAdmin):
         ("Compound boxes", {"fields": ("boxes",)}),
         (
             "What the game uses",
-            {"fields": ("measured_bounds", "runtime_preview", "preview_links")},
+            {"fields": ("measured_bounds", "runtime_preview", "shipped_scenes", "preview_links")},
         ),
         (None, {"fields": ("notes", "updated_by", "updated_at")}),
     )
@@ -1133,6 +1134,29 @@ class CollisionProfileAdmin(admin.ModelAdmin):
         high = ", ".join(f"{v:.2f}" for v in bounds.high)
         size = " x ".join(f"{v:.2f}" for v in bounds.size)
         return f"min ({low}) max ({high}); {size} m ({bounds.source})"
+
+    @admin.display(description="Shipped scenes")
+    def shipped_scenes(self, obj):
+        """GE-247: a profile applies in the scenes that ship with the app too, with no release."""
+        from apps.catalog import scene_usage  # local: keeps the imports block untouched
+
+        if obj is None or not obj.asset_id:
+            return "Saved profiles list the shipped scenes that use the asset here."
+        usages = [u for u in scene_usage.shipped_scene_usages(obj.asset) if u.current]
+        if not usages:
+            return "No shipped scene uses this asset."
+        if obj.version_id and obj.version_id != obj.asset.default_version_id:
+            return format_html(
+                "<p>{}</p><p>They use the profile of the default version, so this v{} profile "
+                "does not change them.</p>",
+                "; ".join(usage.short for usage in usages),
+                obj.version.number,
+            )
+        return format_html(
+            "<p>{}</p><p>Saving this profile changes collision there on the child's next visit, "
+            "with no release or rebuild.</p>",
+            "; ".join(usage.short for usage in usages),
+        )
 
     @admin.display(description="Runtime collision")
     def runtime_preview(self, obj):

@@ -45,6 +45,14 @@
   border: 2px solid rgba(255, 255, 255, 0.85);
 }
 
+/* In full screen the link stays one 2.75rem row, the height dialogue panels reserve for it
+   (ChildShell.module.css, GE-090-D8); a long location cue wraps instead. Only there: on the
+   page a 320px phone has no room for it unwrapped. */
+:fullscreen .exitLink {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .exitLink:focus-visible {
   outline: 3px solid var(--color-focus-ring);
   outline-offset: 3px;

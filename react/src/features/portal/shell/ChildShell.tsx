@@ -139,7 +139,8 @@ export const HEADER_INSET_PROPERTY = '--child-header-inset';
  * shell, so fixed game layers (Pip's panel, NPC lines) never cover "Leave island" or the adult
  * exit. The bar wraps to two rows on phones and scrolls with the page, so it is measured rather
  * than assumed: on resize, on scroll and when the bar itself changes size. Never negative; in
- * full screen ChildShell.module.css sets it to 0, because the stage covers the bar.
+ * full screen ChildShell.module.css replaces it with the HUD's top row, because the stage covers
+ * the bar (GE-090-D8).
  */
 function useHeaderInset(
   shellRef: RefObject<HTMLDivElement | null>,

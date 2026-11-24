@@ -2962,7 +2962,7 @@
       "c": "fh-count-card-c"
      },
      "presentation": "CARDS",
-     "skill": "counting-and-groups",
+     "skill": "multiplication-facts",
      "subject": "MATHEMATICS",
      "variants": [
       {
@@ -2986,7 +2986,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Count by 5s: 5, 10, 15. What number comes next?"
+       "prompt": "Count by 5s: 5, 10, 15. What number comes next?",
+       "skill": "patterns"
       },
       {
        "answer": "b",
@@ -3032,7 +3033,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Count by 2s: 10, 12, 14. What number comes next?"
+       "prompt": "Count by 2s: 10, 12, 14. What number comes next?",
+       "skill": "patterns"
       },
       {
        "answer": "c",
@@ -3071,7 +3073,7 @@
       "c": "fh-count-card-c"
      },
      "presentation": "CARDS",
-     "skill": "counting-and-groups",
+     "skill": "comparing-and-ordering-numbers",
      "subject": "MATHEMATICS",
      "variants": [
       {
@@ -3141,7 +3143,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Count on with Kindle: 2, 3, 4, 5. What number comes next?"
+       "prompt": "Count on with Kindle: 2, 3, 4, 5. What number comes next?",
+       "skill": "patterns"
       },
       {
        "answer": "b",
@@ -3164,7 +3167,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Kindle has 5 embers. Flint gives 2 more. How many embers are there now?"
+       "prompt": "Kindle has 5 embers. Flint gives 2 more. How many embers are there now?",
+       "skill": "addition-within-ten"
       }
      ]
     }
@@ -3192,7 +3196,7 @@
       "c": "fh-lava-stone-c"
      },
      "presentation": "PLATFORMS",
-     "skill": "add-subtract-multiply",
+     "skill": "addition-within-100",
      "subject": "MATHEMATICS",
      "variants": [
       {
@@ -3239,7 +3243,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Which stone has the answer to 72 - 18?"
+       "prompt": "Which stone has the answer to 72 - 18?",
+       "skill": "subtraction-within-100"
       },
       {
        "answer": "b",
@@ -3262,7 +3267,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Which stone has the answer to 6 times 7?"
+       "prompt": "Which stone has the answer to 6 times 7?",
+       "skill": "multiplication-facts"
       },
       {
        "answer": "c",
@@ -3308,7 +3314,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Which stone has the answer to 8 times 5?"
+       "prompt": "Which stone has the answer to 8 times 5?",
+       "skill": "multiplication-facts"
       }
      ]
     },
@@ -3324,7 +3331,7 @@
       "c": "fh-lava-stone-c"
      },
      "presentation": "PLATFORMS",
-     "skill": "add-subtract-multiply",
+     "skill": "addition-within-ten",
      "subject": "MATHEMATICS",
      "variants": [
       {
@@ -3371,7 +3378,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Which stone has the answer to 9 - 4?"
+       "prompt": "Which stone has the answer to 9 - 4?",
+       "skill": "subtraction-within-ten"
       },
       {
        "answer": "b",
@@ -3417,7 +3425,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Which stone has the answer to 10 - 3?"
+       "prompt": "Which stone has the answer to 10 - 3?",
+       "skill": "subtraction-within-ten"
       }
      ]
     }
@@ -3445,7 +3454,7 @@
       "c": "fh-lava-path-c"
      },
      "presentation": "PATHS",
-     "skill": "compare-order-halves",
+     "skill": "comparing-and-ordering-numbers",
      "subject": "MATHEMATICS",
      "variants": [
       {
@@ -3515,7 +3524,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Which path shows half of 20?"
+       "prompt": "Which path shows half of 20?",
+       "skill": "halves-and-fractions"
       },
       {
        "answer": "c",
@@ -3538,7 +3548,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "Which path shows half of 18?"
+       "prompt": "Which path shows half of 18?",
+       "skill": "halves-and-fractions"
       },
       {
        "answer": "b",
@@ -3577,7 +3588,7 @@
       "c": "fh-lava-path-c"
      },
      "presentation": "PATHS",
-     "skill": "compare-order-halves",
+     "skill": "comparing-and-ordering-numbers",
      "subject": "MATHEMATICS",
      "variants": [
       {
@@ -3784,7 +3795,8 @@
          "symbol": "star"
         }
        ],
-       "prompt": "A square is cut into quarters. How many equal parts are there?"
+       "prompt": "A square is cut into quarters. How many equal parts are there?",
+       "skill": "halves-and-fractions"
       },
       {
        "answer": "d",
@@ -4000,7 +4012,7 @@
       "d": "fh-cavern-crystal-d"
      },
      "presentation": "CRYSTALS",
-     "skill": "ordering-and-measurement",
+     "skill": "halves-and-fractions",
      "subject": "MATHEMATICS",
      "variants": [
       {
@@ -4034,7 +4046,8 @@
          "symbol": "star"
         }
        ],
-       "prompt": "Put the crystals in order by their number of sides, fewest first."
+       "prompt": "Put the crystals in order by their number of sides, fewest first.",
+       "skill": "shapes-and-geometry"
       },
       {
        "answer": [
@@ -4133,7 +4146,8 @@
          "symbol": "star"
         }
        ],
-       "prompt": "Put the numbers in order from smallest to largest."
+       "prompt": "Put the numbers in order from smallest to largest.",
+       "skill": "comparing-and-ordering-numbers"
       }
      ]
     },
@@ -4150,7 +4164,7 @@
       "d": "fh-cavern-crystal-d"
      },
      "presentation": "CRYSTALS",
-     "skill": "ordering-and-measurement",
+     "skill": "measurement",
      "subject": "MATHEMATICS",
      "variants": [
       {
@@ -4217,7 +4231,8 @@
          "symbol": "star"
         }
        ],
-       "prompt": "Put the crystals in order from the smallest number to the biggest number."
+       "prompt": "Put the crystals in order from the smallest number to the biggest number.",
+       "skill": "comparing-and-ordering-numbers"
       },
       {
        "answer": [
@@ -4283,7 +4298,8 @@
          "symbol": "star"
         }
        ],
-       "prompt": "Put the crystal numbers in order, smallest first."
+       "prompt": "Put the crystal numbers in order, smallest first.",
+       "skill": "comparing-and-ordering-numbers"
       }
      ]
     }
@@ -4313,7 +4329,7 @@
       "red": "fh-forge-switch-red"
      },
      "presentation": "SWITCHES",
-     "skill": "sequencing-cause-and-effect",
+     "skill": "cause-and-effect",
      "subject": "LOGIC",
      "variants": [
       {
@@ -4462,7 +4478,7 @@
       "red": "fh-forge-switch-red"
      },
      "presentation": "SWITCHES",
-     "skill": "sequencing-cause-and-effect",
+     "skill": "following-instructions",
      "subject": "LOGIC",
      "variants": [
       {
@@ -4600,7 +4616,7 @@
       "c": "fh-circuit-path-c"
      },
      "presentation": "PATHS",
-     "skill": "circuits-and-sharing",
+     "skill": "simple-circuits",
      "subject": "LOGIC",
      "variants": [
       {
@@ -4647,7 +4663,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "The forge has 12 crystals to share equally between 3 lamps. How many crystals does each lamp get?"
+       "prompt": "The forge has 12 crystals to share equally between 3 lamps. How many crystals does each lamp get?",
+       "skill": "equal-sharing"
       },
       {
        "answer": "c",
@@ -4670,7 +4687,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "The forge has 15 crystals to share equally among 5 lamps. How many does each lamp get?"
+       "prompt": "The forge has 15 crystals to share equally among 5 lamps. How many does each lamp get?",
+       "skill": "equal-sharing"
       },
       {
        "answer": "c",
@@ -4693,7 +4711,8 @@
          "symbol": "triangle"
         }
        ],
-       "prompt": "The forge has 20 crystals to share equally between 4 lamps. How many does each lamp get?"
+       "prompt": "The forge has 20 crystals to share equally between 4 lamps. How many does each lamp get?",
+       "skill": "equal-sharing"
       },
       {
        "answer": "b",
@@ -4732,7 +4751,7 @@
       "c": "fh-circuit-path-c"
      },
      "presentation": "PATHS",
-     "skill": "circuits-and-sharing",
+     "skill": "simple-circuits",
      "subject": "LOGIC",
      "variants": [
       {
@@ -4853,7 +4872,7 @@
       "c": "fh-rock-sample-c"
      },
      "presentation": "SAMPLES",
-     "skill": "rocks-and-volcanoes",
+     "skill": "earth-science",
      "subject": "EARTH_SCIENCE",
      "variants": [
       {
@@ -4985,7 +5004,7 @@
       "c": "fh-rock-sample-c"
      },
      "presentation": "SAMPLES",
-     "skill": "rocks-and-volcanoes",
+     "skill": "earth-science",
      "subject": "EARTH_SCIENCE",
      "variants": [
       {
@@ -5108,7 +5127,7 @@
       "e": "fh-island-step-e"
      },
      "presentation": "STORY",
-     "skill": "earth-processes-sequence",
+     "skill": "earth-science",
      "subject": "EARTH_SCIENCE",
      "variants": [
       {
@@ -5242,7 +5261,7 @@
       "c": "fh-island-step-c"
      },
      "presentation": "STORY",
-     "skill": "earth-processes-sequence",
+     "skill": "earth-science",
      "subject": "EARTH_SCIENCE",
      "variants": [
       {
@@ -5355,7 +5374,7 @@
       "magma": "fh-heart-crystal-magma"
      },
      "presentation": "CRYSTALS",
-     "skill": "reading-comprehension-sequence",
+     "skill": "reading-comprehension",
      "subject": "LITERACY",
      "variants": [
       {
@@ -5472,7 +5491,7 @@
       "magma": "fh-heart-crystal-magma"
      },
      "presentation": "CRYSTALS",
-     "skill": "reading-comprehension-sequence",
+     "skill": "sequencing",
      "subject": "LITERACY",
      "variants": [
       {

@@ -31,8 +31,14 @@ It complements [`challenge-standard.md`](challenge-standard.md) (challenge mecha
   versioned revisions in Django Admin; an import never silently overwrites an admin edit (ADR-047).
 - An adventure specification lists objective codes; it never invents a code that the catalog
   does not hold. A missing objective is added through the content export first.
-- Each objective used must say how evidence is recorded (challenge attempt, step result, quest
-  objective) and which world consequence follows (CLAUDE.md section 4, pillar 2).
+- Each objective used must say how evidence is recorded (challenge attempt, step result, Area
+  puzzle attempt, quest objective) and which world consequence follows (CLAUDE.md section 4,
+  pillar 2).
+- An Area puzzle (CHOOSE_ANSWER, ORDER_SEQUENCE) names its objective as each band's `skill`; a
+  variant that practises something else names its own `skill`. Every code must be a catalog
+  objective: an unknown one records no evidence (`manage.py puzzle_skill_report` lists them).
+  Map by what the prompts test, never by a similar name
+  ([PUZZLE_SKILL_MAPPING.md](../regions/PUZZLE_SKILL_MAPPING.md), FPV-D10).
 - Curriculum on `main` covers grades 1 and 2 plus one Grade 3 skill (`multiplication-facts`);
   anything beyond needs exported objectives before it can record progress.
 

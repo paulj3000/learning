@@ -30,6 +30,7 @@ standard wins and this set is corrected.
 | [agent-ownership.md](agent-ownership.md) | Who owns which files and the merge sequence |
 | [implementation-status.md](implementation-status.md) | What is built, tested and pushed, with commits |
 | [known-defects.md](known-defects.md) | Known defects, risks and flaky tests |
+| [bundled-asset-references.md](bundled-asset-references.md) | GE-247: shipped-scene asset ids in Asset Library dependency reporting |
 | [raised-solid-clearance.md](raised-solid-clearance.md) | GE-L16: raised Solid collision and walk-under clearance (audit, root cause, rule, tests) |
 | [legacy-retirement-plan.md](legacy-retirement-plan.md) | GE-076: shims, duplicated live code, leaked content, and the gates for removing each |
 | [engine-1.0-acceptance.md](engine-1.0-acceptance.md) | GE-090: entry criteria, merge-readiness gates and the owner QA checklist for Engine 1.0 |

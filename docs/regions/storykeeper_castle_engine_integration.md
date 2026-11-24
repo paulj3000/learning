@@ -394,20 +394,21 @@ Git and the source, not against the Trello text.
 | Ticket | Code on `main` | Verdict | What remains |
 |---|---|---|---|
 | SC-R04-05 to 08 (Painted Words, Storybook progression, editions) | yes | Development Complete, integrated | Owner play O-1 to O-5 |
-| SC-R05 Quill, Ember, Orion | yes | Development Complete, integrated | Quill's prompt in third-person view needs GE-090-D7 (`24add20e`). Owner confirms Orion; final GLB models |
-| SC-R06 sound and narration | yes | Development Complete, integrated, **defective on `main`**: the castle requests a region manifest that is a 404, so it is silent | GE-090-D7 `e1e952a5` (Place manifest). Audio files, voice consent, owner audio check |
+| SC-R05 Quill, Ember, Orion | yes | Development Complete, integrated | Quill's third-person reach fixed by GE-090-D7 (`24add20e`, in `main` at `1b0a50a3`). Owner confirms Orion; final GLB models |
+| SC-R06 sound and narration | yes | Development Complete, integrated. The region-manifest 404 is fixed by GE-090-D7 `e1e952a5` (Place manifest, in `main` at `1b0a50a3`) | Staff Place assignment and sound release; audio files, voice consent, owner audio check |
 | SC-R07 keepsakes, pedestals, Hall of Heroes, ranks | yes | Development Complete, integrated | Ranks keep or drop; `backfill_castle_keepsakes --apply` (owner, per environment) |
 | SC-R08/09 return visits, chamber, Castle Director | yes | Development Complete, integrated; ADR-065 Accepted | Owner look at the star glint and mouse door |
 | SC-R10-01/02 Writing Room, SC-final-B | yes | Development Complete, integrated | Owner play O-15 to O-15e. SC-R10-03 (Phaser retirement) stays Blocked |
 | SC-R11 engineering | yes | Development Complete, integrated | SC-R11-01 tablet profile, SC-R11-02 Sprouts playtest |
-| SC-R12 acceptance and release | guide and notes only | Blocked | Owner QA (acceptance guide 4.4) after D7 merges; release authorization |
+| SC-R12 acceptance and release | guide and notes only | Blocked | Owner QA (acceptance guide 4.4), unblocked by D7; release authorization |
 | SC-JMP-06 movement tutorial | reducer only (`castleMovementTutorial.ts`), not shown | Blocked (unchanged) | Owner: placement (Entry Hall proposed) and whether to show it. Assisted mode needs a spec and ADR |
 | SC-JMP-20 movement acceptance | unit part (audit, profile, save contract) | Unit part done, integrated | Browser and device part in owner QA (Q-2, Q-5, Q-11, Q-14) |
 
 ### 11.3 GE-090-D7 and the castle (not a second triage)
 
-Agent 5 (LAI 05) owns D7 and has fixed it on `fix/ge-090-d7-browser-acceptance` @ `9b68e548`.
-That branch is not merged. As the castle owner, I reviewed only the castle parts:
+Agent 5 (LAI 05) owns D7 and fixed it on `fix/ge-090-d7-browser-acceptance` (`9b68e548`, then
+`ae6aa5af` after merging `main`; code unchanged). The owner merged it as PR #63 into `main` at
+`1b0a50a3` on 2026-11-23. As the castle owner, I reviewed only the castle parts:
 
 - **Cluster C (castle audio 404), `e1e952a5`: correct.** The castle has no Django `WorldRegion`
   (its layout is a TypeScript manifest, ADR-033), so the region route can only answer 404. The
@@ -418,8 +419,8 @@ That branch is not merged. As the castle owner, I reviewed only the castle parts
   camera, and no other castle path reads the camera position.
 - **`npc-3-castle:119`, `6f21030c`: correct.** The spec now expects Quill's SC-R05 premise line,
   "The Great Storybook was torn", before the story rules.
-- **Follow-up after D7 merges:** `docs/regions/prep/sound_prep.md` (a historical contract) still
-  says the castle uses a region manifest. D7 already updates the canonical
+- **Follow-up, done:** `docs/regions/prep/sound_prep.md` (a historical contract) now notes that
+  the castle uses the Place manifest. D7 updated the canonical
   `docs/audio/STORYKEEPER_CASTLE_AUDIO.md`.
 
 D7 clusters A, B and D, and the new `portal-adult-exit:142`, are not castle code and stay with
@@ -449,8 +450,8 @@ Every run went through `scripts/dev/test_gate.py` on the shared host, which was 
 
 ### 11.5 Proposed closure sequence
 
-1. **Merge GE-090-D7** (Agent 5's PR; owner authorizes). It is the only code defect left on the
-   castle on `main`: the castle is silent, and Quill's prompt is missed in third-person view.
+1. **Merge GE-090-D7.** Done: PR #63, `main` `1b0a50a3`, 2026-11-23. No known castle code
+   defect remains on `main`.
 2. **Owner QA** with acceptance guide section 4.4 (Q-1 to Q-18) and the O-items it cites. Findings
    become defect cards linked to SC-R12 (Rework Required), fixed by Agent 2.
 3. **Owner decisions** that do not need code: ranks keep or drop, Orion confirmation, voice
@@ -460,3 +461,75 @@ Every run went through `scripts/dev/test_gate.py` on the shared host, which was 
 5. **Owner accepts and closes** the children (SC-R04-05 to SC-R11, SC-JMP-20) and then SC-R12 and
    the parent. SC-JMP-04, 05, 06, 07 and 10 to 17 stay open or are split out as follow-ups, so they
    do not hold the parent.
+
+## 12. SC-R12 criteria against `main` `1b0a50a3` (2026-11-23, LAI 02)
+
+SC-R12 has two tasks (reboot roadmap section 6): **SC-R12-01**, the owner browser acceptance pass
+against the whole-castle criteria (acceptance guide section 1, A-1 to A-21), and **SC-R12-02**,
+release notes, implementation status and retirement decisions. Below, each criterion has an
+implementation location, the commit or PR that brought it to `main`, automated evidence, the
+manual acceptance still needed, and any open defect. Merged code is not acceptance: every
+"Manual" cell is open until the owner plays it.
+
+Abbreviations: `3/` is `react/src/features/island-map/three/`. `PR #44` means the castle head
+`df376878` through GE-090 step 20c (`f7e57ee2`). Playthrough rows are P-n (guide 4.5) and Q-n
+(guide 4.4).
+
+| # | Criterion | Implementation | Brought to `main` by | Automated evidence (unit only) | Manual acceptance still needed | Open defects |
+| --- | --- | --- | --- | --- | --- | --- |
+| A-1 | Existing interactions still work | `3/runtime/manifests/storykeeperCastle.ts`, `3/storykeeperCastleRegion.ts` | PR #44 | `castleRebootContracts`, `storykeeperCastleParity` | P-1 to P-5 | None |
+| A-2 | Card and 3D choices are equivalent | `3/castleChoiceBindings.ts`, `3/castlePlatformAnswers.ts` | PR #44 | `castleHudEquivalence`, `castleChoiceBindings`, `castlePlatformAnswers` | P-10, Q-5 | None |
+| A-3 | Every room reachable, no sealed archway | `3/castleLayout.ts` (`CASTLE_DOORS`, `planTravel`) | PR #44 | `storykeeperCastleRegion` flood fill, `storykeeperCastle.engine`, `castleNavigationRegression` | P-2, P-6, Q-2 | None |
+| A-4 | Puzzle states deterministic | `3/extensions/castleTale/seatingPuzzle.ts`, `3/castleBindingLectern.ts`, `3/castleLibraryClues.ts` | PR #44 | `storykeeperCastle.engine`, `castleBindingLectern` | P-3, replay each beat twice | None |
+| A-5 | No additional progress records (ADR-027) | `great-storybook/pages.ts` (pages derived from records); `lai/apps/progression/protected_changes.py` (SC-SEC-01) | PR #44; D1 PR #53 | Contract C-4; `castleSaveContract`; pytest `test_protected_world_changes` | P-9, P-14 (forged POST, O-5) | None |
+| A-6 | Story chapters reachable for their band | `adventures/content/castlesSecretDoorAdventures.ts` | PR #44 | Contract C-3; `libraryArcAdventures` | P-3 (Explorer chapters 1 to 3) | None |
+| A-7 | Age-band rules preserved | Pages and adventures by band; `3/castleEngineProfile.ts` (`CASTLE_MOVEMENT_BY_BAND`) | PR #44 | Contracts C-2, C-3; `castleEngineProfile` | One child per band; Sprouts playtest D-2 | None |
+| A-8 | No missing-asset crashes | Shared placeholders (`3/runtime/createLocationEngine.ts`) | PR #44 | `missingModelPlaceholders.engine` | Delete a model locally and load | None |
+| A-9 | No unhandled renderer errors, no failed `/api/v1` request | Castle scene, `useCastleAudio.tsx` Place scope | PR #44; D7 PR #63 | Engine tests; `useCastleAudio.test`; pytest `test_manifest_api` (Place `storykeeper-castle`) | P-1, Q-1 (console and network clean) | None known since D7 |
+| A-10 | Reduced motion respected | Shared visual system | PR #44 | `visualSystem.engine`, `atmosphere` | Q-16 | None |
+| A-11 | Keyboard | Shared input; `CastleGuide.tsx` | PR #44 | `game/src/input/pointerControls`, `WorldHud`, `worldHudAccessibility`, `CastleGuide` | Q-14 | None |
+| A-12 | Touch | Shared `ThreeLocationWorldView`, "Things to do" list | PR #44 | `ThreeLocationWorldView` | Q-11 on iPad Safari | GE-090-D8 (proposed, shared portal): at 375 x 667 in full screen an NPC panel can cover "Exit full screen" |
+| A-13 | Model and texture budgets | `3/runtime/manifests/storykeeperCastleBudgets` baseline | PR #44 | `storykeeperCastleBudgets`, `castleOptimisation` | None (static) | Draw estimate at 300 of 300 (guide 4.3 item 7): an owner budget decision before more scenery |
+| A-14 | Tablet performance | `3/runtime/diagnostics/` (`?lai-diag=1`) | PR #44 | Diagnostics unit-tested; they measure nothing | **D-1 (SC-R11-01)**, results blank | None |
+| A-15 | Save and resume | `CastleTaleCompanion.tsx`; saved checkpoint on entry | PR #44 | `CastleTaleCompanion.npc` ("a session left open resumes as before") | P-9, P-15, Q-10 | None |
+| A-16 | Storybook pages derived per band | `great-storybook/pages.ts`, `pageStates.ts`, `scene.ts`; 3D book in `castleTaleScene.ts` | PR #44 | `pages`, `pagesContract`, `pageStates`, `scene`, `StorybookSection` | P-7, P-9 | None |
+| A-17 | Artifacts displayed, never granted, by the castle | `3/castleTrophies.ts`; reward rules in `rewards/content/islandItems.ts` | PR #44; D2 PR #54 (`tiny-brass-knob` pack) | `castleTrophies`, `castleChamberFinds`, `packs.test`; pytest keepsake and backfill tests | P-4, P-14 | None |
+| A-18 | Sound settings respected | `useCastleAudio.tsx`, `castleSounds.ts`, `lai/apps/audio/castle_cues.py` | PR #44; D7 PR #63 (Place manifest) | `useCastleAudio.test`, `castleSounds.test`, `useCastleSpeech.test`; pytest `test_castle_seed`, `test_manifest_api` | P-13, Q-9, Q-17. Needs castle audio files (none exist) and the Place assignment | None in code; audio assets missing |
+| A-19 | AI fallbacks; no live Bedrock in tests | `great-storybook/useCastleDirector.ts`; Django Castle Director route (ADR-065) | PR #44 | `useCastleDirector.test`, `castleDirectorApi.test`; pytest Castle Director tests (fake provider) | O-14 (AI off and kill switch) | None |
+| A-20 | Sprouts complete their mission on the 3D route | Flat markers, no reticle (`CASTLE_MOVEMENT_BY_BAND.SPROUT`) | PR #44 | `castleSproutNoAim`, `castleExitsNoArithmetic` | Q-12; **D-2 (SC-R11-02)** | None |
+| A-21 | Phaser retired only after parity and the Sprouts gate | `storykeeper_castle_phaser_retirement.md` (Phaser kept) | PR #44 | `storykeeperCastleParity`, `castleWritingRoomParity` | C2 to C5 in the retirement doc; owner authorization | None (SC-R10-03 Blocked by design) |
+| SC-R12-02 | Release notes, implementation status, retirement decisions | `storykeeper_castle_release_notes.md` (draft), `docs/IMPLEMENTATION_STATUS.md`, retirement doc | This PR updates them for `main` `1b0a50a3` | Docs check | Owner reviews the release notes and the retirement decisions | None |
+
+**Movement and shared-engine compatibility.** `main` gained GE-L16 (PR #59) alongside D7, a
+shared-engine change in which raised Solid parts keep their height and leave a walk-under gap only
+with clearance. The castle's floors are flat and its walls are never jumpable
+(`CASTLE_ENGINE_PROFILE`). The castle engine, movement-audit, platform and navigation suites were
+run against `1b0a50a3` with that change; results are in section 12.1. No shared engine contract was
+changed by this work.
+
+**Owner decisions still open:** ranks (O-12), Orion confirmation and final models, voice consent,
+SC-JMP-06 tutorial placement, `backfill_castle_keepsakes --apply` per environment, the draw-call
+budget, and Phaser retirement (SC-R10-03).
+
+### 12.1 Evidence on `main` `1b0a50a3` (2026-11-23)
+
+Every run went through `scripts/dev/test_gate.py` on the shared host, which was heavily loaded
+(peak load about 12, with paging). The only code change is a comment in
+`storykeeperCastleRegion.ts`.
+
+- **Vitest.** The castle and Storykeeper suites (`castle*`, `storykeeperCastle*`,
+  `extensions/castleTale`, the castle runtime manifests), plus `derivedColliders` (GE-L16),
+  `WorldHud`, `great-storybook`, `writing-room`, `features/worlds`, `portal/exit`, `src/audio`,
+  `content-export` and `src/test` (engine boundary): **116 files, 1657 passed, 0 failed**.
+- **`game` package.** `src/movement` and `src/input`: **13 files, 209 passed, 0 failed**.
+- **Django, PostgreSQL 18.7.** A throwaway loopback `postgres:18-alpine` container with tmpfs
+  storage, `LAI_REQUIRE_POSTGRES=1`, no `.env`, removed after the run. Scope: every castle and
+  Storybook test file, `apps/audio/tests` (Place manifest included), `apps/regions/tests`,
+  `progression/tests/test_protected_world_changes.py` and
+  `assets/tests/test_collision_profiles.py`: **1205 passed, 0 failed**. `makemigrations --check`:
+  no changes.
+- **Checks:** `npm run typecheck` exit 0; Prettier clean on the changed files;
+  `check_engineering_docs.py` passed.
+- **Not run:** Playwright, browser, device and listening checks (owner-authorized only), and EC2.
+  No castle sound has been heard; no owner playthrough has been run.
+- **Shared engine:** no shared Game Engine contract was changed.

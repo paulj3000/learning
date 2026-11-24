@@ -1,12 +1,15 @@
 # North Pole: local startup and owner acceptance checklist (NP-060)
 
-Status: development complete at unit level on `feature/north-pole-adventure`. **Not owner-tested,
-not browser-verified, not merged, not deployed.** Nothing in this checklist has been ticked by
-the development session; every item is for the owner.
+Status: **on `main`** (GE-090 step 22, PR #44; re-checked at `aa8adb33` on 2026-11-23). Unit
+tested only. **Not owner-tested, not browser-verified, not deployed.** Nothing in this checklist
+has been ticked by a development session; every item is for the owner. Record pass, fail or skip
+per id.
 
 ## 1. Local startup (no AWS)
 
-From the repository root, with Docker running (`make up` starts PostgreSQL 16 on port 5442):
+From the repository root of `main` (or any branch at or after `aa8adb33`), with Docker running.
+`make up` starts PostgreSQL 18 (an old PostgreSQL 16 volume cannot be reused; set
+`POSTGRES_PORT` if 5432 is taken):
 
 ```sh
 make up
@@ -26,9 +29,11 @@ make web         # Vite on 5183, proxying /api
 
 Speech stays fake or disabled locally (`LAI_SPEECH_PROVIDER`); AI hints use the fake provider.
 Nothing calls Bedrock, Polly, S3 or Cognito beyond the existing local sign-in configuration.
+Scoring (XP, coins, levels) is off by default (`LAI_SCORING_ENABLED=false`) and is not part of
+this QA; rewards here are the North Pole badges, trophy, cosmetics, fragments and journal pages.
 
-**Branch order:** this branch contains the Treasure Rush movement branch and the Firepeak branch.
-It merges after both.
+Suggested order (about 60 to 90 minutes): one Pathfinder full playthrough (sections 3a to 3d),
+then a Sprout and an Explorer through Q01 to Q03 only (band differences), then staff (3e).
 
 ## 2. What is placeholder
 
@@ -40,53 +45,61 @@ captions only until Polly is enabled with owner approval.
 ## 3. Owner acceptance checklist
 
 Realm and entry
-- [ ] The Realm Explorer shows "North Pole" with the winter picture and a Seasonal chip; between
+- [ ] R1 The Realm Explorer shows "North Pole" with the winter picture and a Seasonal chip; between
       Dec 1 and Jan 6 it also shows Featured.
-- [ ] Entering North Pole Village needs no arithmetic; leaving needs none either.
-- [ ] Sprout, Pathfinder and Explorer profiles can all enter.
+- [ ] R2 Entering North Pole Village needs no arithmetic; leaving needs none either.
+- [ ] R3 Sprout, Pathfinder and Explorer profiles can all enter.
 
 World and movement (NP-010 to NP-019, NP-036)
-- [ ] All nine locations are reachable and recognisable: Santa's Landing, Christmas Village,
+- [ ] W1 All nine locations are reachable and recognisable: Santa's Landing, Christmas Village,
       Santa's Workshop, Candy Cane Forest, Frozen Lake, Reindeer Stables and Pine Hollow,
       Gingerbread Village, Snowflake Mountain, the Observatory (plus the North Road).
-- [ ] Snow falls, fog fades the distance into the twilight sky, the aurora waves; with reduced
+- [ ] W2 Snow falls, fog fades the distance into the twilight sky, the aurora waves; with reduced
       motion the snow slows and the aurora is still. Low-end devices drop snow and aurora.
-- [ ] Snowdrift gates open in story order and never block a child who has done the work.
-- [ ] The jump tutorial steps at the village work, and the snow stairs beside them reach the
+- [ ] W3 Snowdrift gates open in story order and never block a child who has done the work.
+- [ ] W4 The jump tutorial steps at the village work, and the snow stairs beside them reach the
       fragment without jumping.
-- [ ] Every required step can be done without jumping (stairs, ramps, bridges).
-- [ ] Falling into the lake's open water returns the child to the nearest bank checkpoint, keeping
+- [ ] W5 Every required step can be done without jumping (stairs, ramps, bridges).
+- [ ] W6 Falling into the lake's open water returns the child to the nearest bank checkpoint, keeping
       everything; Snowflake Mountain falls only drop one terrace.
-- [ ] The child never walks through buildings, snowbanks or platforms, and the camera keeps the
+- [ ] W7 The child never walks through buildings, snowbanks or platforms, and the camera keeps the
       child visible next to tall walls (Treasure Rush fixes, ADR-060).
-- [ ] Touch: drag to move, Jump button, sprint toggle work on a tablet.
+- [ ] W8 Touch: drag to move, Jump button, sprint toggle work on a tablet.
 
 Story and learning (NP-025 to NP-033)
-- [ ] Q01 to Q09 each play in order with their guide; Jingle, Tinker, Peppermint, Frosty, Noel,
+- [ ] S1 Q01 to Q09 each play in order with their guide; Jingle, Tinker, Peppermint, Frosty, Noel,
       Ginger, Mrs. Claus, Polaris and Santa speak age-appropriate lines.
-- [ ] Choice and order puzzles: a wrong answer keeps the same question with kind feedback; hints
+- [ ] S2 Choice and order puzzles: a wrong answer keeps the same question with kind feedback; hints
       appear after attempts; solved puzzles can be practised again for fun.
-- [ ] Workshop gift chest and the two mountain lever boxes ask arithmetic suited to the band; the
+- [ ] S3 Workshop gift chest and the two mountain lever boxes ask arithmetic suited to the band; the
       lever boxes raise walkable bridges.
-- [ ] Snowball follows the child home after the collar is found (NPC Manager FOLLOW); if not, the
+- [ ] S4 Snowball follows the child home after the collar is found (NPC Manager FOLLOW); if not, the
       return to Noel still works.
-- [ ] The observatory accepts the fragments in journey order; the Star appears and lights up.
-- [ ] Ringing Santa's sleigh bell starts the celebration and the sleigh flies away.
-- [ ] After the finale, the ice cave behind Santa's Landing opens with golden bells, and the two
+- [ ] S5 The observatory accepts the fragments in journey order; the Star appears and lights up.
+- [ ] S6 Ringing Santa's sleigh bell starts the celebration and the sleigh flies away.
+- [ ] S7 After the finale, the ice cave behind Santa's Landing opens with golden bells, and the two
       practice chests can be replayed.
+- [ ] S8 Band check: the same Q02 and Q04 puzzles are clearly simpler for a Sprout (pictures, one step) than for an Explorer; no Sprout route needs a jump or meets the open water.
 
 Rewards and persistence (NP-034, NP-035, NP-038)
-- [ ] Badges, the Christmas Star trophy, cosmetics (owned, not equippable yet) and journal pages
+- [ ] P1 Badges, the Christmas Star trophy, cosmetics (owned, not equippable yet) and journal pages
       appear in the backpack once each, never twice; all ten snowflakes add the snowflake scarf.
-- [ ] Leaving mid-way and returning resumes at the furthest zone reached with everything kept.
-- [ ] Quests appear in the in-world backpack (see the known gap about the `/quests` page).
+- [ ] P2 Leaving mid-way and returning resumes at the furthest zone reached with everything kept.
+- [ ] P3 Quests appear in the in-world backpack (see the known gap about the `/quests` page).
+- [ ] P4 Sign out, sign in, open the same child: badges, trophy, fragments and completed quests are still there, and replaying a solved puzzle says "Practice" and grants nothing new.
 
 Staff (NP-048, Django Admin)
-- [ ] Puzzles, chests, challenge specs, placements, NPC records, sound cues and the seasonal
+- [ ] T1 Puzzles, chests, challenge specs, placements, NPC records, sound cues and the seasonal
       event are editable in Django Admin; an edit reaches new visits only.
-- [ ] Enabling a Question Studio pool for a chest serves published bank questions there.
-- [ ] Setting the `christmas` event to WINDOW_ONLY hides the Realm outside its window and never
+- [ ] T2 Enabling a Question Studio pool for a chest serves published bank questions there.
+- [ ] T3 Setting the `christmas` event to WINDOW_ONLY hides the Realm outside its window and never
       removes a child's saves.
+
+Engine checks (GE-074; details in section 5)
+- [ ] E1 Ice: the Frozen Lake east bank feels slippery but fair; a child stops quickly and never slides into the open water.
+- [ ] E2 Footsteps: the step sound changes between snow and the ice bank (skip if the snow and ice recordings are not uploaded).
+- [ ] E3 Snow falls wherever the child walks, including Snowflake Mountain; with a low render quality there is none; with reduced motion it is fewer and slower.
+- [ ] E4 Water recovery: fall into the lake from each bank; the child returns to the bank last touched with a kind message and keeps everything.
 
 ## 4. Known gaps (development found, documented, not fixed)
 
@@ -103,10 +116,14 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
    snowflake scarf once (`test_the_tenth_snowflake_completes_the_set_and_gives_the_scarf_once`).
 6. Snowball's resting spot in the stable uses the NPC seed's fallback position (46, 20); confirm
    it looks right or add an `np-snowball-stable` placement.
-7. Several curriculum skill slugs (fractions, symmetry, sight words, earth and space) are labels,
-   not curriculum rows, so they do not yet feed SkillProgress.
+7. Learning by skill on the parent dashboard needs FPV-D10 (LAI 06, PR #73) and this branch's
+   re-tag (`CURRICULUM_AUDIT.md`) both on the branch under test, and a database seeded after
+   them. Before that, Area puzzle solves record no `SkillEvidence` and only the chests show by
+   skill: record that as this known gap, not a new failure. After it, every quiz band names a
+   catalog objective (the 9 invalid ids are gone) and `np-obs-final` Explorer asks two-step
+   take-away questions within ten.
 8. Fragment, restoration, reindeer and sleigh-bell cues have no North Pole-specific call point
-   yet. Found 2026-11-18: `RegionPlayCompanion` raises `crystalCollect` for every pickup with new
+   yet. Found 2026-11-18, still true on `main` `aa8adb33`: `RegionPlayCompanion` raises `crystalCollect` for every pickup with new
    items, so every collectible (snowflakes, candy canes, cookies) also plays the star-fragment
    sound. Firepeak relies on this for its shards. The fix needs a per-region rule for which
    pickups are special (for example, item category `QUEST_ITEM`) in `regionAudio.ts`. Not changed
