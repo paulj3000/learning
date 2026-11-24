@@ -261,6 +261,71 @@ def test_the_resolver_sends_the_profile_and_nothing_without_one(api, families, c
     assert "notes" not in json.dumps(found)
 
 
+def resolve_one(api, families, asset_id):
+    cache.clear()
+    response = api(families.a).get(f"/api/v1/children/{families.a1.pk}/assets/", {"ids": asset_id})
+    (entry,) = response.json()["assets"]
+    return entry
+
+
+def test_a_retired_asset_the_app_still_ships_keeps_its_collision(api, families, cognito):
+    crate = make_definition(
+        "crate", kind="kit-piece", category="prop", bundled_path="models/crate.glb"
+    )
+    published(crate, half_size=(0.5, 0.5, 0.5))
+    version = crate.versions.get()
+    services.set_default_version(version)
+    profile(crate, behavior=CollisionBehavior.DECORATIVE)
+    profile(crate, version=version, shape=CollisionShape.BOX, behavior=CollisionBehavior.SOLID)
+    expected = collision.runtime_collision(collision.profile_for(crate, version), version)
+    services.retire_asset(crate)
+
+    entry = resolve_one(api, families, "crate")
+    assert entry["status"] == "retired"
+    # The default version's own profile wins over the asset default, as for a live asset.
+    assert entry["collision"] == expected
+    assert entry["collision"]["behavior"] == "SOLID"
+    assert set(entry) == {"ref", "id", "status", "collision"}
+
+
+def test_a_retired_asset_that_is_not_shipped_has_no_collision(api, families, cognito):
+    crate = make_definition("crate", kind="kit-piece", category="prop")
+    published(crate)
+    services.set_default_version(crate.versions.get())
+    profile(crate, shape=CollisionShape.BOX)
+    services.retire_asset(crate)
+
+    entry = resolve_one(api, families, "crate")
+    assert entry["status"] == "retired"
+    assert "collision" not in entry
+
+
+def test_a_retired_shipped_asset_that_is_not_a_model_has_no_collision(api, families, cognito):
+    sound = make_definition("bell", kind="audio", category="sound", bundled_path="audio/bell.ogg")
+    profile(sound, behavior=CollisionBehavior.WALKABLE)
+    services.retire_asset(sound)
+
+    entry = resolve_one(api, families, "bell")
+    assert entry["status"] == "retired"
+    assert "collision" not in entry
+
+
+def test_a_retired_version_of_a_live_shipped_asset_keeps_no_collision(api, families, cognito):
+    crate = make_definition(
+        "crate", kind="kit-piece", category="prop", bundled_path="models/crate.glb"
+    )
+    first = published(crate)
+    services.set_default_version(first)
+    second = published(crate, half_size=(0.6, 1.0, 0.25))
+    profile(crate, shape=CollisionShape.BOX)
+    services.retire_version(first, replacement=second)
+
+    entry = resolve_one(api, families, "crate@1")
+    assert entry["status"] == "retired"
+    assert "collision" not in entry
+    assert resolve_one(api, families, "crate")["collision"]["shape"] == "BOX"
+
+
 # --- Django Admin ----------------------------------------------------------------------------
 
 
