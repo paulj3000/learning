@@ -37,6 +37,17 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI 05: jsonschema as a dev dependency (2026-11-24, `chore/jsonschema-dev-dependency` from `main` `9b881fda`); owner-approved, NOT merged
+
+The owner approved it on 2026-11-24. `requirements-dev.txt` now pins `jsonschema==4.26.0` and its
+transitive dependencies (`attrs`, `jsonschema-specifications`, `referencing`, `rpds-py`;
+`typing_extensions` is already pinned in `requirements.txt`). It is tooling only: nothing in `lai/`
+imports it, and production images install `requirements.txt` only.
+
+Why: the 34 contract-schema tests in `tests/processing/test_processing_fixtures.py` (PR #71) call
+`pytest.importorskip("jsonschema")`, and no requirements file declared it, so they were skipped
+everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it in, they run.
+
 ## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, `main` `3132b151` merged in, Trello #247); Development Complete, NOT merged, NOT owner-accepted
 
 - Owner direction (2026-11-23): shipped-scene references are listed, never blocking (S6 not required). Collision-profile effects are reported. The hub becomes a Place only if that has no side effects.
