@@ -53,9 +53,21 @@ back to the harbor" link; in full screen `--child-header-inset` now reserves the
 (0.75rem + 2.75rem, pinned to WorldHud.module.css by a test), so a panel stops below the link.
 Tests (gated): `WorldStage.test.tsx` (4 new; 3 fail without the fix), `childNavInsets.test.ts`
 (new HUD-row pairing test), `portal/shell`, `npc-manager` and `RegionPlayCompanion*.test.tsx`: 31
-files, 476 passed. Typecheck and lint pass. Not run (not authorized): Playwright
-`portal-adult-exit:142` and the rest of the browser suite. Unverified: phone landscape (667x375),
-where the panel's 10rem floor can exceed the room left; phone support is not expanded here.
+files, 476 passed. Typecheck and lint pass.
+
+Browser run (owner-authorized 2026-11-23, after the VM network fix) found two more causes:
+`IslandWorldView.module.css`'s full-screen column rule (`.wrapper:fullscreen > :not(...)`,
+specificity 0,3,0) also matched Pip's fixed panel and replaced its height cap with 45vh, so the
+panel ran off the top of the screen; it is now wrapped in `:where()`. And at 375x667 the settings
+below the stage left it 311px tall, too short for a 10rem panel between the harbor link and the
+exits. Owner decision: shrink the settings, not the panel. The full-screen stage is at least 23rem
+(capped at 70vh) and the harbor link stays one row in full screen only. Measured: stage 368px,
+panel 72-244px, link 24-68px. Playwright on `30578905`: `portal-adult-exit.spec.ts` 7/7 and
+`treasure-rush.spec.ts` controls, full screen and exit (desktop and tablet) pass; the quest
+journey (`treasure-rush:83`) fails identically on `main` `bf622901` (Pip offers Pirate's Leap
+instead of confirming the first quest; not D8). Cosmetic: at 320px in full screen the link
+reaches 9px past the stage edge (still on screen). Unverified: phone landscape (667x375), where
+the 70vh cap leaves the panel less room; phone support is not expanded here.
 
 ## LAI 01: Treasure Rush release verification (2026-11-23, `lai-01/treasure-rush-release`, rebased onto `main` `1b0a50a3`); verification only, owner playthrough pending, NOT owner-accepted
 
