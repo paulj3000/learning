@@ -1067,7 +1067,7 @@ listed in `docs/IMPLEMENTATION_STATUS.md`.
 | Player avatars (`apps/avatars/dependencies.py`) | `model_asset`, `pinned_version` (or the default), `thumbnail_asset` | Refused (`player_avatar_in_use`) for AVAILABLE avatars' model | The thumbnail is unguarded. A retired thumbnail silently disappears (`avatars/services._thumbnail`). |
 | Sound releases (`apps/audio`) | The LIVE `SoundRelease.snapshot` pins each cue's exact `versionId` (JSON) | **Not guarded** | Retiring a pinned version or its asset silently drops the cue from the manifest (`audio/manifest._available_versions`). It also blocks rolling back to any release that pins it (`audio/services.release_problems`). `asset-standard.md` section 2 already claims sound releases are protected. |
 | Realm placements (`apps/regions`) | `WorldObjectPlacement.asset_id` and `TreasureChest.asset_id` (string asset ids, always the default version) | **Not guarded** | Retiring the asset makes a PUBLISHED 3D Area draw a placeholder. Retiring a *version* cannot break a placement: the default version can only be retired by moving the default first (`default_in_use`). |
-| Catalog (`catalog.LocationAsset`) | FK `PROTECT` (deletion only) | Not guarded | Listed nowhere. |
+| Catalog (`catalog.LocationAsset`) | FK `PROTECT` (deletion only) | Not guarded | Listed nowhere. Since GE-247 S1: listed, never blocking, by the `catalog` provider (25.3). |
 
 There are two structural limits. First, guards run in registration order and the first refusal
 stops the run, so staff see one blocker at a time. Second, no page answers "where is this used"
@@ -1088,9 +1088,11 @@ the Asset Manager's collision profiles to bundled regions. So a Django asset who
 bundled id (for example `rock`, `crate`, `archway`, `bridge-plank`, `npc-pip`) controls collision
 in a shipped region, and no provider can see that.
 
-Known gap, not W2 scope: the client already computes this usage
-(`runtime/locationAssetUsage.ts`, `sourceLocationAssetUsage.ts`). A later ticket could export it,
-for example through the content export, as a listed-only provider.
+Closed by GE-247 (2026-11-24): the engine's scene asset index reaches Django through the content
+export, and the `catalog` provider lists each shipped scene that uses an asset, Welcome Harbor
+included (listed only, never blocking; see
+[bundled-asset-references.md](engineering/game-engine/bundled-asset-references.md) section 8).
+`avatar.default` cannot be a library asset id (the `SlugField` rejects the dot).
 
 ### 25.2 The contract
 
@@ -1149,7 +1151,7 @@ Rules:
 | `npcs` (NPC Manager) | ACTIVE and SUPERSEDED releases (unchanged, from `release_dependents`) | Draft variants, extras and dialogue nodes (`draft_dependents`) | None. Parity only. |
 | `avatars` (avatars owner) | AVAILABLE avatars served the model asset or version (unchanged, from `avatars_using`) | Draft and disabled avatars; an AVAILABLE avatar's **thumbnail** | Should the thumbnail block? **Recommendation: list only**, because the served description already drops a missing thumbnail. |
 | `regions` (realm owners; engine-facing, LAI 06) | Asset-level only: a placement or chest in a PUBLISHED `WorldRegion` | DRAFT and RETIRED regions' placements | Should a PUBLISHED placement block? **Recommendation: block** (LAI 06 agrees, 2026-11-22). The placeholder is a resilience path, not a retirement outcome, and Treasure Cove's ids are mostly not in the bundled manifest. Collision also follows the served profile: without it a placement falls back to the built-in footprint, or to no collider for an unknown id. So retiring would silently change what blocks the child or what they can jump on. This is a behaviour change, so it needs the owner. |
-| `catalog` (catalog owner; built by GE-247) | None | `LocationAsset` rows (first use per place), including shipped scenes | None. Moved to GE-247 (Trello #247, Agent 4, 2026-11-23): listed only, never blocking, asset-level only |
+| `catalog` (catalog owner; built by GE-247) | None | Shipped scenes: `LocationAsset` rows (stale ones marked) and the Welcome Harbor hub from the latest release report | None. Built by GE-247 (Trello #247, Agent 4, 2026-11-24): `apps/catalog/dependencies.py`, listed only, never blocking, asset-level only |
 | `assets` derived artifacts (Lambda owner) | None (retirement keeps the files) | Live `DerivedArtifact` rows for the version (`source_version`, `promoted_version`) | Add after the Lambda stack is reconciled: the model is not on `main` |
 
 Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,

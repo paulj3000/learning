@@ -1,9 +1,9 @@
 # GE-247: bundled asset references in Asset Library dependency reporting
 
 Status: **Owner-approved direction (2026-11-23); in implementation** (Agent 4 / LAI 04, Game Engine
-Core). Trello #247. Shipped-scene references are listed, never blocking (S6 not required). The
-registry parts wait for LAI 07's W2-1 (#246, PR #65). Branch `feature/ge-247-bundled-asset-references`
-on `main` @ `1b0a50a3` (includes GE-L16 #59 and GE-090-D7 #63). Section 8 records what is built.
+Core). Trello #247. Shipped-scene references are listed, never blocking (S6 not required). Branch
+`feature/ge-247-bundled-asset-references`, from `main` @ `1b0a50a3`, with `main` merged in at
+`3132b151` (LAI 07's W2-1 registry, #65). Section 8 records what is built.
 
 ## 1. Summary
 
@@ -112,6 +112,13 @@ and never blocks retirement. Retirement cannot remove the bundled model (section
 profile changes have immediate gameplay consequences, so they are reported on the collision
 profile page. S6 (blocking) is not required.
 
+Further decisions (owner, 2026-11-24):
+
+- **Retired and bundled keeps collision.** A retired asset that still ships with the app keeps its
+  collision profile (section 8.4). The resolver change is LAI 07's (`assets/resolver.py`).
+- **The hub stays out of Place records for now.** Welcome Harbor's references stay in the release
+  report (section 8.3).
+
 ## 6. Ownership boundaries (task 6)
 
 | Path | Owner | #247 role |
@@ -159,13 +166,20 @@ checklist (LAI 05).
 | Reserved engine ids (S5) | `ContentAsset.asset_id` is a `SlugField` | `avatar.default` already fails validation (the dot). Pinned by a test; no code change. |
 | Client pinning (S2, client half) | `react/src/api/assets/djangoAssetResolver.test.ts` | A `retired` answer still loads the bundled model, and the client honours a collision profile on a retired entry when the server sends one. |
 
-### 8.2 Waits for W2-1 (#65 on `main`)
+### 8.2 S1: the catalog usage provider (built on W2-1, 2026-11-24)
 
-- **S1 provider.** `register_usage_provider("catalog", provider)` from `CatalogConfig.ready()`. It
-  wraps `shipped_scene_usages` and returns `[]` for a version question. Each usage has the label
-  from `SceneUsage.label`, `blocks_retirement=False` and `details={"scene", "release", "current",
-  "note"}`. It never raises on a missing or stale index. `manage.py asset_usage` then lists these
-  rows; the W2-5 admin panel will render `details["note"]`.
+- `lai/apps/catalog/dependencies.py` `catalog_usages`, registered as source `catalog` from
+  `CatalogConfig.ready()` through `register_usage_provider`. It is the only catalog provider.
+- It wraps `shipped_scene_usages` and returns `[]` for a version question (a shipped scene draws
+  the bundled model, never a library version).
+- Each usage: code `shipped_scene`, the label from `SceneUsage.label`, `blocks_retirement=False`,
+  no admin link, and `details={"scene", "release", "current", "note"}`, where `note` is
+  `retirement_note(asset)`.
+- A malformed or missing hub entry lists nothing. Any other error raises, and the registry then
+  refuses retirement with `dependency_check_failed` (fail closed, ASSET_LIBRARY.md 25.2 rule 4).
+- `manage.py asset_usage rock` now prints `[listed] catalog: Shipped scene bay (bundled model)`
+  and the hub line. The W2-5 admin panel can render `details["note"]`.
+- Tests: `apps/catalog/tests/test_catalog_usage_provider.py`.
 
 ### 8.3 Welcome Harbor: why not a Place record yet
 
@@ -184,8 +198,9 @@ island (the Firepeak pattern) avoids that, but it has these Django side effects:
 
 So the hub's references use the release report: an interim home with no schema change. A nullable
 `LocationAsset.location` was rejected (a migration on a PROTECT FK that every consumer relies on).
-**Owner decision open:** keep the interim, or make the hub a Place and accept or suppress the
-side effects above (for example an inactive row, which needs a `discovery.py` change).
+**Owner decision (2026-11-24): keep the interim.** The hub does not become a Place for now.
+Revisiting it means accepting or suppressing the side effects above (for example an inactive row,
+which needs a `discovery.py` change).
 
 ### 8.4 Collision safety
 
@@ -196,10 +211,11 @@ side effects above (for example an inactive row, which needs a `discovery.py` ch
   104 shipped-scene ids have no built-in footprint (kit pieces such as `archway`, `bookshelf`,
   `shipwreck`, `wall-stone`), so a staff profile on one of them is the only derived collider. The
   scene's authored colliders and building walls are separate and unaffected.
-- **Proposed fix, owner approval pending (LAI 07, `assets/resolver.py`):** a retired asset with a
-  `bundled_path` keeps its `collision` (status stays `retired`, no URL). The client half is
-  already pinned (section 8.1). Until it is approved, the staff note says the profile stops
-  applying.
+- **Fix approved by the owner (2026-11-24); LAI 07 writes it (`assets/resolver.py`):** a retired
+  asset with a `bundled_path` keeps its `collision` (status stays `retired`, no URL). The client
+  half is already pinned (section 8.1). Until the resolver change is on `main`, the staff note
+  still describes current behaviour (the profile stops applying). The note changes together with
+  the resolver, so it never claims protection the server does not give.
 - **Deployed profiles: nothing to audit yet.** LAI 05 verified on 2026-11-23, read-only, that no
   DEV stack or deploy run exists. When an environment exists, LAI 05 runs
   `collision_clearance_audit` and the profiled-and-shipped query read-only and reports ids only.
@@ -208,9 +224,9 @@ side effects above (for example an inactive row, which needs a `discovery.py` ch
 
 | Step | Disposition |
 |---|---|
-| S1 | Helper and admin uses built; provider registration waits for #65 |
-| S2 | Client half built; resolver half is LAI 07's, together with the pending resolver rule |
-| S3 | Hub references kept through import (interim, release report); first-class Place is an owner decision (8.3) |
+| S1 | Built: helper, admin uses and the registered `catalog` provider (8.2) |
+| S2 | Client half built; resolver half (owner-approved 2026-11-24) is LAI 07's |
+| S3 | Hub references kept through import in the release report; staying there is the owner's decision (8.3) |
 | S4 | Built (collision profile page) |
 | S5 | Already enforced by the schema; pinned by a test |
 | S6 | Not required (owner) |
