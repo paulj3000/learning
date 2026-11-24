@@ -469,6 +469,61 @@ section 6. Owner QA checklist: `docs/qa/TREASURE_RUSH_ENGINE_MIGRATION_QA.md`.
 - **Not done:** browser and device QA (models fitted to engine platform boxes, platform sounds,
   riddle bridge in a real visit, the hint and Jump layout on a phone).
 
+## North Pole: The Missing Christmas Star (SEA-04, NP-001 to NP-060, GE-074); on `main`, owner QA pending, not owner-accepted, not deployed
+
+**Curriculum re-tag (2026-11-23, LAI 03, on FPV-D10 `f6d1a373`).** This branch merges LAI 06's
+contract commit (PR #73, not merged to `main`) and re-tags North Pole:
+- `north_pole_puzzles.SKILLS` holds each band's objective and the per-variant overrides from
+  `docs/north-pole/CURRICULUM_AUDIT.md` (26 catalog objectives; the 9 invalid ids are gone).
+  `_quiz` applies it and refuses an override for a missing variant. The engine definition lists
+  the same 26; the puzzle snapshot is regenerated; `NORTH_POLE_CURRICULUM.md` shows the new codes.
+- `np-obs-final` Explorer v2 to v5 are rewritten as two-step take-away within ten (v1 kept), so
+  the whole band is `subtraction-within-ten`. The mixed-operation helpers are removed.
+- Tests: every quiz band has a row, every code is an exported objective, overrides land on the
+  right variants, the final challenge stays within ten, and `puzzle_skill_report` is empty for
+  the Area after seed and publish.
+- Databases seeded earlier keep the old ids until staff publish a revision (ADR-047).
+
+**Curriculum, ADR and acceptance check (2026-11-23, LAI 03, `main` `1b0a50a3` merged in).**
+- ADR-080 matches the code:
+  - one Realm, Place and Area, and nine quests with world-change prerequisites;
+  - the full-playthrough test accepts only `np-q01`, and accepting later credits everything;
+  - a closure check reaches all 27 puzzles and all 5 chests;
+  - replay grants nothing.
+  The amendment fixes the stale ADR-070 reference and the set-completion note.
+- ADR-081 matches the code. Staff windows are set in Admin. Discovery hides the Place outside its
+  window, and launch and redeem refuse it on the server. Saves are kept. Two new tests in
+  `apps/seasons`: refused launch with saves intact, and the UTC date boundary (owner decision:
+  UTC or local date).
+- Accepted (architecture) for ADR-080 and ADR-081 by the owner's merge of PR #66. Gameplay
+  acceptance (SEA-04) stays separate.
+- Curriculum: `docs/north-pole/CURRICULUM_AUDIT.md`, agreed with LAI 06. 9 invalid skill ids,
+  several valid-but-wrong codes and 10 new objectives. `np-obs-final` Explorer v2 to v5 need
+  rewriting. Both are done (block above).
+- Regression: `apps/seasons` 37 passed (PostgreSQL 18.7). The North Pole layout, seed and puzzle
+  tests are in the Firepeak run (419 passed), and the React and engine runs are the same as
+  Firepeak's (628 and 36 passed).
+
+**Release-readiness check (2026-11-23, LAI 03, `main` `aa8adb33`).** North Pole is on `main`
+(GE-090 step 22, PR #44). Unit level only:
+- Content: 9 quests `np-q01-welcome` to `np-q09-christmas-eve` in the export; layout version 5.
+- Engine: `npm run engine:validate` on `north_pole_scene.json` with the standard capability
+  registry, 0 issues. The engine bridge carries 11 checkpoints (9 zones and 2 lake banks), the
+  open-water hazard, the village snow surface (footsteps only, grip unchanged), the lake ice bank
+  (friction 0.3, 2 m clear of the water) and the engine snow weather (follows the child).
+- Django (PostgreSQL 18.7, gated): 452 passed, 0 failed (North Pole cues, NPC seed, assets,
+  layout, puzzles, seed, engine bridge, puzzle kinds, scoring realms and collectors, seasons).
+- React (gated): 21 files, 329 passed, 0 failed (North Pole region, engine bridge, definition,
+  weather parity, content export, seasonal chips, islands API, region audio, area puzzles,
+  game-engine bridge, realms).
+- `npm run typecheck`, `content:check` and `golden:check`: pass on the same tree (run in the
+  Firepeak worktree at `aa8adb33`).
+- Defects: Area puzzle solves record no `SkillEvidence` (shared, with Firepeak) and 9 puzzle
+  skill ids are not learning objectives (corrected from 5 on the same day, `CURRICULUM_AUDIT.md`); every collectible plays the star-fragment cue.
+  Details in `docs/north-pole/NORTH_POLE_OWNER_QA.md` section 4.
+- Owner QA checklist refreshed for `main` with ids (R, W, S, P, T, E).
+- Not run (policy): Playwright, browser, device, full suites, lint, format, build.
+
 ## GE-100 to GE-110: universal scoring and progression engine (2026-11-19, `core/ge-scoring`); development complete, integration into `core/gameengine` pending, economy OFF and NOT owner-approved, NOT merged
 
 **Conflict raised, not resolved.** ADR-011 part A and the scoring standard (ADR-072, mandatory)
