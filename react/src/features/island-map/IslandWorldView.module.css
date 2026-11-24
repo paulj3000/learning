@@ -124,7 +124,12 @@
   display: none;
 }
 
-.wrapper:fullscreen > :not([data-world-stage]) {
+/*
+  Zero specificity (`:where`): a fixed game layer that is also a child here (Pip's panel,
+  RegionPlayPanels.module.css) keeps its own height cap. At 0,3,0 this 45vh replaced it and the
+  panel ran off the top of a phone screen, over "Go back to the harbor" (GE-090-D8).
+*/
+:where(.wrapper:fullscreen > :not([data-world-stage])) {
   flex: 0 1 auto;
   min-height: 0;
   max-height: 45vh;
