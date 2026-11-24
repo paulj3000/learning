@@ -23,7 +23,9 @@ the right answer works.
 
 ## Puzzles
 
-Presentation / subject in brackets. Skill is the band's `skill` slug.
+Presentation / subject in brackets. Each cell starts with the band's `skill`, a catalog learning
+objective (re-tagged for FPV-D10, 2026-11-23). Variants that practise another objective carry
+their own `skill`; `CURRICULUM_AUDIT.md` lists each one with its reason.
 
 | Puzzle | Sprout | Pathfinder | Explorer |
 |---|---|---|---|
@@ -31,27 +33,27 @@ Presentation / subject in brackets. Skill is the band's `skill` slug.
 | `np-workshop-count` [CARDS, MATH] | counting-sets: "Tinker lined up 4 toy drums. How many?" | addition-within-ten: "4 trains and 3 robots, how many in all?" | multiplication-facts: "4 boxes with 3 toys each" |
 | `np-workshop-sort` [SHAPES, LOGIC] | classification: round, square, colour, big/small | classification: odd one out | classification: material, two rules (red AND square) |
 | `np-workshop-pattern` [CARDS, LOGIC] | patterns: AB with colours | patterns: AB, ABC, AAB, growing | patterns: AAB, ABB, ABCD, growth |
-| `np-workshop-assemble` ORDER [SWITCHES, LOGIC] | sequencing: 3 steps told in the prompt | sequencing: 4 steps by reasoning | sequencing: read a 4 to 5 step instruction |
+| `np-workshop-assemble` ORDER [SWITCHES, LOGIC] | following-instructions: 3 steps told in the prompt | following-instructions: 4 steps by reasoning | following-instructions: read a 4 to 5 step instruction |
 | `np-forest-sequence` [PATHS, MATH] | counting-sets: next number to 5 | patterns: counting by 1s and 2s, back by 2 | patterns: by 5s, 10s, 3s, 4s, back by 10 |
 | `np-forest-signs` [PATHS, LITERACY] | phonemic-awareness: first sounds, rhyme | sight-words: GO LEFT, STOP, UP | reading-comprehension: 3-sentence signs |
-| `np-forest-stripes` ORDER [PATH, LOGIC] | sequencing: colour, size, dots (3) | sequencing: size, rainbow, count by 2 (4) | sequencing: cm lengths, by 10s, fractions, doubling (4 to 5) |
-| `np-lake-sums` [PLATFORMS, MATH] | counting-sets: numeral 1 to 5, 1+1 | addition-within-ten, subtraction: 4+3, 9-4 | addition-two-digit: 38+15, 64-28 |
-| `np-lake-order` ORDER [PATH, MATH] | number-order: 3 floes, 1 to 5 | number-order: 4 floes, to 20 | number-order: two and three digit |
-| `np-lake-shapes` [SHAPES, MATH] | shapes: circle, triangle, square | shapes-and-halves: sides, corners, half, quarter | fractions: half and quarter of a number |
+| `np-forest-stripes` ORDER [PATH, LOGIC] | following-instructions: colour, size, dots (3) | measurement: size, rainbow, count by 2 (4) | comparing-lengths: cm lengths, by 10s, fractions, doubling (4 to 5) |
+| `np-lake-sums` [PLATFORMS, MATH] | number-recognition: numeral 1 to 5, 1+1 | addition-within-ten: 4+3, 9-4 | addition-within-100: 38+15, 64-28 |
+| `np-lake-order` ORDER [PATH, MATH] | comparing-and-ordering-numbers: 3 floes, 1 to 5 | comparing-and-ordering-numbers: 4 floes, to 20 | comparing-and-ordering-numbers: two and three digit |
+| `np-lake-shapes` [SHAPES, MATH] | shapes-and-geometry: circle, triangle, square | shapes-and-geometry: sides, corners, half, quarter | halves-and-fractions: half and quarter of a number |
 | `np-stables-facts` [CARDS, LIFE_SCIENCE] | animal-science: antlers, 4 legs, hooves | animal-science: fur, antlers on both, herd | animal-science: wide hooves, antlers shed yearly, trapped air |
 | `np-stables-tracks` [PATHS, LOGIC] | observation: print size, direction | observation: where prints lead, running vs walking | measurement: steps times cm, speeding up |
 | `np-stables-supplies` [SAMPLES, LIFE_SCIENCE] | animal-science: grass, moss, water | animal-science: lichen, plant eaters | animal-science: lichen, division and groups, herbivores |
-| `np-ginger-shapes` [SHAPES, MATH] | shapes: circle, triangle, square, star, heart | shapes: sides, corners, hexagon | shapes: pentagon, sphere, cube |
+| `np-ginger-shapes` [SHAPES, MATH] | shapes-and-geometry: circle, triangle, square, star, heart | shapes-and-geometry: sides, corners, hexagon | shapes-and-geometry: pentagon, sphere, cube |
 | `np-ginger-symmetry` [SHAPES, MATH] | symmetry: copy the left side | symmetry: mirror twin, fold | symmetry: lines of symmetry (square 4, rectangle 2, heart 1) |
-| `np-ginger-recipe` [CARDS, LITERACY] | following-directions: tools | following-directions: 3-line recipe | reading-comprehension: card with quantities |
+| `np-ginger-recipe` [CARDS, LITERACY] | vocabulary: tools | reading-comprehension: 3-line recipe | reading-comprehension: card with quantities |
 | `np-ginger-measure` [SAMPLES, MATH] | comparing-lengths: longer, shorter | comparing-lengths: units of paper clips | measurement: cm and m, how much taller |
 | `np-ginger-build` PLACE_PLATFORMS | beam sizes with outlines | same, with outlines | same, beams labelled in cm, no outlines |
 | `np-mountain-weather` [CARDS, EARTH_SCIENCE] | observation: cold, melt, snow | cause-and-effect: melt, freeze, snow from clouds | cause-and-effect: 0 degrees C, solid/liquid/gas, six-armed snowflakes |
-| `np-obs-stars` [CARDS, EARTH_SCIENCE] | observation: stars at night | cause-and-effect: the Sun is a star | earth-and-space: stars hidden by sunlight, Polaris stays near the same place |
-| `np-obs-constellation` [SHAPES, EARTH_SCIENCE] | shapes: join dots | observation: Big Dipper, 7 stars | earth-and-space: pointer stars to Polaris, Ursa Major |
-| `np-obs-sequence` ORDER [STORY, EARTH_SCIENCE] | sequencing: day to night (3) | cause-and-effect: sunset to many stars (4) | cause-and-effect: evening, night and dawn (4 to 5) |
+| `np-obs-stars` [CARDS, EARTH_SCIENCE] | observation: stars at night | earth-and-space: the Sun is a star | earth-and-space: stars hidden by sunlight, Polaris stays near the same place |
+| `np-obs-constellation` [SHAPES, EARTH_SCIENCE] | shapes-and-geometry: join dots | earth-and-space: Big Dipper, 7 stars | earth-and-space: pointer stars to Polaris, Ursa Major |
+| `np-obs-sequence` ORDER [STORY, EARTH_SCIENCE] | sequencing: day to night (3) | earth-and-space: sunset to many stars (4) | earth-and-space: evening, night and dawn (4 to 5) |
 | `np-obs-fragments` ORDER [CRYSTALS, LOGIC] | sequencing: workshop, forest, lake | sequencing: six fragments in journey order | sequencing: forward and reversed journey |
-| `np-obs-final` [CARDS, MATH] | counting-sets: count to 5 | subtraction-within-ten: "7 found, 3 set, how many more?" | multiplication-facts: two-step word problems |
+| `np-obs-final` [CARDS, MATH] | counting-sets: count to 5 | subtraction-within-ten: "7 found, 3 set, how many more?" | subtraction-within-ten: two-step take-away word problems within ten |
 | `np-stables-return`, `np-eve-sleigh-bell` | no questions | no questions | no questions |
 
 ## Entity binding decisions

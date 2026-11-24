@@ -273,3 +273,63 @@ def test_seed_command_is_idempotent_and_skips_without_realm(treasure):
     assert event.theme == Theme.CHRISTMAS and event.realms.get() == realm
     assert event.audio_cue_ids == ["music.north_pole.village"]
     assert SeasonalEvent.objects.count() == 1
+
+
+# --- server-side gating and saves (ADR-081 acceptance, LAI 03 review 2026-11-23) ------------------
+
+
+def _window(event, day):
+    event.window_start_month = event.window_end_month = day.month
+    event.window_start_day = event.window_end_day = day.day
+    event.save()
+
+
+def test_launch_outside_the_window_is_refused_and_saves_survive(treasure, api, bay):
+    """Hiding is enforced by the server's launch check, not only by discovery. It never removes a
+    world change, an inventory item or a seasonal completion; back in the window it all returns."""
+    from apps.inventory.models import InventoryItem
+
+    child, client = treasure.families.a1, api(treasure.families.a)
+    url = f"/api/v1/children/{child.pk}/game-launches/"
+    today = timezone.localdate()
+    event = make(completion_change_key=KEY, availability=Availability.WINDOW_ONLY)
+    _window(event, today)
+    event.places.add(bay)
+
+    assert (
+        client.post(url, {"regionId": "treasure-rush-cove"}, "application/json").status_code == 201
+    )
+    change(child)
+    saved = (
+        set(WorldChange.objects.filter(child=child).values_list("change_key", flat=True)),
+        set(InventoryItem.objects.filter(child=child).values_list("pk", flat=True)),
+        SeasonalCompletion.objects.for_child(child).count(),
+    )
+    assert saved[2] == 1
+
+    _window(event, today + dt.timedelta(days=40))
+    refused = client.post(url, {"regionId": "treasure-rush-cove"}, "application/json")
+    assert refused.status_code == 404
+    assert (
+        set(WorldChange.objects.filter(child=child).values_list("change_key", flat=True)),
+        set(InventoryItem.objects.filter(child=child).values_list("pk", flat=True)),
+        SeasonalCompletion.objects.for_child(child).count(),
+    ) == saved
+
+    _window(event, today)
+    assert (
+        client.post(url, {"regionId": "treasure-rush-cove"}, "application/json").status_code == 201
+    )
+    assert SeasonalCompletion.objects.for_child(child).count() == 1
+
+
+def test_the_window_opens_on_the_server_date_in_the_configured_time_zone(bay, monkeypatch):
+    """The default date is `timezone.localdate()` (settings.TIME_ZONE, "UTC"), not the device's.
+    23:30 UTC on Nov 30 is still Nov 30 in UTC but already Dec 1 in Auckland."""
+    make(availability=Availability.WINDOW_ONLY).places.add(bay)
+    instant = dt.datetime(2026, 11, 30, 23, 30, tzinfo=dt.UTC)
+    monkeypatch.setattr(timezone, "now", lambda: instant)
+    with timezone.override("UTC"):
+        assert not is_place_visible(bay)
+    with timezone.override("Pacific/Auckland"):
+        assert is_place_visible(bay)
