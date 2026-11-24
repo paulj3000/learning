@@ -23,7 +23,10 @@ interface IdRow {
   id: string;
 }
 interface Snapshot {
-  puzzles: { puzzleId: string; ageBands: Record<string, { skill?: string } | null> }[];
+  puzzles: {
+    puzzleId: string;
+    ageBands: Record<string, { skill?: string; variants?: { skill?: string }[] } | null>;
+  }[];
   scene: {
     colliders: IdRow[];
     platforming: { platforms: IdRow[]; zones?: { rect: IdRow }[] };
@@ -60,7 +63,8 @@ describe('The Heart of Firepeak engine definition (GE-073)', () => {
     expect([...FIREPEAK_HEART_PUZZLE_IDS]).toEqual(data.puzzles.map((p) => p.puzzleId));
     const skills = new Set(
       data.puzzles
-        .flatMap((p) => Object.values(p.ageBands).map((band) => band?.skill))
+        .flatMap((p) => Object.values(p.ageBands))
+        .flatMap((band) => [band?.skill, ...(band?.variants ?? []).map((v) => v.skill)])
         .filter(Boolean),
     );
     expect(new Set(FIREPEAK_HEART_ADVENTURE.learningObjectiveIds)).toEqual(skills);

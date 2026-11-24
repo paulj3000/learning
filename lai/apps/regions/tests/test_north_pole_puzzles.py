@@ -317,3 +317,58 @@ def test_the_json_snapshot_equals_the_module():
     assert json.loads(np_puzzles.SNAPSHOT_PATH.read_text()) == np_puzzles.snapshot()
     expected = json.dumps(np_puzzles.snapshot(), indent=1, sort_keys=True) + "\n"
     assert np_puzzles.SNAPSHOT_PATH.read_text() == expected
+
+
+# --- curriculum skills (FPV-D10, docs/north-pole/CURRICULUM_AUDIT.md) ---------------------------
+
+
+def _named_skills():
+    for pid in QUIZ:
+        for band, params in BY_ID[pid]["ageBands"].items():
+            yield pid, band, None, params["skill"]
+            for v in params["variants"]:
+                if "skill" in v:
+                    yield pid, band, v["id"], v["skill"]
+
+
+def test_every_quiz_band_has_a_skills_row():
+    assert set(np_puzzles.SKILLS) == set(QUIZ)
+    assert all(set(bands) == set(BANDS) for bands in np_puzzles.SKILLS.values())
+
+
+def test_every_skill_is_a_learning_objective_in_the_export():
+    from apps.catalog.importer import DEFAULT_EXPORT_DIR
+
+    exported = json.loads((DEFAULT_EXPORT_DIR / "adventures.json").read_text())
+    codes = {o["code"] for o in exported["learningObjectives"]}
+    assert sorted({row for row in _named_skills() if row[3] not in codes}) == []
+
+
+def test_variant_overrides_are_applied_and_others_use_the_band_default():
+    sums = BY_ID["np-lake-sums"]["ageBands"]["SPROUT"]
+    assert sums["skill"] == "number-recognition"
+    assert {v["id"]: v.get("skill") for v in sums["variants"]} == {
+        "v1": None,
+        "v2": "addition-within-ten",
+        "v3": None,
+        "v4": "addition-within-ten",
+        "v5": None,
+    }
+
+
+def test_an_override_for_a_missing_variant_is_refused(monkeypatch):
+    monkeypatch.setitem(
+        np_puzzles.SKILLS, "np-obs-final", {b: ("counting-sets", {"v9": "x"}) for b in BANDS}
+    )
+    with pytest.raises(ValueError, match="no variants"):
+        np_puzzles._obs_final("EXPLORER")
+
+
+def test_the_final_explorer_challenge_is_two_step_subtraction_within_ten():
+    explorer = BY_ID["np-obs-final"]["ageBands"]["EXPLORER"]
+    assert explorer["skill"] == "subtraction-within-ten"
+    for variant in explorer["variants"]:
+        op, args = np_puzzles.ARITHMETIC[("np-obs-final", "EXPLORER", variant["id"])]
+        assert op == "sub3" and "skill" not in variant, variant["id"]
+        assert max(args) <= 10 and args[0] - args[1] - args[2] >= 0, variant["id"]
+        assert all(0 <= int(o["label"]) <= 10 for o in variant["options"]), variant["id"]

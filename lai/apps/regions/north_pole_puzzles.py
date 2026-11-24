@@ -35,10 +35,6 @@ OPS = {
     "mul": lambda a, b: a * b,
     "div": lambda a, b: a // b if a % b == 0 else None,
     "sub3": lambda a, b, c: a - b - c,
-    "mulsub": lambda a, b, c: a * b - c,
-    "addmul": lambda a, b, c: a + b * c,
-    "divsub": lambda a, b, c: a // b - c if a % b == 0 else None,
-    "submul": lambda a, b, c: a - b * c,
 }
 # (puzzleId, band, variantId) -> (op, args): lets a test recompute each generated answer.
 ARITHMETIC: dict[tuple[str, str, str], tuple[str, tuple[int, ...]]] = {}
@@ -157,11 +153,181 @@ class _Vs:
         )
 
 
-def _quiz(vs: _Vs, presentation, subject, skill, hints, **maps) -> dict:
+#: Each band's learning objective, and the variants that practise a different one. Codes are
+#: catalog `LearningObjective` codes (`learningObjectives.ts`); `puzzle_skill_report --strict`
+#: checks them. One row per band of docs/north-pole/CURRICULUM_AUDIT.md, which gives the reasons.
+SKILLS: dict[str, dict[str, tuple[str, dict[str, str]]]] = {
+    "np-workshop-count": {
+        "SPROUT": ("counting-sets", {}),
+        "PATHFINDER": ("addition-within-ten", {}),
+        "EXPLORER": ("multiplication-facts", {}),
+    },
+    "np-workshop-sort": {
+        "SPROUT": ("classification", {"v4": "measurement"}),
+        "PATHFINDER": ("classification", {}),
+        "EXPLORER": ("classification", {}),
+    },
+    "np-workshop-pattern": {
+        "SPROUT": ("patterns", {}),
+        "PATHFINDER": ("patterns", {}),
+        "EXPLORER": ("patterns", {}),
+    },
+    "np-workshop-assemble": {
+        "SPROUT": ("following-instructions", {}),
+        "PATHFINDER": ("following-instructions", {}),
+        "EXPLORER": ("following-instructions", {}),
+    },
+    "np-forest-sequence": {
+        "SPROUT": ("counting-sets", {}),
+        "PATHFINDER": ("patterns", {}),
+        "EXPLORER": ("patterns", {}),
+    },
+    "np-forest-signs": {
+        "SPROUT": ("phonemic-awareness", {"v5": "observation"}),
+        "PATHFINDER": ("sight-words", {}),
+        "EXPLORER": ("reading-comprehension", {}),
+    },
+    "np-forest-stripes": {
+        "SPROUT": (
+            "following-instructions",
+            {"v2": "measurement", "v3": "comparing-and-ordering-numbers"},
+        ),
+        "PATHFINDER": (
+            "measurement",
+            {
+                "v2": "following-instructions",
+                "v3": "patterns",
+                "v5": "comparing-and-ordering-numbers",
+            },
+        ),
+        "EXPLORER": (
+            "comparing-lengths",
+            {
+                "v3": "comparing-and-ordering-numbers",
+                "v4": "halves-and-fractions",
+                "v5": "patterns",
+            },
+        ),
+    },
+    "np-lake-sums": {
+        "SPROUT": (
+            "number-recognition",
+            {"v2": "addition-within-ten", "v4": "addition-within-ten"},
+        ),
+        "PATHFINDER": (
+            "addition-within-ten",
+            {
+                "v2": "subtraction-within-ten",
+                "v4": "subtraction-within-ten",
+                "v6": "subtraction-within-ten",
+            },
+        ),
+        "EXPLORER": (
+            "addition-within-100",
+            {
+                "v3": "subtraction-within-100",
+                "v5": "subtraction-within-100",
+                "v6": "subtraction-within-100",
+            },
+        ),
+    },
+    "np-lake-order": {
+        "SPROUT": ("comparing-and-ordering-numbers", {}),
+        "PATHFINDER": ("comparing-and-ordering-numbers", {}),
+        "EXPLORER": ("comparing-and-ordering-numbers", {}),
+    },
+    "np-lake-shapes": {
+        "SPROUT": ("shapes-and-geometry", {}),
+        "PATHFINDER": (
+            "shapes-and-geometry",
+            {"v3": "halves-and-fractions", "v5": "halves-and-fractions"},
+        ),
+        "EXPLORER": ("halves-and-fractions", {}),
+    },
+    "np-stables-facts": {
+        "SPROUT": ("animal-science", {}),
+        "PATHFINDER": ("animal-science", {}),
+        "EXPLORER": ("animal-science", {}),
+    },
+    "np-stables-tracks": {
+        "SPROUT": ("observation", {}),
+        "PATHFINDER": ("observation", {}),
+        "EXPLORER": ("measurement", {"v3": "observation", "v4": "observation"}),
+    },
+    "np-stables-supplies": {
+        "SPROUT": ("animal-science", {}),
+        "PATHFINDER": ("animal-science", {"v4": "addition-within-ten"}),
+        "EXPLORER": ("animal-science", {"v2": "equal-sharing", "v3": "multiplication-facts"}),
+    },
+    "np-ginger-shapes": {
+        "SPROUT": ("shapes-and-geometry", {}),
+        "PATHFINDER": ("shapes-and-geometry", {}),
+        "EXPLORER": ("shapes-and-geometry", {}),
+    },
+    "np-ginger-symmetry": {
+        "SPROUT": ("symmetry", {}),
+        "PATHFINDER": ("symmetry", {}),
+        "EXPLORER": ("symmetry", {}),
+    },
+    "np-ginger-recipe": {
+        "SPROUT": ("vocabulary", {}),
+        "PATHFINDER": ("reading-comprehension", {}),
+        "EXPLORER": ("reading-comprehension", {"v4": "multiplication-facts"}),
+    },
+    "np-ginger-measure": {
+        "SPROUT": ("comparing-lengths", {}),
+        "PATHFINDER": ("comparing-lengths", {"v4": "measurement", "v5": "subtraction-within-ten"}),
+        "EXPLORER": ("measurement", {}),
+    },
+    "np-mountain-weather": {
+        "SPROUT": ("observation", {"v2": "cause-and-effect"}),
+        "PATHFINDER": ("cause-and-effect", {"v4": "classification"}),
+        "EXPLORER": ("cause-and-effect", {"v2": "observation", "v3": "classification"}),
+    },
+    "np-obs-stars": {
+        "SPROUT": ("observation", {}),
+        "PATHFINDER": ("earth-and-space", {}),
+        "EXPLORER": ("earth-and-space", {}),
+    },
+    "np-obs-constellation": {
+        "SPROUT": ("shapes-and-geometry", {"v3": "earth-and-space", "v4": "earth-and-space"}),
+        "PATHFINDER": (
+            "earth-and-space",
+            {"v1": "observation", "v2": "counting-sets", "v5": "counting-sets"},
+        ),
+        "EXPLORER": ("earth-and-space", {}),
+    },
+    "np-obs-sequence": {
+        "SPROUT": ("sequencing", {}),
+        "PATHFINDER": ("earth-and-space", {}),
+        "EXPLORER": ("earth-and-space", {}),
+    },
+    "np-obs-fragments": {
+        "SPROUT": ("sequencing", {}),
+        "PATHFINDER": ("sequencing", {}),
+        "EXPLORER": ("sequencing", {}),
+    },
+    "np-obs-final": {
+        "SPROUT": ("counting-sets", {}),
+        "PATHFINDER": ("subtraction-within-ten", {"v6": "addition-within-ten"}),
+        "EXPLORER": ("subtraction-within-ten", {}),
+    },
+}
+
+
+def _quiz(vs: _Vs, presentation, subject, hints, **maps) -> dict:
+    """A quiz band. Its `skill` and the variant overrides come from `SKILLS` (FPV-D10)."""
+    default, overrides = SKILLS[vs.pid][vs.band]
+    unknown = set(overrides) - {v["id"] for v in vs.variants}
+    if unknown:
+        raise ValueError(f"{vs.pid} {vs.band}: no variants {sorted(unknown)}")
+    for variant in vs.variants:
+        if variant["id"] in overrides:
+            variant["skill"] = overrides[variant["id"]]
     return {
         "presentation": presentation,
         "subject": subject,
-        "skill": skill,
+        "skill": default,
         **maps,
         "variants": vs.variants,
         "hints": hints,
@@ -258,11 +424,6 @@ def _workshop_count(band):
         vs,
         "CARDS",
         "MATHEMATICS",
-        {
-            "SPROUT": "counting-sets",
-            "PATHFINDER": "addition-within-ten",
-            "EXPLORER": "multiplication-facts",
-        }[band],
         hints,
     )
 
@@ -389,7 +550,7 @@ def _workshop_sort(band):
             "Say the rule out loud, then test each present.",
             "When there are two rules, look for the present that follows both.",
         ]
-    return _quiz(vs, "SHAPES", "LOGIC", "classification", hints)
+    return _quiz(vs, "SHAPES", "LOGIC", hints)
 
 
 # --- 4 np-workshop-pattern -------------------------------------------------------------------
@@ -507,7 +668,7 @@ def _workshop_pattern(band):
             "Find the shortest part that repeats.",
             "Cover the start, then check that the repeating part matches each time.",
         ]
-    return _quiz(vs, "CARDS", "LOGIC", "patterns", hints)
+    return _quiz(vs, "CARDS", "LOGIC", hints)
 
 
 # --- 5 np-workshop-assemble ------------------------------------------------------------------
@@ -642,7 +803,7 @@ def _workshop_assemble(band):
             "Look for the words first, then, next and last.",
             "Start with the step that has first. Then look for what comes right after it.",
         ]
-    return _quiz(vs, "SWITCHES", "LOGIC", "sequencing", hints)
+    return _quiz(vs, "SWITCHES", "LOGIC", hints)
 
 
 # --- 6 np-forest-sequence --------------------------------------------------------------------
@@ -782,9 +943,7 @@ def _forest_sequence(band):
             "then check it again between the next two.",
             "Add the gap to the last number, or take it away if the numbers count down.",
         ]
-    return _quiz(
-        vs, "PATHS", "MATHEMATICS", "patterns" if band != "SPROUT" else "counting-sets", hints
-    )
+    return _quiz(vs, "PATHS", "MATHEMATICS", hints)
 
 
 # --- 7 np-forest-signs -----------------------------------------------------------------------
@@ -903,12 +1062,7 @@ def _forest_signs(band):
             "Read the whole sign, then read the question.",
             "Look for the sentence in the sign that answers the question.",
         ]
-    skill = {
-        "SPROUT": "phonemic-awareness",
-        "PATHFINDER": "sight-words",
-        "EXPLORER": "reading-comprehension",
-    }[band]
-    return _quiz(vs, "PATHS", "LITERACY", skill, hints)
+    return _quiz(vs, "PATHS", "LITERACY", hints)
 
 
 # --- 8 np-forest-stripes ---------------------------------------------------------------------
@@ -1015,7 +1169,7 @@ def _forest_stripes(band):
             "Find the smallest number or the smallest piece first.",
             "Check each pair next to each other to see if they are in order.",
         ]
-    return _quiz(vs, "PATH", "LOGIC", "sequencing", hints)
+    return _quiz(vs, "PATH", "LOGIC", hints)
 
 
 # --- 9 np-lake-sums (floes a, b, c in every variant) -----------------------------------------
@@ -1174,16 +1328,10 @@ def _lake_sums(band):
             "Split the numbers into tens and ones.",
             "Do the tens first, then the ones, then put them back together.",
         ]
-    skill = {
-        "SPROUT": "counting-sets",
-        "PATHFINDER": "addition-within-ten",
-        "EXPLORER": "addition-two-digit",
-    }[band]
     return _quiz(
         vs,
         "PLATFORMS",
         "MATHEMATICS",
-        skill,
         hints,
         optionEntities=ENTITY_MAPS["np-lake-sums"][band]["optionEntities"],
     )
@@ -1283,7 +1431,7 @@ def _lake_order(band):
             "If the tens match, compare the ones.",
         ]
     maps = ENTITY_MAPS["np-lake-order"][band]
-    return _quiz(vs, "PATH", "MATHEMATICS", "number-order", hints, **maps)
+    return _quiz(vs, "PATH", "MATHEMATICS", hints, **maps)
 
 
 # --- 11 np-lake-shapes -----------------------------------------------------------------------
@@ -1397,8 +1545,7 @@ def _lake_shapes(band):
             "Share the number into equal groups.",
             "A half is 2 equal groups. A quarter is 4 equal groups.",
         ]
-    skill = {"SPROUT": "shapes", "PATHFINDER": "shapes-and-halves", "EXPLORER": "fractions"}[band]
-    return _quiz(vs, "SHAPES", "MATHEMATICS", skill, hints)
+    return _quiz(vs, "SHAPES", "MATHEMATICS", hints)
 
 
 # --- 12 np-stables-facts ---------------------------------------------------------------------
@@ -1511,7 +1658,7 @@ def _stables_facts(band):
             "Think about how an animal's body helps it live in snow.",
             "Which choice explains why the feature is useful?",
         ]
-    return _quiz(vs, "CARDS", "LIFE_SCIENCE", "animal-science", hints)
+    return _quiz(vs, "CARDS", "LIFE_SCIENCE", hints)
 
 
 # --- 13 np-stables-tracks --------------------------------------------------------------------
@@ -1624,8 +1771,7 @@ def _stables_tracks(band):
             "Use what you know about steps and measuring.",
             "For a total, multiply the steps by the step length.",
         ]
-    skill = {"SPROUT": "observation", "PATHFINDER": "observation", "EXPLORER": "measurement"}[band]
-    return _quiz(vs, "PATHS", "LOGIC", skill, hints)
+    return _quiz(vs, "PATHS", "LOGIC", hints)
 
 
 # --- 14 np-stables-supplies ------------------------------------------------------------------
@@ -1739,9 +1885,6 @@ def _stables_supplies(band):
         vs,
         "SAMPLES",
         "LIFE_SCIENCE",
-        {"SPROUT": "animal-science", "PATHFINDER": "animal-science", "EXPLORER": "animal-science"}[
-            band
-        ],
         hints,
     )
 
@@ -1868,7 +2011,7 @@ def _ginger_shapes(band):
             "Count the sides and look at their lengths.",
             "A 3D shape has faces, edges and corners.",
         ]
-    return _quiz(vs, "SHAPES", "MATHEMATICS", "shapes", hints)
+    return _quiz(vs, "SHAPES", "MATHEMATICS", hints)
 
 
 # --- 17 np-ginger-symmetry -------------------------------------------------------------------
@@ -1985,7 +2128,7 @@ def _ginger_symmetry(band):
             "Imagine folding the shape so both halves fit exactly.",
             "Try each fold: top to bottom, left to right, and across the corners.",
         ]
-    return _quiz(vs, "SHAPES", "MATHEMATICS", "symmetry", hints)
+    return _quiz(vs, "SHAPES", "MATHEMATICS", hints)
 
 
 # --- 18 np-ginger-recipe ---------------------------------------------------------------------
@@ -2096,11 +2239,6 @@ def _ginger_recipe(band):
         vs,
         "CARDS",
         "LITERACY",
-        {
-            "SPROUT": "following-directions",
-            "PATHFINDER": "following-directions",
-            "EXPLORER": "reading-comprehension",
-        }[band],
         hints,
     )
 
@@ -2221,11 +2359,6 @@ def _ginger_measure(band):
         vs,
         "SAMPLES",
         "MATHEMATICS",
-        {
-            "SPROUT": "comparing-lengths",
-            "PATHFINDER": "comparing-lengths",
-            "EXPLORER": "measurement",
-        }[band],
         hints,
     )
 
@@ -2332,9 +2465,6 @@ def _mountain_weather(band):
         vs,
         "CARDS",
         "EARTH_SCIENCE",
-        {"SPROUT": "observation", "PATHFINDER": "cause-and-effect", "EXPLORER": "cause-and-effect"}[
-            band
-        ],
         hints,
     )
 
@@ -2442,9 +2572,6 @@ def _obs_stars(band):
         vs,
         "CARDS",
         "EARTH_SCIENCE",
-        {"SPROUT": "observation", "PATHFINDER": "cause-and-effect", "EXPLORER": "earth-and-space"}[
-            band
-        ],
         hints,
     )
 
@@ -2566,7 +2693,6 @@ def _obs_constellation(band):
         vs,
         "SHAPES",
         "EARTH_SCIENCE",
-        {"SPROUT": "shapes", "PATHFINDER": "observation", "EXPLORER": "earth-and-space"}[band],
         hints,
     )
 
@@ -2701,7 +2827,6 @@ def _obs_sequence(band):
         vs,
         "STORY",
         "EARTH_SCIENCE",
-        "cause-and-effect" if band != "SPROUT" else "sequencing",
         hints,
     )
 
@@ -2791,7 +2916,7 @@ def _obs_fragments(band):
             "Retell our trip from the start in your head.",
             "The mountain was the last place we went before the observatory.",
         ]
-    return _quiz(vs, "CRYSTALS", "LOGIC", "sequencing", hints, itemEntities=maps)
+    return _quiz(vs, "CRYSTALS", "LOGIC", hints, itemEntities=maps)
 
 
 # --- 26 np-obs-final -------------------------------------------------------------------------
@@ -2854,52 +2979,48 @@ def _obs_final(band):
             extra=(3, 4),
             deltas=(1, -1),
         )
+        # FPV-D10: every Explorer variant is two-step subtraction within ten (the band's skill).
         vs.a(
-            "mulsub",
-            (4, 6, 5),
-            "Each of {0} sacks holds {1} presents. Santa takes {2} presents out. How many presents "
-            "are left?",
-            "{0} sacks with {1} presents each are {0} x {1} = 24. Then 24 - {2} = {r}.",
-            extra=(24, 29, 15),
+            "sub3",
+            (9, 3, 2),
+            "Polaris has {0} glowing crystals. Jingle takes {1} to the workshop and Tinker takes "
+            "{2} to the stables. How many crystals are still here?",
+            "9 minus 3 is 6, then 6 minus 2 is {r}.",
+            extra=(6, 5),
+            deltas=(-1, 1),
+        )
+        vs.a(
+            "sub3",
+            (10, 2, 5),
+            "The big star has {0} points to light. Jingle lights {1} and Tinker lights {2}. How "
+            "many points are still dark?",
+            "10 minus 2 is 8, then 8 minus 5 is {r}.",
+            extra=(8, 5),
             deltas=(1, -1),
         )
         vs.a(
-            "addmul",
-            (3, 2, 2),
-            "The star needs 7 fragments. We have {0}. Each of {2} elves brings {1} more. How many "
-            "fragments do we have now?",
-            "{2} elves with {1} each bring {2} x {1} = 4. Then {0} + 4 = {r}.",
-            extra=(5, 10, 9),
-            deltas=(1, -1),
+            "sub3",
+            (8, 3, 4),
+            "There are {0} lanterns on the path. Santa carries {1} to the sleigh, then {2} more. "
+            "How many lanterns are left on the path?",
+            "8 minus 3 is 5, then 5 minus 4 is {r}.",
+            extra=(5, 2),
+            deltas=(-1, 1),
         )
         vs.a(
-            "divsub",
-            (20, 4, 3),
-            "{0} lights are shared equally among {1} trees. Then {2} lights fall off one tree. How "
-            "many lights does that tree have now?",
-            "{0} divided by {1} is 5. Then 5 - {2} = {r}.",
-            extra=(5, 8, 17),
-            deltas=(1, -1),
-        )
-        vs.a(
-            "submul",
-            (30, 3, 9),
-            "The sleigh has {0} presents. It visits {1} stops and leaves {2} presents at each. How "
-            "many presents are left?",
-            "{1} stops with {2} presents each use {1} x {2} = 27. Then {0} - 27 = {r}.",
-            extra=(27, 21, 6),
-            deltas=(1, -1),
+            "sub3",
+            (10, 4, 4),
+            "The sleigh has {0} presents. It leaves {1} at the first house and {2} at the second "
+            "house. How many presents are left?",
+            "10 minus 4 is 6, then 6 minus 4 is {r}.",
+            extra=(6, 3),
+            deltas=(-1, 1),
         )
         hints = [
-            "Break the problem into two small steps and do the first one.",
-            "Write the answer from step one, then use it in step two.",
+            "Take away the first number, then take away the second.",
+            "Write the answer from step one, then take away again from it.",
         ]
-    skill = {
-        "SPROUT": "counting-sets",
-        "PATHFINDER": "subtraction-within-ten",
-        "EXPLORER": "multiplication-facts",
-    }[band]
-    return _quiz(vs, "CARDS", "MATHEMATICS", skill, hints)
+    return _quiz(vs, "CARDS", "MATHEMATICS", hints)
 
 
 # --- observe, platforms, collect, return -----------------------------------------------------

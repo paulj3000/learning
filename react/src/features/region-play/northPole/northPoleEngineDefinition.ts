@@ -111,31 +111,37 @@ export const NORTH_POLE_REALM: Readonly<RealmDefinition> = defineRealm({
   adventureIds: [NORTH_POLE_ADVENTURE_ID],
 });
 
-/** The 23 skills the 27 puzzles teach across the three bands (`NORTH_POLE_CURRICULUM.md`). */
+/**
+ * The 26 catalog objectives the 27 puzzles teach across the three bands: every band `skill` and
+ * variant `skill` (FPV-D10, `docs/north-pole/CURRICULUM_AUDIT.md`).
+ */
 const SKILLS = [
-  'addition-two-digit',
+  'addition-within-100',
   'addition-within-ten',
   'animal-science',
   'cause-and-effect',
   'classification',
+  'comparing-and-ordering-numbers',
   'comparing-lengths',
   'counting-sets',
   'earth-and-space',
-  'following-directions',
-  'fractions',
+  'equal-sharing',
+  'following-instructions',
+  'halves-and-fractions',
   'measurement',
   'multiplication-facts',
-  'number-order',
+  'number-recognition',
   'observation',
   'patterns',
   'phonemic-awareness',
   'reading-comprehension',
   'sequencing',
-  'shapes',
-  'shapes-and-halves',
+  'shapes-and-geometry',
   'sight-words',
+  'subtraction-within-100',
   'subtraction-within-ten',
   'symmetry',
+  'vocabulary',
 ];
 
 /** The 27 puzzles, from the content export (each one's hosting NPC). */
