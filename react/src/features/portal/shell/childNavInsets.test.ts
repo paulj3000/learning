@@ -155,4 +155,18 @@ describe('child nav insets', () => {
       expect(selector, 'full-screen column rule').toMatch(/^:where\(.*\)$/);
     }
   });
+  it('give the full-screen stage room for a panel between the HUD top row and the exits', () => {
+    // header inset 3.5rem + 1rem + the panel's 10rem floor + 1rem + the exits 7.5rem = 23rem.
+    // At 375x667 a 311px stage left the panel over "Go back to the harbor" (GE-090-D8).
+    const stage = rules(read('features/island-map/three/WorldStage.module.css')).find(
+      (rule) => rule.selector === ':fullscreen > .stage',
+    );
+    expect(declaration(stage!.body, 'min-height')).toBe('max(40vh, min(23rem, 70vh))');
+    const link = rules(read('features/island-map/three/WorldHud.module.css')).find(
+      (rule) => rule.selector === '.exitLink',
+    );
+    // One 2.75rem row, the height the full-screen header inset reserves.
+    expect(declaration(link!.body, 'white-space')).toBe('nowrap');
+    expect(declaration(link!.body, 'flex-shrink')).toBe('0');
+  });
 });
