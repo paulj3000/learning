@@ -145,7 +145,12 @@ def _legacy_guards_first(asset: ContentAsset, version: AssetVersion | None) -> N
 
     Transitional (W2-4): an app whose guard has not moved to a usage provider keeps its exact
     refusal, as it had before the registry, even when a provider would also block. Once its
-    owner switches it to a provider, its refusal is combined with the others instead."""
+    owner switches it to a provider, its refusal is combined with the others instead.
+
+    `services` also runs each registered guard itself, so while a legacy guard is registered it
+    runs twice when nothing refuses: a few extra read queries on a staff action, never a
+    different outcome. This is intentional and transitional; W2-4b registers the NPC and avatar
+    providers instead and removes both legacy guards."""
     from . import services
 
     for guard in list(services.RETIREMENT_GUARDS):
