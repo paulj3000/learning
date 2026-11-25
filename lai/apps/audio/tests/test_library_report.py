@@ -9,6 +9,7 @@ from django.core.management.base import CommandError
 from django.test import Client
 
 from apps.assets import services as asset_services
+from apps.assets.services import AssetActionRefused
 from apps.audio import reporting, services
 from apps.audio.management.commands.ensure_sound_roles import EDITORS
 from apps.audio.models import SoundAssignment, SoundCue, SoundRelease
@@ -115,6 +116,14 @@ def test_a_retired_asset_is_reported_and_dropped_from_the_manifest(small_game, t
     chest = make_cue(CHEST)
     make_cue(OCEAN)
     services.publish(None)
+    with pytest.raises(AssetActionRefused) as refused:  # the LIVE release still pins it
+        asset_services.retire_asset(chest.asset)
+    assert refused.value.code == "sound_release_dependency"
+    chest.enabled = False
+    chest.save()
+    services.publish(None)  # a new LIVE release without the chest; the old one is SUPERSEDED
+    chest.enabled = True
+    chest.save()
     asset_services.retire_asset(chest.asset)
     result = check(reporting.game_coverage("treasure-rush"), CHEST.cue_id)
     assert result.asset_status == "retired" and result.manifest_status == "not served"
