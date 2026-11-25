@@ -49,6 +49,19 @@ def test_the_npc_and_avatar_guards_are_now_usage_providers():
     assert npc_dependencies.retirement_guard not in services.RETIREMENT_GUARDS
     assert avatar_dependencies.retirement_guard not in services.RETIREMENT_GUARDS
     assert {"npcs", "avatars"} <= set(dependencies.registered_sources())
+    assert services.RETIREMENT_GUARDS == [dependencies.retirement_guard]
+
+
+def test_running_ready_again_registers_nothing_twice():
+    """`ready()` can run more than once (tests); each source and the guard stay registered once."""
+    from django.apps import apps as django_apps
+
+    sources = dependencies.registered_sources()
+    for label in ("assets", "npcs", "avatars", "regions", "catalog"):
+        django_apps.get_app_config(label).ready()
+    assert dependencies.registered_sources() == sources
+    assert len(sources) == len(set(sources))
+    assert services.RETIREMENT_GUARDS == [dependencies.retirement_guard]
 
 
 def test_with_no_providers_retirement_is_unchanged(registry):
