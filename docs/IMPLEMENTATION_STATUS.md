@@ -37,6 +37,32 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-01 Treasure Rush final release preparation (2026-11-25, `lai-01/treasure-rush-release-prep`, `main` `05b54d8a`)
+
+Status: release candidate on `main`, **not owner-accepted** (TR-21 stays open until the owner's
+release playthrough).
+
+- `main` `05b54d8a` contains the verified candidate (`c21c8b00` plus #90) and PRs #84 to #89;
+  nothing Treasure Rush depends on is outstanding. Docs only in this change; no code changed.
+- Owner decisions (2026-11-25): checklist item A1 says "see"; the feather keeps its compliant
+  stand-in until a licensed replacement is published; legacy quest `treasure-rush-cove`
+  retirement is prepared (`docs/TREASURE_RUSH_LEGACY_QUEST_RETIREMENT.md`) and not executed
+  until the owner authorizes it after the playthrough; history is never deleted.
+- New `docs/audio/TREASURE_RUSH_AUDIO_INVENTORY.md`: 30 cues (16 required, 14 optional), all
+  missing from the asset library. Missing audio is silent and never blocks play; the audio
+  checklist section D is Blocked until the files are licensed and published (tracked
+  separately from gameplay defects on Trello).
+- `docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md`: copy-and-paste setup (steps 1 to 10) and checks
+  split into functional (A), educational (B), visual (C), audio (D) and persistence (E), with
+  the tests blocked by missing assets or services listed.
+- Tests on `05b54d8a` (PostgreSQL 18): Django game_sessions, quests, scoring, npcs, regions,
+  progression, assets, inventory, audio, education 3,566 passed, 2 skipped; engine 705/705;
+  targeted React 2,728/2,730 (two non-Treasure-Rush timeouts on this host, 27/27 on rerun with a
+  60 s timeout); typecheck, ruff, oxlint (0 errors), docs check and Prettier clean. No browser or
+  Playwright runs.
+- Remaining limits: owner playthrough; required audio; Pip's Polly voice (AWS, off locally);
+  stand-in art; points and XP off pending the economy approval.
+
 ## LAI-07 Asset Library W5: documentation close-out (2026-11-25, `docs/asset-library-w5-reconcile`, `main` `8f3a7b3c`)
 
 - `docs/ASSET_LIBRARY.md` 25.5 to 25.8: the final test map and owner acceptance checks, the W2

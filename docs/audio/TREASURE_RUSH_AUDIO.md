@@ -173,6 +173,10 @@ python manage.py ensure_sound_roles
 
 ## 7. Audio content checklist
 
+The full inventory, with purpose, trigger, required or optional, recommended format, current
+availability and licensing, is `docs/audio/TREASURE_RUSH_AUDIO_INVENTORY.md` (2026-11-25: every
+cue is still missing).
+
 Legend: **Have** means a cue-ready asset exists in the Asset Library today (not checked here:
 this branch has no database content, so every row is **missing** until you upload); **Publish**
 means the cue must be created and a release published.

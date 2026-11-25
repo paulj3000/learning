@@ -38,6 +38,7 @@ cd lai
 ../.venv/bin/python manage.py load_content          # exported islands, NPCs, quests, items...
 ../.venv/bin/python manage.py seed_treasure_rush    # Treasure Cove, as DRAFT
 ../.venv/bin/python manage.py publish_treasure_rush # validates, then publishes it
+../.venv/bin/python manage.py seed_npc_pip --publish  # the managed Pip (NPC Manager release)
 ```
 
 `publish_treasure_rush` refuses unless `DEBUG` is on and the database is on loopback (both true
@@ -47,6 +48,9 @@ fix. It publishes only the seed-owned rows (the region and its challenge specs).
 its world, and Pip's quest are catalog content from the export: they must already be `active`,
 and the command refuses rather than switching them on. Run it again any time; it only reports
 what changed.
+
+For the owner's release playthrough, the full copy-and-paste setup is in
+`docs/TREASURE_RUSH_PLAYTEST_CHECKLIST.md` ("Setup").
 
 ## 3. Cognito settings for Django, and an optional admin
 
