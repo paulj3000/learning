@@ -84,6 +84,7 @@ def upload_version(
     user=None,
     extra_metadata: dict | None = None,
     notes: str = "",
+    dry_run: bool = False,
 ):
     """Checksum, validate and store a new version of any supported family (AM-13).
 
@@ -100,6 +101,11 @@ def upload_version(
     A file that fails validation is never stored and makes no row: the admin sees the findings
     and nothing needs cleaning up. A storage or database failure, or a refused job submission,
     leaves no row, no job and no object.
+
+    `dry_run=True` (LAI-07 W4) makes the same checks as a real upload (validation, a retired
+    asset, a duplicate file) and raises the same refusals, then returns None: no row, no object,
+    no job and no lock. The asset may be unsaved (an import dry run that would create it). This
+    is the one dry run the importers use, so a dry run and a real run never disagree.
     """
     # Validate before hashing: an oversized file (above the model or GLB limit) is refused from
     # its size and header alone, before the whole upload is read.
@@ -112,25 +118,17 @@ def upload_version(
             "invalid_file", "The file did not pass validation.", result.findings
         )
     sha256, size = sha256_of(upload)
+    if dry_run:
+        if asset.pk is not None:
+            # The current row, as the real upload reads it under its lock.
+            _refuse_unless_new_file(ContentAsset.objects.get(pk=asset.pk), sha256)
+        return None
 
     deferred = async_validation_applies(result.format)
     storage = get_storage()
     with transaction.atomic():
         asset = _locked(asset)
-        if asset.status != AssetStatus.ACTIVE:
-            raise AssetActionRefused("asset_retired", "This asset is retired.")
-        duplicate = (
-            asset.versions.filter(sha256=sha256)
-            .exclude(status=VersionStatus.REJECTED)
-            .values_list("number", flat=True)
-            .first()
-        )
-        if duplicate is not None:
-            raise AssetActionRefused(
-                "duplicate_version",
-                f"This exact file is already version {duplicate} of this asset.",
-                details={"version": duplicate},
-            )
+        _refuse_unless_new_file(asset, sha256)
         number = (asset.versions.aggregate(top=Max("number"))["top"] or 0) + 1
         version_id = uuid.uuid4()
         key = object_key(asset.asset_id, version_id, result.format)
@@ -187,6 +185,25 @@ def upload_version(
     else:
         logger.info("asset version uploaded: %s v%s", asset.asset_id, number)
     return version
+
+
+def _refuse_unless_new_file(asset: ContentAsset, sha256: str) -> None:
+    """The asset must be active and must not already hold this exact file (a rejected version
+    does not count)."""
+    if asset.status != AssetStatus.ACTIVE:
+        raise AssetActionRefused("asset_retired", "This asset is retired.")
+    duplicate = (
+        asset.versions.filter(sha256=sha256)
+        .exclude(status=VersionStatus.REJECTED)
+        .values_list("number", flat=True)
+        .first()
+    )
+    if duplicate is not None:
+        raise AssetActionRefused(
+            "duplicate_version",
+            f"This exact file is already version {duplicate} of this asset.",
+            details={"version": duplicate},
+        )
 
 
 def _create_draft_and_submit(

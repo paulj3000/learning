@@ -43,8 +43,8 @@ from django.utils.text import slugify
 from apps.catalog.models import AssetCategory, AssetOrigin, AssetStatus, ContentAsset
 
 from . import gltf_prep, services
+from .importer import refusal_entry
 from .models import AssetVersion, CollisionProfile, VersionStatus
-from .validation import validate_upload
 
 PIPELINE_VERSION = 1
 # The largest source file or archive member this reads into memory.
@@ -1092,14 +1092,6 @@ def import_pack(
             version = existing
         else:
             stream = io.BytesIO(prepared.data)
-            if dry_run:
-                result = validate_upload(stream, size=len(prepared.data), definition=asset)
-                if result.passed:
-                    report.imported.append({**entry, **stats, "version": None})
-                else:
-                    codes = sorted({f.code for f in result.errors})
-                    report.unresolved.append({**entry, "reason": "invalid_model", "codes": codes})
-                continue
             try:
                 version = services.upload_version(
                     asset,
@@ -1110,11 +1102,14 @@ def import_pack(
                     notes=f"Imported from {pack.author} {pack.title} ({model.node}), "
                     f"{pack.licence}, licence {provenance['licenceStatus']}; prepared by "
                     f"pipeline v{PIPELINE_VERSION}.",
+                    dry_run=dry_run,
                 )
             except services.AssetActionRefused as refused:
-                codes = sorted({f.code for f in refused.findings}) or [refused.code]
                 kept = {"keptVersion": stale.number} if stale is not None else {}
-                report.unresolved.append({**entry, "reason": refused.code, "codes": codes, **kept})
+                report.unresolved.append({**entry, **refusal_entry(refused), **kept})
+                continue
+            if dry_run:
+                report.imported.append({**entry, **stats, "version": None})
                 continue
             if stale is not None:
                 report.refreshed.append({**entry, "version": stale.number})

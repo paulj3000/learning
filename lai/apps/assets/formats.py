@@ -9,12 +9,17 @@ accepts images only, a `character` accepts models only, and so on. The server ch
 never the file name or the browser's content type.
 """
 
+import re
 from dataclasses import dataclass
 
 MODEL = "model"
 IMAGE = "image"
 AUDIO = "audio"
 FAMILIES = (MODEL, IMAGE, AUDIO)
+
+# The one asset-id rule (lower-case words joined by single hyphens); storage, validation and the
+# importer all re-export this object as `ASSET_ID`.
+ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 @dataclass(frozen=True)
