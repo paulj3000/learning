@@ -12,6 +12,8 @@ import { buildRegionManifest } from './regionManifest';
 import { withServerCatalog } from './regionManifestRepository';
 import { tryParseRegionPlayConfig } from './regionPlayConfig';
 import { toRegionSceneModel } from './sceneModel';
+import { solidColliders } from '../island-map/three/runtime/sceneLayout';
+import type { CollisionProfile } from '../island-map/three/runtime/collisionProfile';
 
 /**
  * The Heart of Firepeak on the client (design sections 4 and 6): the scene the Django seed writes
@@ -251,4 +253,75 @@ describe('the Heart of Firepeak manifest', () => {
     expect(logs.length).toBe(4);
     expect(logs.every((c) => c.minY === 0 && (c.maxY ?? 0) <= 0.45)).toBe(true);
   });
+});
+
+/**
+ * The gateway arches (`firepeak-arch`, fh-arch-N) under Asset Library collision (Trello #247,
+ * GE-L16 follow-up). Each gate's authored walls are the jambs and its gated collider is the
+ * opening, and the arch stands centred in that gated collider, so no box is ever derived for it:
+ * not from the stand-in, and not from a published model with a Solid or Automatic profile over its
+ * whole bounds. Once a gate opens, nothing but the gate itself ever stood in the opening.
+ */
+describe('the Heart of Firepeak gateway arches and collision profiles', () => {
+  const WHOLE = { minX: -4.3, minY: 0, minZ: -0.6, maxX: 4.3, maxY: 4.5, maxZ: 0.6 };
+  const profiles: [string, CollisionProfile | undefined][] = [
+    ['no profile (the stand-in)', undefined],
+    [
+      'a published model with a Solid box over its whole bounds',
+      { behavior: 'SOLID', shape: 'BOX', boxes: [WHOLE] },
+    ],
+    [
+      'a published model with an Automatic box over its whole bounds',
+      { behavior: 'SOLID', shape: 'AUTOMATIC', boxes: [WHOLE] },
+    ],
+  ];
+
+  function builtWithDeliverableArch() {
+    const { data, json } = bootstrapFromSnapshot();
+    const assets = json.catalog.assets.map((asset) =>
+      asset.assetId === 'firepeak-arch' ? { ...asset, deliverable: true } : asset,
+    );
+    const bootstrap = readBootstrap({ ...json, catalog: { ...json.catalog, assets } });
+    return {
+      data,
+      ...buildRegionManifest(toRegionSceneModel(bootstrap), {
+        worldSlug: 'learning-adventure-island',
+      }),
+    };
+  }
+
+  it('draws each arch through the extension, with the published model once Django has one', () => {
+    const { manifest } = builtWithDeliverableArch();
+    const config = tryParseRegionPlayConfig(manifest.extensions[0].config)!;
+    const arches = config.drawn.filter((drawn) => drawn.entityId.startsWith('fh-arch-'));
+    expect(arches).toHaveLength(6);
+    for (const arch of arches)
+      expect(arch).toMatchObject({ shape: 'ARCH', assetId: 'firepeak-arch' });
+    // The placement itself is a drawn prop with no asset id: no Asset Library profile reaches it.
+    const props = manifest.props.filter((prop) => prop.entityId.startsWith('fh-arch-'));
+    expect(props).toHaveLength(6);
+    for (const prop of props) expect(prop.assetId).toBeUndefined();
+  });
+
+  it.each(profiles)(
+    '%s: no arch ever gets a box, so only the gate stands in its opening',
+    (_, profile) => {
+      const { data, manifest } = builtWithDeliverableArch();
+      const solids = solidColliders(
+        manifest,
+        undefined,
+        profile ? new Map([['firepeak-arch', profile]]) : undefined,
+      );
+      expect(solids.filter((solid) => JSON.stringify(solid).includes('fh-arch'))).toEqual([]);
+      const arches = data.placements.filter((placement) => placement.asset === 'firepeak-arch');
+      for (const arch of arches) {
+        const inOpening = solids.filter(
+          ({ box }) =>
+            box.minX <= arch.x && arch.x <= box.maxX && box.minZ <= arch.z && arch.z <= box.maxZ,
+        );
+        // Exactly one collider stands in the opening: the gate the child opens.
+        expect(inOpening).toHaveLength(1);
+      }
+    },
+  );
 });
