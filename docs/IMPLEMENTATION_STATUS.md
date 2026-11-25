@@ -104,6 +104,17 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 - RETIRED regions' usages are `historical`. `Usage.historical` is the same field as W2-2 and W2-5.
 - No migration. Tests: `test_lod_twins.py` (3), `test_default_ground.py`.
 
+## LAI-07 Asset Library W5: documentation close-out (2026-11-25, `docs/asset-library-w5-reconcile`, `main` `8f3a7b3c`)
+
+- `docs/ASSET_LIBRARY.md` 25.5 to 25.8: the final test map and owner acceptance checks, the W2
+  sequence by PR, the agreed merge order (#85, #86, #87, #84, #88, then this), and the decisions
+  not to change code: the four GLB readers stay separate (verdict parity enforced by
+  `test_glb_processing_parity.py`), no shared transform helper, informational providers fail
+  closed, and the follow-ups awaiting the owner (archway collision warning, engine passage
+  keep-clear).
+- `docs/adventures/asset-standard.md` section 2: what refuses retirement and what is listed only.
+- Docs only. The section 25 status header is updated by #85 and again after the round merges.
+
 ## LAI-07 Asset Library W4: shared asset-id pattern and one upload dry run (2026-11-24, `refactor/asset-library-w4-shared-helpers`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
 
 - **One asset-id pattern:** `formats.ASSET_ID`, used by validation, the importer and storage
