@@ -15,6 +15,7 @@ can add a record here (the importer creates them), and nobody can delete one bef
 
 from django.contrib import admin, messages
 from django.db.models import BooleanField, Count, ExpressionWrapper, Q, Subquery
+from django.utils.html import format_html, format_html_join
 
 from apps.assets import preview as asset_preview
 from apps.assets.models import AssetVersion
@@ -372,7 +373,7 @@ class ContentAssetAdmin(CatalogModelAdmin):
     list_filter = ("status", "origin", "category", "kind", InLatestReleaseFilter)
     search_fields = ("asset_id", "display_name", "description", "tags", "bundled_path")
     list_select_related = ("default_version",)
-    readonly_display = ("used_by", "default_version_number", "preview_link")
+    readonly_display = ("used_by", "default_version_number", "preview_link", "usage_panel")
     inlines = [AssetVersionInline]
     actions = ["retire_assets", "reactivate_assets"]
 
@@ -408,6 +409,15 @@ class ContentAssetAdmin(CatalogModelAdmin):
         if obj.origin == AssetOrigin.DJANGO:
             editable |= set(DJANGO_CONTENT_FIELDS)
         return [name for name in everything if name not in editable]
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        if obj is None:
+            return fieldsets
+        main = [name for name in fieldsets[0][1]["fields"] if name != "usage_panel"]
+        return [(fieldsets[0][0], {**fieldsets[0][1], "fields": main}), *fieldsets[1:]] + [
+            ("Used by", {"fields": ["usage_panel"]})
+        ]
 
     def get_form(self, request, obj=None, change=False, **kwargs):
         form = super().get_form(request, obj, change=change, **kwargs)
@@ -465,6 +475,61 @@ class ContentAssetAdmin(CatalogModelAdmin):
             latest = scene_usage.LatestRelease(obj.latest_release_pk, obj.latest_without_place)
         usages = scene_usage.shipped_scene_usages(obj, latest)
         return "; ".join(usage.short for usage in usages) or "No shipped scene"
+
+    @admin.display(description="Used by")
+    def usage_panel(self, obj):
+        """Every registered usage source, grouped by what it means for retiring (W2-5).
+
+        Read-only. A failed source gets a fixed sentence, never exception text."""
+        from apps.assets.dependencies import usages_by_source
+
+        if obj is None or obj.pk is None:
+            return ""
+        entries = usages_by_source(obj)
+        groups = (
+            ("Blocks retirement", lambda u: u.blocks_retirement),
+            ("Informational", lambda u: not u.blocks_retirement and not u.historical),
+            ("Historical", lambda u: not u.blocks_retirement and u.historical),
+        )
+        parts = []
+        for title, chosen in groups:
+            rows = [(u.source, u) for e in entries for u in e.usages if chosen(u)]
+            if not rows:
+                continue
+            parts.append(
+                format_html(
+                    "<h4>{}</h4><ul>{}</ul>",
+                    title,
+                    format_html_join(
+                        "",
+                        "<li>{}: {} <code>{}</code></li>",
+                        (
+                            (
+                                source,
+                                format_html('<a href="{}">{}</a>', u.admin_url, u.label)
+                                if u.admin_url
+                                else u.label,
+                                u.code or "-",
+                            )
+                            for source, u in rows
+                        ),
+                    ),
+                )
+            )
+        failed = [e.source for e in entries if e.failed]
+        if failed:
+            parts.append(
+                format_html_join(
+                    "",
+                    "<p><strong>The {} check failed, so retiring this asset will be refused "
+                    "until it works. Ask a developer to check the server log.</strong></p>",
+                    ((source,) for source in failed),
+                )
+            )
+        empty = [e.source for e in entries if not e.usages and not e.failed]
+        if empty:
+            parts.append(format_html("<p>No usages from: {}</p>", ", ".join(empty)))
+        return format_html_join("", "{}", ((part,) for part in parts)) if parts else "No sources"
 
     @admin.action(description="Retire selected assets", permissions=["retire"])
     def retire_assets(self, request, queryset):

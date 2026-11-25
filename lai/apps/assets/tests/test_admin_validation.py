@@ -498,7 +498,7 @@ def test_view_only_staff_see_the_section_but_cannot_validate(version, sqs):
     assert "Queued: not yet sent" in page(client, version)
     listing = client.get(VERSIONS)
     assert listing.status_code == 200 and b"validate_in_background" not in listing.content
-    assert b"inspect_in_background" in listing.content
+    assert b"inspect_in_background" not in listing.content  # inspecting needs validate too
     run_action(client, "validate_in_background", version)
     assert ProcessingJob.objects.count() == 1
 

@@ -5,6 +5,7 @@ import json
 import pytest
 
 from apps.assets import services as asset_services
+from apps.assets.services import AssetActionRefused
 from apps.audio import services
 from apps.audio.tests.helpers import asset_upload, assign, audio_asset, cue
 from apps.catalog.models import Location, World
@@ -232,6 +233,15 @@ def test_a_version_retired_after_publishing_drops_out_of_the_manifest(api, setup
     before = get(api, *url).json()
     v2 = asset_services.publish_version(asset_upload(setup["chest_asset"], seconds=8))
     asset_services.set_default_version(v2)
+    with pytest.raises(AssetActionRefused) as refused:  # the LIVE release still pins v1
+        asset_services.retire_version(setup["chest_v1"])
+    assert refused.value.code == "sound_release_dependency"
+    chest = setup["cues"]["chest"]
+    chest.enabled = False
+    chest.save()
+    services.publish(None)  # a new LIVE release without the chest; the old one is SUPERSEDED
+    chest.enabled = True
+    chest.save()
     asset_services.retire_version(setup["chest_v1"])
     after = get(api, *url).json()
     assert "sfx.chest.open" in ids(before) and "sfx.chest.open" not in ids(after)
@@ -241,6 +251,15 @@ def test_a_version_retired_after_publishing_drops_out_of_the_manifest(api, setup
 
 def test_a_retired_asset_drops_out_of_the_manifest(api, setup):
     services.publish(None)
+    with pytest.raises(AssetActionRefused) as refused:  # the LIVE release still pins it
+        asset_services.retire_asset(setup["chest_asset"])
+    assert refused.value.code == "sound_release_dependency"
+    chest = setup["cues"]["chest"]
+    chest.enabled = False
+    chest.save()
+    services.publish(None)  # a new LIVE release without the chest; the old one is SUPERSEDED
+    chest.enabled = True
+    chest.save()
     asset_services.retire_asset(setup["chest_asset"])
     body = get(api, setup["t"], "regions", setup["region"].region_id).json()
     assert "sfx.chest.open" not in ids(body)

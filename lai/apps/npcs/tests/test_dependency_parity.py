@@ -64,9 +64,9 @@ def assert_parity(only_npcs, asset, *versions):
         assert blocks == (old is not None)
 
 
-def test_the_guard_is_still_the_registered_one():  # no fixture: the real registrations
-    assert dependencies.retirement_guard in services.RETIREMENT_GUARDS
-    assert "npcs" not in registry.registered_sources()
+def test_the_provider_replaces_the_guard():  # no fixture: the real registrations (W2-4b)
+    assert dependencies.retirement_guard not in services.RETIREMENT_GUARDS
+    assert "npcs" in registry.registered_sources()
 
 
 def test_parity_with_drafts_only(only_npcs):

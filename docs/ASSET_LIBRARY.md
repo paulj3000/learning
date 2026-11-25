@@ -1119,19 +1119,20 @@ records each model's bounding corners in `metadata["bounds"]`, which automatic p
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
 
-## 25. Dependency tracking (LAI-07 W2; W2-1 on `main`, W2-3 and W2-4 in review)
+## 25. Dependency tracking (LAI-07 W2; W2-1, W2-3 and W2-4 on `main`, W2-4b in review)
 
 Status:
 - **On `main`:** the registry, the aggregate retirement guard and `manage.py asset_usage` (W2-1,
-  PR #65), and the `catalog` provider for shipped scenes (GE-247, Agent 4, PR #70).
-- **In review** (Trello #246): the regions provider (W2-3,
-  `feature/asset-library-w2-3-regions`). The NPC and avatar providers with their parity tests
-  (W2-4, `feature/asset-library-w2-4-parity`, stacked on W2-3) are **not registered**, so their guards refuse exactly as
-  before.
-- **Waiting:** the audio provider (W2-2) and the guard switch (W2-4b) for owner decisions; the
-  "Used by" admin panel (W2-5) is unblocked by the Lambda merge (#71) and comes as its own PR.
+  PR #65); the `catalog` provider for shipped scenes (GE-247, Agent 4, PR #70); the regions
+  provider (W2-3, PR #80); the NPC and avatar providers with their parity tests, not registered
+  (W2-4, PR #81).
+- **In review: guard switch (W2-4b,** `feature/asset-library-w2-4b-guard-switch`): the NPC and
+  avatar guards become usage providers. A single NPC or avatar refusal keeps its code, wording and
+  details; together with another blocker it becomes one `asset_in_use` refusal naming both.
+- **Approved for development (owner, 2026-11-25):** the audio provider (W2-2), low-detail twins
+  in the regions provider and the "Used by" admin panel (W2-5), each as its own PR.
 
-`apps/assets/services.py` and the Django Admin classes are unchanged. Integration plan: 25.7.
+`apps/assets/services.py` is unchanged. Integration plan: 25.7.
 
 ### 25.1 What protects an asset today (reviewed 2026-11-22 on `main` `aa8adb33`)
 
@@ -1232,19 +1233,49 @@ Rules:
 
 | Source (owner) | Blocks retirement | Listed only | Owner decision needed |
 |---|---|---|---|
-| `audio` (Sound Manager) | The LIVE release pins this version, or any version of this asset when retiring the asset. This applies even when a replacement default is named, because the release pins the exact version. New code `sound_release_dependency`; the message says "publish a sound release without it first". | SUPERSEDED releases that pin it (retiring makes that rollback impossible, as `release_problems` already reports). Enabled cues whose working copy uses it. | Do SUPERSEDED releases block? NPCs block on SUPERSEDED. **Recommendation: list only**, because every sound publish creates a SUPERSEDED release, and blocking would pin every old file forever. |
+| `audio` (Sound Manager) | A LIVE `SoundRelease` pins any version of the asset (blocks retiring the asset) or pins this exact version (blocks retiring that version). This applies even when a replacement default is named, because the release pins the exact `versionId`. Code `sound_release_dependency`; the message says to publish a sound release without it first. | SUPERSEDED releases that pin it, reported with `historical=True` and never blocking (retiring makes a rollback to them impossible, as `release_problems` already reports). Working `SoundCue` rows that use it, listed and not blocking (publishing already refuses a retired asset or version). | Owner decision 2026-11-25: only the LIVE release blocks, because every sound publish creates a SUPERSEDED release and blocking on those would pin every old file forever. |
 | `npcs` (NPC Manager) | ACTIVE and SUPERSEDED releases (unchanged, from `release_dependents`) | Draft variants, extras and dialogue nodes (`draft_dependents`) | None. Parity only. |
 | `avatars` (avatars owner) | AVAILABLE avatars served the model asset or version (unchanged, from `avatars_using`) | Draft and disabled avatars; an AVAILABLE avatar's **thumbnail** | Should the thumbnail block? **Recommendation: list only**, because the served description already drops a missing thumbnail. |
 | `regions` (semantics coordinator: Agent 4, Game Engine Core, named by the owner 2026-11-23) | Asset-level only: a PUBLISHED `WorldRegion` names the asset in a placement, a chest, or its `scene` JSON (`assetId` and `groundAssetId` at any depth: backdrop, ground, layout props, vegetation, procedural, scenery, jump-platform specs). Code `region_placement_dependency`. | DRAFT and RETIRED areas. A version query reports the area only when the version is the default. | **Decided** (owner, 2026-11-22). Children would see the bundled model or a placeholder, and the Asset Manager's collision profile would no longer apply. NPC placements drawn through their NPC definition are the `npcs` provider's job. |
 | `catalog` (catalog owner; built by GE-247) | None | Shipped scenes: `LocationAsset` rows (stale ones marked) and the Welcome Harbor hub from the latest release report | None. Built by GE-247 (Trello #247, Agent 4, 2026-11-24): `apps/catalog/dependencies.py`, listed only, never blocking, asset-level only |
 | `assets` derived artifacts (Lambda owner) | None (retirement keeps the files) | Live `DerivedArtifact` rows for the version (`source_version`, `promoted_version`) | Not built yet: the model is on `main` since #71; a provider comes with or after W2-5 |
 
-Known limit (`regions`, LAI 04, 2026-11-24): a published 3D Area can also draw an asset's
-low-detail twin (`ContentAsset.low_detail`, loaded by `withLod` in `region-play/regionAssets.ts`).
-The twin is not in the area's JSON, so the provider neither lists nor protects it. Retiring a twin
-keeps the base model drawn; the far level of detail falls back to the bundled twin or a
-placeholder. Following `low_detail` from the ids a PUBLISHED area names (listed only, or blocking)
-is an owner decision for a follow-up.
+Low-detail twins (`regions`; owner decision 2026-11-25, semantics agreed with LAI 04 on `main`
+`8f3a7b3c`): a low-detail asset that a PUBLISHED region actually needs blocks retiring it. Today
+no Django region needs one, so the regions provider follows no twin:
+
+- The engine pairs a model with its twin only from the bundled manifest's `lod`
+  (`instantiateWithLod` reads `getAssetManifestEntry`). The resolver sends no lod, and
+  `ContentAsset.low_detail` is only the importer's copy of it. Every twin is a bundled file.
+- Only `LOD_PLACEMENTS` scene items draw a twin, and a Django region's layout refuses that kind
+  (`region-play/regionLayout.ts`). MODEL, CLUSTER, SCATTER, placements and chests never draw it,
+  so following `low_detail` from them would block retirement for nothing.
+- The shipped scenes that do draw a twin (Welcome Harbor's `foliage-tree-lod1`) list it through
+  the `catalog` provider, never blocking. Retiring a twin changes no collision: profiles are
+  requested for the base id only.
+
+Rule for later: whoever lets a Django region hold `LOD_PLACEMENTS` adds, in the same change, a
+blocking twin usage in this provider: for each `LOD_PLACEMENTS` item of a PUBLISHED region, the
+base's `catalog.ContentAsset.low_detail` (whatever the base's own status), code
+`region_placement_dependency` with `details.role = "low_detail"`; DRAFT listed, RETIRED historical,
+exact-version retirement never blocks. LAI 04's engine test "low-detail twins in a Django 3D
+Area" (`react/src/features/region-play/regionLayout.test.ts`) refuses `LOD_PLACEMENTS` in a
+region layout and points here. Regression tests: `apps/regions/tests/test_lod_twins.py`.
+
+Default ground (`regions`; LAI 01 finding 2026-11-25, agreed with LAI 04 and LAI 05): a region
+whose `scene.groundAssetId` is not a non-empty string tiles `ground-tile`, the client's
+`DEFAULT_GROUND_ASSET_ID` (`region-play/regionManifest.ts`, `ground()`). The provider mirrors that
+rule exactly (a missing key, `null`, a non-string or `""` gets the default; `" "` does not), so the
+area uses `ground-tile` like any scene id: PUBLISHED blocks, DRAFT lists, RETIRED keeps it as
+history. The ground is bundled, so retiring it would fall back to the same file; it blocks anyway
+because an explicit `groundAssetId: "ground-tile"` already does. A drift test pins the constant to
+the client's (`apps/regions/tests/test_default_ground.py`); a change to it is LAI 04's. No other
+region-play default names an asset (LAI 04, `main` `8f3a7b3c`).
+
+Known over-block (Agent 4, 2026-11-25): a `WorldRegion` whose id matches a built-in scene is
+shadowed on the client (`regionManifestRepository.ts` prefers the bundled manifest), yet its JSON
+ids and default ground are still reported and, when PUBLISHED, block. No seed does this; it errs
+on the safe side.
 
 Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,
 `Sound release 12, cue sfx.chest.open`, `3D Area treasure-cove, placement palm-03`. Labels never
@@ -1256,10 +1287,26 @@ contain child data.
   (`AssetVersionAdmin._run`, `catalog` `retire_assets`), so no admin code changes.
 - **`manage.py asset_usage <asset_id> [--number N] [--json]`**: a read-only report of
   `usages_for`. It is new and lives only in `apps/assets`.
-- **"Used by" panel** on the asset version and content asset change pages. This is W2-5, its own
-  PR: the Lambda admin (#71) is now on `main`, and the catalog asset admin needs its owner's
-  agreement. Only users with view permission on the
-  referring model see its rows.
+- **"Used by" panel** on the content asset change page (W2-5, `ContentAssetAdmin.usage_panel`, in
+  its own "Used by" section; the "Used by shipped scenes" list column is unchanged). It is
+  read-only, adds no permission or action, and does not appear on the add page. It renders
+  `usages_by_source(asset)`, so every registered source (npcs, avatars, audio, regions, catalog,
+  artifacts) appears without per-source code. Rows show the source, the label (linked when the
+  usage has an admin URL) and the code, in three groups:
+  - **Blocks retirement**: usages that make a retire refuse.
+  - **Informational**: listed usages that never block (draft rows, shipped scenes, derived
+    artifacts still under review).
+  - **Historical**: past use kept for the record (`Usage.historical`): a disabled player avatar,
+    a retired region, an expired or rejected derived artifact. Historical never blocks.
+
+  Sources with no usages are summarised in one line ("No usages from: audio, avatars"). A source
+  whose check raised shows a fixed sentence (retiring is refused until it works; ask a developer
+  to check the server log), never the exception text; the other sources still show, because
+  `usages_by_source` isolates failures for display only. Retirement is unchanged and still fails
+  closed (`dependency_check_failed`). Derived artifacts (`apps/assets/artifact_usage.py`) are an
+  informational source only: they never block retirement in any state.
+  `manage.py asset_usage` also reports `historical` (JSON `historical`; text `[historical]`). The
+  panel on the asset version change page is not part of W2-5.
 
 ### 25.5 Tests and acceptance checks (PostgreSQL 18, slot 9; unit only)
 
@@ -1389,6 +1436,17 @@ flow, outcome codes, retries and deployment order: `docs/processing/ASYNC_MODEL_
   informational: it reads structure and dimensions of a model, image or sound, keeps the result on
   the job and never changes a version. `asset.validate_model` is the full GLB validator; its
   applied result decides a draft's status and is what the publication gate reads.
+- **Inspect in background, admin behaviour.** (1) Permission: the action needs the same
+  permission as Validate in background (staff who may add and view versions); view-only staff do
+  not see it and a direct POST creates no job. Publishing, retiring and artifact promotion keep
+  their own separate permissions. (2) No duplicates: a version that already has a queued or
+  running `asset.inspect` job for its stored file is skipped with an informational message
+  ("Skipped N version(s) with an inspection already running."); the check and the submission run
+  in one transaction under a row lock on the version, so a double click or two staff queue one
+  job. A completed or failed inspection never blocks a new one. (3) The version page gets a
+  read-only "Latest inspection" section (status, finish time, reported dimensions, counts and
+  issue codes; only codes and numbers, never raw error text) when the version has an inspection
+  job; versions without one show no section.
 
 ## 27. Image privacy baseline (Workstream B, 2026-11-18)
 
