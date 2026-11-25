@@ -57,8 +57,8 @@ each realm has left the shims.
 
 | Leak | Where | Target home |
 |---|---|---|
-| `SANDBOX_NPC_ID = 'pirate-pip'` | `worldEngineEvents.ts` | The sandbox location definition (GE-075) |
-| `ASSET_FOOTPRINTS` (treasure-chest, wonder-stone-*) | Live collider derivation | Asset collision profiles (Django) or the realm manifest |
+| `SANDBOX_NPC_ID = 'pirate-pip'` | `worldEngineEvents.ts` | Done 2026-11-25: `sandboxContent.ts`, beside the sandbox scene |
+| `ASSET_FOOTPRINTS` (treasure-chest, wonder-stone-*) | Live collider derivation | Kept (decision 2026-11-25): per-asset model geometry, not realm content; an Asset Library profile overrides it per asset |
 | `ADVENTURE_COMPLETE_CHANGE_KEYS` | `npc-manager` `triggers.ts` | Realm content (adventure definitions) |
 
 Moved by the engine lead after GE-066 merges, using the GE-075 batch 2 relocation report.
@@ -127,6 +127,6 @@ Remaining-work checklist, in order (each item: one commit, regression evidence f
 7. [ ] Runtime swap per location (section 4, step 3). Then retire `playerAvatar.ts` and
    `playerAnimation.ts` (child-profile and NPC Manager importers first) and
    `createLocationEngine.ts`.
-8. [ ] GE-D8: move the leaked content ids (section 3).
+8. [~] GE-D8 (section 3), 2026-11-25: `SANDBOX_NPC_ID` moved to `sandboxContent.ts`; `ASSET_FOOTPRINTS` kept by design (per-asset geometry, overridden by Asset Library profiles); `ADVENTURE_COMPLETE_CHANGE_KEYS` waits for the NPC Manager owner.
 9. [ ] Live host `groundHeightAt` for terrain Areas (GE-L14 remainder; not a retirement step,
    listed so the live host change is done once).
