@@ -48,6 +48,30 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 - Tests: 5 new in `apps/assets/tests/test_collision_profiles.py`. Doc:
   `docs/ASSET_COLLISION_PROFILES.md` field table.
 
+## LAI-07 Asset Library W2-4: NPC and avatar usage providers with parity (2026-11-24, `feature/asset-library-w2-4-parity`, stacked on W2-3, Trello #246); Development Complete, NOT merged
+
+- `apps/npcs/dependencies.py` and `apps/avatars/dependencies.py` gain usage providers: live NPC
+  releases and AVAILABLE avatars block; drafts, disabled avatars and thumbnails are listed only.
+  Their refusal is the legacy guard's own, word for word.
+- **Not registered:** the NPC and avatar retirement guards stay registered and refuse exactly as
+  before. No behaviour change.
+- Parity matrices (`test_dependency_parity.py` in both apps) prove that, registered alone, each
+  provider refuses the same retirements with the same code, message and details as its guard.
+- The switch (W2-4b) waits for owner approval: `docs/ASSET_LIBRARY.md` section 25.7.
+
+## LAI-07 Asset Library W2-3: regions dependency protection (2026-11-24, `feature/asset-library-w2-3-regions` from `main` `f0de1087`, Trello #246); Development Complete, NOT merged
+
+- **Rule** (owner, 2026-11-22; confirmed by Agent 4, the region-semantics coordinator, 2026-11-23):
+  retiring an asset a PUBLISHED 3D Area names, in a placement, a chest or its `scene` JSON
+  (`assetId` and `groundAssetId` at any depth), is refused with `region_placement_dependency`,
+  naming the areas. DRAFT and RETIRED areas are listed only. Version retirement never blocks.
+- **Precedence:** a guard not yet moved to a usage provider (NPC, avatar) keeps its exact refusal
+  when the regions provider also blocks.
+- Builds on W2-1 (#65). The `catalog` provider is GE-247's (#70) and is not duplicated. No
+  migration; `services.py`, admin, API, resolver, engine and client unchanged.
+- Tests: `apps/regions/tests/test_dependencies.py`, one precedence test in
+  `apps/assets/tests/test_dependencies.py`. Plan: `docs/ASSET_LIBRARY.md` section 25.7.
+
 ## LAI 05: jsonschema as a dev dependency (2026-11-24, `chore/jsonschema-dev-dependency` from `main` `9b881fda`); owner-approved, NOT merged
 
 The owner approved it on 2026-11-24. `requirements-dev.txt` now pins `jsonschema==4.26.0` and its
@@ -72,7 +96,7 @@ everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it
   clean. Deferred to merge readiness: full suites and browser tests.
 - **Docs:** `docs/ASSET_LIBRARY.md` section 7, `docs/ASSET_COLLISION_PROFILES.md`.
 
-## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, Trello #247); merged to `main` in PR #70 (`9b881fda`), follow-up `fix/ge-247-retirement-note-collision-kept` from `c9123f48`; NOT owner-accepted
+## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, Trello #247); merged to `main` in PR #70 (`9b881fda`) and #77 (`d834443f`), with LAI 07's resolver rule #75 (`c9123f48`); verified on `main` `f0de1087` (2026-11-24); NOT owner-accepted
 
 - Owner direction (2026-11-23): shipped-scene references are listed, never blocking (S6 not required). Collision-profile effects are reported. The hub becomes a Place only if that has no side effects.
 - Built:
@@ -84,7 +108,7 @@ everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it
   - the client test that a retired entry keeps the bundled model and any collision the server sends.
   - S1: the `catalog` usage provider (`apps/catalog/dependencies.py`) on LAI 07's W2-1 registry. It lists shipped scenes, the hub included, never blocks, returns nothing for a version question, and fails closed. `manage.py asset_usage` shows these usages.
 - Owner decisions (2026-11-24):
-  - a retired asset that still ships with the app keeps its collision profile. LAI 07's resolver change is on `main` (#75, `c9123f48`); the follow-up makes the staff note say the profile keeps applying, with a test that the note matches the resolver;
+  - a retired asset that still ships with the app keeps its collision profile. LAI 07's resolver change is on `main` (#75, `c9123f48`); the staff note says the profile keeps applying (#77), with a test that the note matches the resolver;
   - the hub stays in the release report, not a Place.
 - Tests (PostgreSQL 18): `apps/catalog` and `apps/assets` pass, `djangoAssetResolver.test.ts` passes, and `makemigrations --check` is clean. Browser tests are not run.
 - S7 is not recommended now.
@@ -562,8 +586,8 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
 - **GE-S1 fixed (2026-11-22, merged to main through PR #57 and the D6 baseline):** the last 8
   island-map engine shims are removed and react/ imports the engine only through listed
   exports-map entry points (branch `fix/GE-S1-import-shims`).
-- **GE-L16 raised Solid clearance (2026-11-22, owner-approved, Development Complete, not
-  merged):** a raised Solid collision part keeps its height and leaves a walk-under gap only with
+- **GE-L16 raised Solid clearance (2026-11-22, owner-approved, Development Complete; merged in
+  PR #59 `4b949994`, verified on `main` `f0de1087` 2026-11-24; not owner-accepted):** a raised Solid collision part keeps its height and leaves a walk-under gap only with
   clearance (the avatar's 1.7 m collision height plus a configurable margin); otherwise it blocks
   at every height. Elevation never makes a part jumpable. Branch
   `feature/ge-raised-solid-clearance`, Trello #245; design and audit in

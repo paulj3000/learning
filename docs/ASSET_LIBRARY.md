@@ -1119,14 +1119,19 @@ records each model's bounding corners in `metadata["bounds"]`, which automatic p
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
 
-## 25. Dependency tracking (LAI-07 W2; W2-1 implemented, W2-2 to W2-5 proposed)
+## 25. Dependency tracking (LAI-07 W2; W2-1 on `main`, W2-3 and W2-4 in review)
 
-Status: **W2-1 is implemented** (the registry, the aggregate retirement guard and
-`manage.py asset_usage`; branch `feature/asset-library-w2-1-registry`, Trello #246). It changes no
-retirement outcome: no app registers a usage provider yet, and the NPC and avatar guards stay
-registered as before. W2-2 to W2-5 are still proposals for their owners to agree.
-`apps/assets/services.py`, the Django Admin classes and `apps/audio` are unchanged. The card is
-listed in `docs/IMPLEMENTATION_STATUS.md`.
+Status:
+- **On `main`:** the registry, the aggregate retirement guard and `manage.py asset_usage` (W2-1,
+  PR #65), and the `catalog` provider for shipped scenes (GE-247, Agent 4, PR #70).
+- **In review** (Trello #246): the regions provider (W2-3,
+  `feature/asset-library-w2-3-regions`). The NPC and avatar providers with their parity tests
+  (W2-4, `feature/asset-library-w2-4-parity`, stacked on W2-3) are **not registered**, so their guards refuse exactly as
+  before.
+- **Waiting:** the audio provider (W2-2) and the guard switch (W2-4b) for owner decisions; the
+  "Used by" admin panel (W2-5) is unblocked by the Lambda merge (#71) and comes as its own PR.
+
+`apps/assets/services.py` and the Django Admin classes are unchanged. Integration plan: 25.7.
 
 ### 25.1 What protects an asset today (reviewed 2026-11-22 on `main` `aa8adb33`)
 
@@ -1136,14 +1141,14 @@ listed in `docs/IMPLEMENTATION_STATUS.md`.
 | Player avatars (`apps/avatars/dependencies.py`) | `model_asset`, `pinned_version` (or the default), `thumbnail_asset` | Refused (`player_avatar_in_use`) for AVAILABLE avatars' model | The thumbnail is unguarded. A retired thumbnail silently disappears (`avatars/services._thumbnail`). |
 | Sound releases (`apps/audio`) | The LIVE `SoundRelease.snapshot` pins each cue's exact `versionId` (JSON) | **Not guarded** | Retiring a pinned version or its asset silently drops the cue from the manifest (`audio/manifest._available_versions`). It also blocks rolling back to any release that pins it (`audio/services.release_problems`). `asset-standard.md` section 2 already claims sound releases are protected. |
 | Realm placements (`apps/regions`) | `WorldObjectPlacement.asset_id` and `TreasureChest.asset_id` (string asset ids, always the default version) | **Not guarded** | Retiring the asset makes a PUBLISHED 3D Area draw a placeholder. Retiring a *version* cannot break a placement: the default version can only be retired by moving the default first (`default_in_use`). |
-| Catalog (`catalog.LocationAsset`) | FK `PROTECT` (deletion only) | Not guarded | Listed nowhere. Since GE-247 S1: listed, never blocking, by the `catalog` provider (25.3). |
+| Catalog (`catalog.LocationAsset`) | FK `PROTECT` (deletion only) | Not guarded | None: listed, never blocking, by the `catalog` provider (GE-247 S1, 25.3). |
 
 There are two structural limits. First, guards run in registration order and the first refusal
 stops the run, so staff see one blocker at a time. Second, no page answers "where is this used"
 across apps; only the NPC page does, for NPC rows.
 
 Out of reach of any registry: asset ids named only in bundled sources that Django never stores
-(confirmed by LAI 06, 2026-11-22). Shipped regions keep their TypeScript manifests (CLAUDE.md
+(confirmed by Agent 4, Game Engine Core, 2026-11-22). Shipped regions keep their TypeScript manifests (CLAUDE.md
 section 20):
 
 - region manifests in `react/src/features/island-map/three/runtime/manifests/` (Pirate Builder
@@ -1155,7 +1160,9 @@ These resolve through the bundled resolver, so retiring a Django asset never rem
 They are still coupled through **collision**. When a child is signed in, `regionAssetsFor` applies
 the Asset Manager's collision profiles to bundled regions. So a Django asset whose id matches a
 bundled id (for example `rock`, `crate`, `archway`, `bridge-plank`, `npc-pip`) controls collision
-in a shipped region, and no provider can see that.
+in a shipped region. The `catalog` provider lists that use. Collision still follows the served
+profile, and it survives retirement for a model the app ships (section 7, owner decision
+2026-11-24).
 
 Closed by GE-247 (2026-11-24): the engine's scene asset index reaches Django through the content
 export, and the `catalog` provider lists each shipped scene that uses an asset, Welcome Harbor
@@ -1210,7 +1217,16 @@ Rules:
    Lambda stack in either order (LAI 05, 2026-11-22).
 6. **Existing guards.** The NPC and avatar guards stay registered until their providers pass a
    parity test (25.5). Then, with each owner's agreement, the provider replaces the guard. The
-   refusal is the same either way.
+   refusal is the same either way: each provider's refusal builder raises through its app's
+   existing guard function, so the wording has one source. The parity matrix checks that the
+   provider blocks exactly when the guard refuses (release status × pin × asset or version for
+   NPCs; status × pin × asset or version for avatars).
+7. **Transition order.** Until a guard is switched to a provider, the aggregate guard runs it
+   first, so that app's exact refusal still wins when a provider would also block (for example
+   Pip's model, used by a live NPC release and named by a published 3D Area, still refuses with
+   `npc_release_dependency`). After the switch, such a case refuses with `asset_in_use` naming
+   both, and that app's tests asserting its own code for a shared asset must be updated by its
+   owner as part of the switch.
 
 ### 25.3 Providers
 
@@ -1219,9 +1235,16 @@ Rules:
 | `audio` (Sound Manager) | The LIVE release pins this version, or any version of this asset when retiring the asset. This applies even when a replacement default is named, because the release pins the exact version. New code `sound_release_dependency`; the message says "publish a sound release without it first". | SUPERSEDED releases that pin it (retiring makes that rollback impossible, as `release_problems` already reports). Enabled cues whose working copy uses it. | Do SUPERSEDED releases block? NPCs block on SUPERSEDED. **Recommendation: list only**, because every sound publish creates a SUPERSEDED release, and blocking would pin every old file forever. |
 | `npcs` (NPC Manager) | ACTIVE and SUPERSEDED releases (unchanged, from `release_dependents`) | Draft variants, extras and dialogue nodes (`draft_dependents`) | None. Parity only. |
 | `avatars` (avatars owner) | AVAILABLE avatars served the model asset or version (unchanged, from `avatars_using`) | Draft and disabled avatars; an AVAILABLE avatar's **thumbnail** | Should the thumbnail block? **Recommendation: list only**, because the served description already drops a missing thumbnail. |
-| `regions` (realm owners; engine-facing, LAI 06) | Asset-level only: a placement or chest in a PUBLISHED `WorldRegion` | DRAFT and RETIRED regions' placements | Should a PUBLISHED placement block? **Recommendation: block** (LAI 06 agrees, 2026-11-22). The placeholder is a resilience path, not a retirement outcome, and Treasure Cove's ids are mostly not in the bundled manifest. Collision also follows the served profile: without it a placement falls back to the built-in footprint, or to no collider for an unknown id. So retiring would silently change what blocks the child or what they can jump on. This is a behaviour change, so it needs the owner. |
+| `regions` (semantics coordinator: Agent 4, Game Engine Core, named by the owner 2026-11-23) | Asset-level only: a PUBLISHED `WorldRegion` names the asset in a placement, a chest, or its `scene` JSON (`assetId` and `groundAssetId` at any depth: backdrop, ground, layout props, vegetation, procedural, scenery, jump-platform specs). Code `region_placement_dependency`. | DRAFT and RETIRED areas. A version query reports the area only when the version is the default. | **Decided** (owner, 2026-11-22). Children would see the bundled model or a placeholder, and the Asset Manager's collision profile would no longer apply. NPC placements drawn through their NPC definition are the `npcs` provider's job. |
 | `catalog` (catalog owner; built by GE-247) | None | Shipped scenes: `LocationAsset` rows (stale ones marked) and the Welcome Harbor hub from the latest release report | None. Built by GE-247 (Trello #247, Agent 4, 2026-11-24): `apps/catalog/dependencies.py`, listed only, never blocking, asset-level only |
-| `assets` derived artifacts (Lambda owner) | None (retirement keeps the files) | Live `DerivedArtifact` rows for the version (`source_version`, `promoted_version`) | Add after the Lambda stack is reconciled: the model is not on `main` |
+| `assets` derived artifacts (Lambda owner) | None (retirement keeps the files) | Live `DerivedArtifact` rows for the version (`source_version`, `promoted_version`) | Not built yet: the model is on `main` since #71; a provider comes with or after W2-5 |
+
+Known limit (`regions`, LAI 04, 2026-11-24): a published 3D Area can also draw an asset's
+low-detail twin (`ContentAsset.low_detail`, loaded by `withLod` in `region-play/regionAssets.ts`).
+The twin is not in the area's JSON, so the provider neither lists nor protects it. Retiring a twin
+keeps the base model drawn; the far level of detail falls back to the bundled twin or a
+placeholder. Following `low_detail` from the ids a PUBLISHED area names (listed only, or blocking)
+is an owner decision for a follow-up.
 
 Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,
 `Sound release 12, cue sfx.chest.open`, `3D Area treasure-cove, placement palm-03`. Labels never
@@ -1233,9 +1256,9 @@ contain child data.
   (`AssetVersionAdmin._run`, `catalog` `retire_assets`), so no admin code changes.
 - **`manage.py asset_usage <asset_id> [--number N] [--json]`**: a read-only report of
   `usages_for`. It is new and lives only in `apps/assets`.
-- **"Used by" panel** on the asset version and content asset change pages. This is deferred to
-  after the Lambda stack is reconciled: those branches rewrite `assets/admin.py` (+560 lines), and
-  the catalog asset admin needs its owner's agreement. Only users with view permission on the
+- **"Used by" panel** on the asset version and content asset change pages. This is W2-5, its own
+  PR: the Lambda admin (#71) is now on `main`, and the catalog asset admin needs its owner's
+  agreement. Only users with view permission on the
   referring model see its rows.
 
 ### 25.5 Tests (PostgreSQL 18, slot 9; unit only)
@@ -1263,16 +1286,56 @@ contain child data.
 | Step | Scope | Files | Gate |
 |---|---|---|---|
 | W2-0 | This contract | `docs/ASSET_LIBRARY.md` | — |
-| W2-1 | Registry, aggregate guard, `asset_usage` | `apps/assets/dependencies.py`, `apps/assets/apps.py`, `apps/assets/management/commands/asset_usage.py`, tests | Contract agreed by LAI 05, 2026-11-22. Implemented; standalone PR from `feature/asset-library-w2-1-registry`, not merged. |
+| W2-1 | Registry, aggregate guard, `asset_usage` | `apps/assets/dependencies.py`, `apps/assets/apps.py`, `apps/assets/management/commands/asset_usage.py`, tests | Contract agreed by LAI 05, 2026-11-22. Merged in PR #65 (`6e784c76`). |
 | W2-2 | Audio provider; correct `asset-standard.md` section 2 | `apps/audio/dependencies.py`, `apps/audio/apps.py`, tests | Sound Manager owner |
-| W2-3 | Regions provider (the catalog provider moved to GE-247) | `apps/regions/dependencies.py`, its `apps.py`, tests | Realm owners; Agent 4 on placements |
-| W2-4 | NPC and avatar providers, parity, then guard replacement | `apps/npcs/dependencies.py`, `apps/avatars/dependencies.py`, their `apps.py`, tests | NPC Manager and avatars owners |
-| W2-5 | "Used by" admin panel | `apps/assets/admin.py`, `apps/catalog/admin.py` | Lambda stack reconciled; catalog owner |
+| W2-3 | Regions provider (the catalog provider moved to GE-247, 2026-11-23) | `apps/regions/dependencies.py`, its `apps.py`, tests | In review (`feature/asset-library-w2-3-regions`). The owner named Agent 4 (Game Engine Core) as the region-semantics coordinator (2026-11-23); Agent 4 confirmed the implemented rule (`3196e38c`, rebased as `e6fbe375`) on 2026-11-23, including that version retirement never blocks (rows hold exact asset ids, and the engine always asks for the default). Optional follow-up: strip a resolver-style `id@N` suffix in `scene_asset_ids` (no seed uses one). |
+| W2-4 | NPC and avatar providers, parity, then guard replacement | `apps/npcs/dependencies.py`, `apps/avatars/dependencies.py`, their `apps.py`, tests | Providers and parity matrix in a stacked PR on W2-3 (`feature/asset-library-w2-4-parity`), **not registered**: the existing guards stay registered. Switching each one (one `ready()` line per app) waits for the NPC Manager and avatars owners and the project owner. |
+| W2-5 | "Used by" admin panel | `apps/assets/admin.py`, `apps/catalog/admin.py` | Lambda stack on `main` (#71); catalog owner |
 
 Merge notes from LAI 05: the Lambda stack also edits `ready()` in `apps/assets/apps.py` (adds
 `optimize.register()`, W2-1) and `apps/audio/apps.py` (adds `transcoding.register()`, W2-2).
-Resolve both by keeping both. No owner is named in the standards for `apps/regions` or
-`apps/catalog`; the project owner assigns one before W2-3.
+Resolve both by keeping both. Owners: `apps/regions` semantics coordination Agent 4 (Game
+Engine Core; project owner, 2026-11-23), implementation LAI 07; the `catalog` provider Agent 4
+(GE-247); integration LAI 05.
+
+Noted, not fixed in W2 (Agent 4): `game_sessions/play_state.region_catalog`, the asset list the
+client validates a 3D Area against, does not read `layout.scenery[].assetId` or the jump-platform
+`assetId`s. The regions provider does cover them.
+
+### 25.7 Integration plan (updated 2026-11-24 on `main` `f0de1087`)
+
+W2-1 (#65), GE-247 (#70, #77), the retired-shipped-collision rule (#75) and Lambda (#71) are on
+`main`.
+
+Three PRs, stacked so each is reviewed on its own (Trello #246):
+
+| PR | Branch | Contents | Behaviour change on `main` |
+|---|---|---|---|
+| A: W2-3 | `feature/asset-library-w2-3-regions` (from `main`) | regions provider; legacy guards keep precedence | **new refusals**: an asset named by a PUBLISHED 3D Area (placement, chest or scene id) can no longer be retired (`region_placement_dependency`). NPC and avatar refusals keep their exact codes when the regions provider also blocks. |
+| B: W2-4 | `feature/asset-library-w2-4-parity` (on A) | NPC and avatar providers and parity tests | none: the providers are not registered |
+| C: W2-4b | `feature/asset-library-w2-4b-guard-switch` (on B) | register the NPC and avatar providers, drop their legacy guards | NPC and avatar refusals become the registry's; a refusal with several blockers becomes `asset_in_use`. Needs owner approval. |
+
+- **No migration**; no change to `services.py`, admin, API, resolver, engine, `react/`, `infra/`
+  or `lambda/`.
+- **Rollback:** revert the PR's merge commit. Nothing is stored, so there is no data to undo.
+- **Staff-visible change to announce:** retiring an asset that a published 3D Area uses is
+  refused with the areas named; make the area a draft or remove the use first.
+
+**W2-2 audio provider**, after the Sound Manager owner approves. A draft is on local branch
+`feature/asset-library-w2-2-audio` (on the W2 work, not pushed). Four existing Sound Manager tests retire
+audio the LIVE release pins; under the owner's rule they are refused
+(`sound_release_dependency`), so the Sound Manager owner must approve rewriting them:
+`test_manifest_api.py::test_a_version_retired_after_publishing_drops_out_of_the_manifest`,
+`test_manifest_api.py::test_a_retired_asset_drops_out_of_the_manifest`,
+`test_library_report.py::test_a_retired_asset_is_reported_and_dropped_from_the_manifest`,
+`test_admin.py::test_the_list_shows_publishing_status_and_blocked_references`.
+
+**Guard switch (W2-4b)**, after the NPC Manager and avatars owners and the project owner approve.
+Two lines per app: register the provider and drop the legacy guard from `ready()`;
+`npcs/tests/test_acceptance_flow.py::test_pips_model_cannot_be_retired_while_a_release_uses_it`
+then expects `asset_in_use`. Parity tests move from "not registered" to "registered".
+
+**W2-5 "Used by" admin panel**: a separate PR now that the Lambda admin is on `main`.
 
 ## 26. Asynchronous model validation (LAI-LAMBDA-006 and 007, ADR-064)
 
