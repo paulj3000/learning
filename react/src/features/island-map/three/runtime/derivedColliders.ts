@@ -1,4 +1,5 @@
 import { Box3, Euler, Matrix4, Quaternion, Vector3 } from 'three';
+import { DEFAULT_BODY_HEIGHT, PLAYER_COLLISION_LIMITS } from '@lai/game-engine/movement';
 import { areRequirementsMet, type WorldInteractionContext } from '../../worldObjects';
 import type { InstancePlacement } from '../assets/assetLoader';
 import type { AssetManifestEntry } from '../assets/manifest';
@@ -25,11 +26,18 @@ import type { ModelAnchor, ScaleSpec, ThreeLocationManifest, Vec3 } from './loca
  *   the avatar's collision height plus the margin (`@lai/game-engine/movement` `clearance.ts`), and
  *   otherwise blocks at every height. Ground-level Solid boxes start at `SOLID_MIN_Y` as before.
  * - Walkable and passable pieces have no footprint on purpose: ground, paths, planks, carpets,
- *   ferns, reeds, flowers, rope coils, archways, cave mouths. So do large irregular models
+ *   ferns, reeds, flowers, rope coils, cave mouths. So do large irregular models
  *   (the shipwreck), whose locations author their colliders by hand.
+ * - A passage piece (`PASSAGE_OPENINGS`: the archway) keeps its opening open whatever box it is
+ *   given (GE-L16 follow-up, Trello #247): the opening is carved out of every box, built-in,
+ *   Automatic or staff-configured, so the jambs block, the space under the lintel is a walk-under
+ *   passage, and the lintel is an overhead Solid (no jump carries the child over or into it).
+ *   Its centre is kept clear of every other piece's box too.
  * - A piece an authored collider already covers is skipped: what an author wrote wins.
- * - A piece with a box over a checkpoint, a building entrance or a walkable piece (a path tile,
- *   a plank) is dropped, so no spawn point, doorway or trail is ever walled in.
+ * - A piece with a box over a checkpoint, a building entrance, a passage or a walkable piece (a
+ *   path tile, a plank) is dropped, so no spawn point, doorway or trail is ever walled in. An
+ *   overhead Solid box (raised at least `OVERHEAD_KEEP_CLEAR_HEIGHT` above the piece's base) walls
+ *   nothing in, so it does not count.
  * - A staff-configured profile (Asset Manager, `collisionProfile.ts`) replaces an asset's
  *   built-in footprint everywhere it is placed; assets without one keep the defaults below.
  * - Collectibles never block (they are picked up), and a prop with no `assetId` is drawn by an
@@ -70,7 +78,55 @@ export const ASSET_FOOTPRINTS: Readonly<Record<string, AssetFootprint>> = {
   'wonder-stone-chrysalis': { halfX: 0.45, halfZ: 0.21, height: 1.5, offsetZ: 0.09 },
   'wonder-stone-seed': { halfX: 0.45, halfZ: 0.17, height: 1.5, offsetZ: 0.05 },
   'wonder-stone-sun': { halfX: 0.45, halfZ: 0.32, height: 1.5, offsetZ: 0.14 },
+  // The whole archway (`archway()` in scripts/generate-world-assets.ts); `PASSAGE_OPENINGS`
+  // carves its opening out, leaving two jambs and the lintel.
+  archway: { halfX: 1.3, halfZ: 0.3, height: 3 },
 };
+
+/**
+ * A passage piece's opening in model space: the gap between `minX` and `maxX`, from the ground up
+ * to `top`, through the piece's whole depth. Measured from the generator, like the footprints.
+ */
+export interface PassageOpening {
+  minX: number;
+  maxX: number;
+  top: number;
+}
+
+export const PASSAGE_OPENINGS: Readonly<Record<string, PassageOpening>> = {
+  // Jambs 0.3 m wide centred at x = +-1.15 and 2.6 m tall; the lintel runs from 2.6 to 3 m.
+  archway: { minX: -1, maxX: 1, top: 2.6 },
+};
+
+/**
+ * A Solid box whose underside is at least this far above its piece's base is overhead for every
+ * permitted avatar set-up (`DEFAULT_BODY_HEIGHT` plus the largest `clearanceMargin`), so it never
+ * walls in a kept-clear point.
+ */
+export const OVERHEAD_KEEP_CLEAR_HEIGHT =
+  DEFAULT_BODY_HEIGHT + PLAYER_COLLISION_LIMITS.clearanceMargin.max;
+
+/**
+ * `box` with a passage's opening removed: what lies either side of it, and above it. A box clear
+ * of the opening comes back unchanged; one inside it entirely is gone.
+ */
+export function carveOpening(box: ModelBox, opening: PassageOpening): ModelBox[] {
+  if (box.maxX <= opening.minX || box.minX >= opening.maxX || box.minY >= opening.top) {
+    return [box];
+  }
+  const out: ModelBox[] = [];
+  if (box.minX < opening.minX) out.push({ ...box, maxX: opening.minX });
+  if (box.maxX > opening.maxX) out.push({ ...box, minX: opening.maxX });
+  if (box.maxY > opening.top) {
+    out.push({
+      ...box,
+      minX: Math.max(box.minX, opening.minX),
+      maxX: Math.min(box.maxX, opening.maxX),
+      minY: opening.top,
+    });
+  }
+  return out;
+}
 
 /** Any `character` asset without its own entry: a child-sized body. Arms are not a wall. */
 export const CHARACTER_FOOTPRINT: AssetFootprint = { halfX: 0.3, halfZ: 0.3, height: 1.6 };
@@ -301,12 +357,21 @@ export function derivedColliders(
   options: DeriveOptions,
 ): DerivedCollider[] {
   const placements = placementsOf(manifest, context);
-  // Required paths: the centre of every walkable piece stays clear, like a checkpoint.
-  const keepClear = [
+  // Required paths: the centre of every walkable piece and every passage stays clear, like a
+  // checkpoint. A passage's own centre binds only the other pieces: its own parts are carved
+  // around its opening already, and a passage too low to walk through must stay a wall.
+  const keepClear: { x: number; z: number; owner?: string }[] = [
     ...options.keepClear,
     ...placements
-      .filter((placement) => isWalkable(placement.assetId, options))
-      .map((placement) => ({ x: placement.position.x, z: placement.position.z })),
+      .filter(
+        (placement) =>
+          isWalkable(placement.assetId, options) || placement.assetId in PASSAGE_OPENINGS,
+      )
+      .map((placement) => ({
+        x: placement.position.x,
+        z: placement.position.z,
+        ...(placement.assetId in PASSAGE_OPENINGS ? { owner: placement.id } : {}),
+      })),
   ];
   const out: DerivedCollider[] = [];
   for (const placement of placements) {
@@ -316,28 +381,50 @@ export function derivedColliders(
     if (!collision) continue;
     const { x, z } = placement.position;
     if (options.authored.some((box) => insideXZ(box, x, z))) continue;
-    const boxes = collision.boxes
-      .flatMap((model) => placedBoxes(model, placement))
-      .map((placed) => ({
-        minX: placed.min.x,
-        minY: placed.min.y,
-        minZ: placed.min.z,
-        maxX: placed.max.x,
-        maxY: placed.max.y,
-        maxZ: placed.max.z,
-      }));
-    // One kept-clear point inside any part drops the whole piece, never half a log.
-    if (boxes.some((box) => keepClear.some((point) => insideXZ(box, point.x, point.z)))) continue;
-    boxes.forEach((box, part) => {
-      // Jumpable by behaviour only, never by elevation (GE-L16).
+    const opening = PASSAGE_OPENINGS[placement.assetId];
+    const parts = collision.boxes.flatMap((model) => {
+      // Jumpable by behaviour only, never by elevation (GE-L16), and decided on the whole part
+      // before a passage opening is carved out of it: a carved lintel is not "short".
+      const height = Math.max(
+        ...placedBoxes(model, placement).map((placed) => placed.max.y - placed.min.y),
+      );
       const jumpable =
         collision.behavior === 'JUMPABLE' ||
-        (collision.behavior === 'AUTO' && box.maxY - box.minY <= JUMPABLE_MAX_HEIGHT);
+        (collision.behavior === 'AUTO' && height <= JUMPABLE_MAX_HEIGHT);
+      return (opening ? carveOpening(model, opening) : [model])
+        .flatMap((carved) => placedBoxes(carved, placement))
+        .map((placed) => ({
+          jumpable,
+          box: {
+            minX: placed.min.x,
+            minY: placed.min.y,
+            minZ: placed.min.z,
+            maxX: placed.max.x,
+            maxY: placed.max.y,
+            maxZ: placed.max.z,
+          },
+        }));
+    });
+    // One kept-clear point inside any part drops the whole piece, never half a log. An overhead
+    // Solid part walls nothing in.
+    const walls = (part: (typeof parts)[number]) =>
+      part.jumpable || part.box.minY - placement.position.y < OVERHEAD_KEEP_CLEAR_HEIGHT;
+    if (
+      parts.some(
+        (part) =>
+          walls(part) &&
+          keepClear.some(
+            (point) => point.owner !== placement.id && insideXZ(part.box, point.x, point.z),
+          ),
+      )
+    )
+      continue;
+    parts.forEach(({ box, jumpable }, part) => {
       // A raised Solid keeps its height: the controller decides whether it is a walk-under
       // passage or a column. A ground-level one reaches below the ground, as before.
       const raised = box.minY > 0;
       out.push({
-        id: boxes.length === 1 ? `derived:${placement.id}` : `derived:${placement.id}:${part}`,
+        id: parts.length === 1 ? `derived:${placement.id}` : `derived:${placement.id}:${part}`,
         box: jumpable || raised ? box : { ...box, minY: Math.min(box.minY, SOLID_MIN_Y) },
         ...(jumpable ? { jumpable: true } : {}),
       });
