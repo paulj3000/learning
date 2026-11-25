@@ -267,3 +267,29 @@ describe('library palms, barrels and logs (TR-PALM-05, TR-ENV-06)', () => {
     expect(EMPTY_LAYOUT.props).toEqual([]);
   });
 });
+
+/**
+ * The low-detail twin contract (Trello #247, docs/ASSET_LIBRARY.md section 25.3).
+ *
+ * `instantiateWithLod` is the only code that draws a twin, and only `LOD_PLACEMENTS`
+ * scenery calls it. A Django 3D Area cannot hold that kind, so the regions dependency
+ * provider (`lai/apps/regions/dependencies.py`) follows no twin, and retiring a twin is
+ * never blocked by a published region. If this test has to change, the same PR must make
+ * that provider block a twin which a PUBLISHED region draws through `LOD_PLACEMENTS`.
+ */
+describe('low-detail twins in a Django 3D Area', () => {
+  it('refuses LOD_PLACEMENTS scenery, so no Django region ever draws a twin', () => {
+    const error = failure({
+      scenery: [
+        {
+          kind: 'LOD_PLACEMENTS',
+          id: 'trees',
+          assetId: 'foliage-tree',
+          positions: [{ x: 0, z: 0 }],
+        },
+      ],
+    });
+    expect(error.path).toBe('scene.layout.scenery[0].kind');
+    expect(error.message).toContain('unsupported scenery kind "LOD_PLACEMENTS"');
+  });
+});
