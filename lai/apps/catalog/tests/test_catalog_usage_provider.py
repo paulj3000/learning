@@ -116,8 +116,21 @@ def test_retiring_an_asset_shipped_scenes_use_succeeds_through_every_guard(tmp_p
     assert [u.details["scene"] for u in catalog_usages("rock")] == ["bay", "welcome-harbor"]
 
 
-def test_a_failing_catalog_check_refuses_retirement(tmp_path, monkeypatch):
-    """Fail closed (ASSET_LIBRARY.md 25.2 rule 4): an error is never read as 'no usages'."""
+def test_the_catalog_check_is_informational():
+    """Agent 4, 2026-11-25 (ASSET_LIBRARY.md 25.9): it never blocks, so it cannot conceal one."""
+    from apps.assets.dependencies import CheckClass, check_class
+
+    assert check_class("catalog") is CheckClass.INFORMATIONAL
+
+
+def test_a_failing_catalog_check_no_longer_stops_retirement_and_is_warned(
+    tmp_path, monkeypatch, caplog
+):
+    """An error is never read as 'no usages': it is logged and reported, not silently skipped."""
+    import logging
+
+    from apps.assets.dependencies import unverified_checks
+
     import_content(write_export(tmp_path / "v1"))
     rock = ContentAsset.objects.get(asset_id="rock")
 
@@ -125,12 +138,77 @@ def test_a_failing_catalog_check_refuses_retirement(tmp_path, monkeypatch):
         raise RuntimeError("index unreadable")
 
     monkeypatch.setattr(catalog_dependencies, "shipped_scene_usages", broken)
+    with caplog.at_level(logging.WARNING, logger="lai.assets"):
+        with unverified_checks() as unverified:
+            services.retire_asset(rock)
+    assert unverified == ["catalog"]
+    assert "source=catalog" in caplog.text and "retirement continues" in caplog.text
+    assert "index unreadable" not in caplog.text  # ids and error type only
+    rock.refresh_from_db()
+    assert rock.status == AssetStatus.RETIRED
+
+
+def test_a_failing_catalog_check_never_hides_a_blocker(tmp_path, monkeypatch):
+    from apps.assets import dependencies
+    from apps.assets.dependencies import Usage
+
+    import_content(write_export(tmp_path / "v1"))
+    rock = ContentAsset.objects.get(asset_id="rock")
+
+    def broken(asset):
+        raise RuntimeError("index unreadable")
+
+    def blocker(asset, version):
+        return [Usage("blocker", "blocker_dependency", "row 1", True)]
+
+    monkeypatch.setattr(catalog_dependencies, "shipped_scene_usages", broken)
+    monkeypatch.setattr(
+        dependencies,
+        "_PROVIDERS",
+        {**dependencies._PROVIDERS, "blocker": dependencies._Registration(blocker, None)},
+    )
     with pytest.raises(AssetActionRefused) as refused:
         services.retire_asset(rock)
-    assert refused.value.code == "dependency_check_failed"
-    assert refused.value.details == {"source": "catalog"}
+    assert refused.value.code == "blocker_dependency"
     rock.refresh_from_db()
     assert rock.status == AssetStatus.ACTIVE
+
+
+def test_the_retire_action_warns_when_the_catalog_check_fails(tmp_path, monkeypatch):
+    from django.contrib import messages
+    from django.contrib.admin.sites import AdminSite
+    from django.contrib.messages.storage.fallback import FallbackStorage
+    from django.test import RequestFactory
+
+    from apps.catalog import scene_usage
+    from apps.catalog.admin import ContentAssetAdmin
+    from apps.catalog.tests.helpers import staff_user
+
+    import_content(write_export(tmp_path / "v1"))
+    rock = ContentAsset.objects.get(asset_id="rock")
+
+    def broken(asset):
+        raise RuntimeError("index unreadable")
+
+    monkeypatch.setattr(catalog_dependencies, "shipped_scene_usages", broken)
+    monkeypatch.setattr(scene_usage, "shipped_scene_usages", broken)
+    request = RequestFactory().post("/")
+    request.user = staff_user()
+    request.session = {}
+    request._messages = FallbackStorage(request)
+    ContentAssetAdmin(ContentAsset, AdminSite()).retire_assets(
+        request, ContentAsset.objects.filter(pk=rock.pk)
+    )
+    found = [(m.level, m.message) for m in messages.get_messages(request)]
+    assert (messages.SUCCESS, "Retired 1 asset(s).") in found
+    warnings = [text for level, text in found if level == messages.WARNING]
+    assert (
+        len(warnings) == 1
+        and warnings[0].startswith("rock: Retired, but")
+        and "catalog" in warnings[0]
+    )
+    rock.refresh_from_db()
+    assert rock.status == AssetStatus.RETIRED
 
 
 def test_the_asset_usage_command_lists_shipped_scenes(tmp_path):

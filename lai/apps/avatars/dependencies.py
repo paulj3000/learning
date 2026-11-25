@@ -121,6 +121,8 @@ def refusal(asset, version, blocking):
 
 
 def register_usage_provider() -> None:
+    from apps.assets.dependencies import CheckClass
     from apps.assets.dependencies import register_usage_provider as register
 
-    register(SOURCE, usages, refusal=refusal)
+    # Authoritative: a failed check could hide a release or avatar that still uses the asset.
+    register(SOURCE, usages, refusal=refusal, check_class=CheckClass.AUTHORITATIVE)

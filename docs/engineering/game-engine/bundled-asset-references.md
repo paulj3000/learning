@@ -177,7 +177,8 @@ checklist (LAI 05).
   no admin link, and `details={"scene", "release", "current", "note"}`, where `note` is
   `retirement_note(asset)`.
 - A malformed or missing hub entry lists nothing. Any other error raises, and the registry then
-  refuses retirement with `dependency_check_failed` (fail closed, ASSET_LIBRARY.md 25.2 rule 4).
+  logs it and warns staff, and retirement goes ahead: `catalog` is an INFORMATIONAL check
+  (Agent 4, 2026-11-25; ASSET_LIBRARY.md 25.9). An error is never read as "no usages".
 - `manage.py asset_usage rock` now prints `[listed] catalog: Shipped scene bay (bundled model)`
   and the hub line. The W2-5 admin panel can render `details["note"]`.
 - Tests: `apps/catalog/tests/test_catalog_usage_provider.py`.
