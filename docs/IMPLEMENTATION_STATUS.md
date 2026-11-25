@@ -37,6 +37,20 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W3(b)(c)(d): background inspection admin (2026-11-25, `feature/asset-library-w3bcd-inspections`, `main` `8f3a7b3c`)
+
+- **W3(d):** "Inspect in background" needs the validate permission (as the validate action),
+  not view. View-only staff no longer see or run it.
+- **W3(c):** a version with an `asset.inspect` job already queued or running for its stored file
+  is skipped ("Skipped N version(s) with an inspection already running.", info). The check and
+  submission run under a row lock on the version (`jobs.submit_inspection_once`), so simultaneous
+  clicks queue one job. A finished inspection never blocks a new one.
+- **W3(b):** the version page gains a "Latest inspection" section (status, finish time, codes,
+  dimensions, counts), shown only when an inspection exists. No raw error text, keys or URLs.
+- Lambda's `validate_in_background`, `_latest_job`, `_summary`, `BACKGROUND_FIELDS` and the
+  capture, image and artifact admin are unchanged. No migration. Tests:
+  `apps/assets/tests/test_inspection_admin.py`.
+
 ## LAI-07 Asset Library W2-5: "Used by" panel (2026-11-25, `feature/asset-library-w2-5-used-by`, `main` `8f3a7b3c`)
 
 - The content asset change page gains a read-only **Used by** section built only from the usage
