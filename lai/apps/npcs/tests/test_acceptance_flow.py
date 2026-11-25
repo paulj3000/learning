@@ -473,7 +473,12 @@ def test_pips_model_cannot_be_retired_while_a_release_uses_it(voiced, api):
     model = ContentAsset.objects.get(asset_id=pip.MODEL_ASSET_ID)
     with pytest.raises(services.AssetActionRefused) as refused:
         services.retire_asset(model)
-    assert refused.value.code == "npc_release_dependency"
+    # LAI-07 W2-4b: Pip's model is also placed in a published 3D Area, so the registry names
+    # both blockers in one refusal; the NPC part keeps its own code.
+    assert refused.value.code == "asset_in_use"
+    blockers = refused.value.details["blockers"]
+    assert sorted(blockers) == ["npcs", "regions"]
+    assert blockers["npcs"]["code"] == "npc_release_dependency"
     model.refresh_from_db()
     assert model.status == AssetStatus.ACTIVE
     scene = api(voiced.families.a).get(area(voiced.families.a1))

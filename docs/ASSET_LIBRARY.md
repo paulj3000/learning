@@ -1119,19 +1119,20 @@ records each model's bounding corners in `metadata["bounds"]`, which automatic p
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
 
-## 25. Dependency tracking (LAI-07 W2; W2-1 on `main`, W2-3 and W2-4 in review)
+## 25. Dependency tracking (LAI-07 W2; W2-1, W2-3 and W2-4 on `main`, W2-4b in review)
 
 Status:
 - **On `main`:** the registry, the aggregate retirement guard and `manage.py asset_usage` (W2-1,
-  PR #65), and the `catalog` provider for shipped scenes (GE-247, Agent 4, PR #70).
-- **In review** (Trello #246): the regions provider (W2-3,
-  `feature/asset-library-w2-3-regions`). The NPC and avatar providers with their parity tests
-  (W2-4, `feature/asset-library-w2-4-parity`, stacked on W2-3) are **not registered**, so their guards refuse exactly as
-  before.
-- **Waiting:** the audio provider (W2-2) and the guard switch (W2-4b) for owner decisions; the
-  "Used by" admin panel (W2-5) is unblocked by the Lambda merge (#71) and comes as its own PR.
+  PR #65); the `catalog` provider for shipped scenes (GE-247, Agent 4, PR #70); the regions
+  provider (W2-3, PR #80); the NPC and avatar providers with their parity tests, not registered
+  (W2-4, PR #81).
+- **In review: guard switch (W2-4b,** `feature/asset-library-w2-4b-guard-switch`): the NPC and
+  avatar guards become usage providers. A single NPC or avatar refusal keeps its code, wording and
+  details; together with another blocker it becomes one `asset_in_use` refusal naming both.
+- **Approved for development (owner, 2026-11-25):** the audio provider (W2-2), low-detail twins
+  in the regions provider and the "Used by" admin panel (W2-5), each as its own PR.
 
-`apps/assets/services.py` and the Django Admin classes are unchanged. Integration plan: 25.7.
+`apps/assets/services.py` is unchanged. Integration plan: 25.7.
 
 ### 25.1 What protects an asset today (reviewed 2026-11-22 on `main` `aa8adb33`)
 
@@ -1232,7 +1233,7 @@ Rules:
 
 | Source (owner) | Blocks retirement | Listed only | Owner decision needed |
 |---|---|---|---|
-| `audio` (Sound Manager) | The LIVE release pins this version, or any version of this asset when retiring the asset. This applies even when a replacement default is named, because the release pins the exact version. New code `sound_release_dependency`; the message says "publish a sound release without it first". | SUPERSEDED releases that pin it (retiring makes that rollback impossible, as `release_problems` already reports). Enabled cues whose working copy uses it. | Do SUPERSEDED releases block? NPCs block on SUPERSEDED. **Recommendation: list only**, because every sound publish creates a SUPERSEDED release, and blocking would pin every old file forever. |
+| `audio` (Sound Manager) | A LIVE `SoundRelease` pins any version of the asset (blocks retiring the asset) or pins this exact version (blocks retiring that version). This applies even when a replacement default is named, because the release pins the exact `versionId`. Code `sound_release_dependency`; the message says to publish a sound release without it first. | SUPERSEDED releases that pin it, reported with `historical=True` and never blocking (retiring makes a rollback to them impossible, as `release_problems` already reports). Working `SoundCue` rows that use it, listed and not blocking (publishing already refuses a retired asset or version). | Owner decision 2026-11-25: only the LIVE release blocks, because every sound publish creates a SUPERSEDED release and blocking on those would pin every old file forever. |
 | `npcs` (NPC Manager) | ACTIVE and SUPERSEDED releases (unchanged, from `release_dependents`) | Draft variants, extras and dialogue nodes (`draft_dependents`) | None. Parity only. |
 | `avatars` (avatars owner) | AVAILABLE avatars served the model asset or version (unchanged, from `avatars_using`) | Draft and disabled avatars; an AVAILABLE avatar's **thumbnail** | Should the thumbnail block? **Recommendation: list only**, because the served description already drops a missing thumbnail. |
 | `regions` (semantics coordinator: Agent 4, Game Engine Core, named by the owner 2026-11-23) | Asset-level only: a PUBLISHED `WorldRegion` names the asset in a placement, a chest, or its `scene` JSON (`assetId` and `groundAssetId` at any depth: backdrop, ground, layout props, vegetation, procedural, scenery, jump-platform specs). Code `region_placement_dependency`. | DRAFT and RETIRED areas. A version query reports the area only when the version is the default. | **Decided** (owner, 2026-11-22). Children would see the bundled model or a placeholder, and the Asset Manager's collision profile would no longer apply. NPC placements drawn through their NPC definition are the `npcs` provider's job. |
@@ -1256,10 +1257,26 @@ contain child data.
   (`AssetVersionAdmin._run`, `catalog` `retire_assets`), so no admin code changes.
 - **`manage.py asset_usage <asset_id> [--number N] [--json]`**: a read-only report of
   `usages_for`. It is new and lives only in `apps/assets`.
-- **"Used by" panel** on the asset version and content asset change pages. This is W2-5, its own
-  PR: the Lambda admin (#71) is now on `main`, and the catalog asset admin needs its owner's
-  agreement. Only users with view permission on the
-  referring model see its rows.
+- **"Used by" panel** on the content asset change page (W2-5, `ContentAssetAdmin.usage_panel`, in
+  its own "Used by" section; the "Used by shipped scenes" list column is unchanged). It is
+  read-only, adds no permission or action, and does not appear on the add page. It renders
+  `usages_by_source(asset)`, so every registered source (npcs, avatars, audio, regions, catalog,
+  artifacts) appears without per-source code. Rows show the source, the label (linked when the
+  usage has an admin URL) and the code, in three groups:
+  - **Blocks retirement**: usages that make a retire refuse.
+  - **Informational**: listed usages that never block (draft rows, shipped scenes, derived
+    artifacts still under review).
+  - **Historical**: past use kept for the record (`Usage.historical`): a disabled player avatar,
+    a retired region, an expired or rejected derived artifact. Historical never blocks.
+
+  Sources with no usages are summarised in one line ("No usages from: audio, avatars"). A source
+  whose check raised shows a fixed sentence (retiring is refused until it works; ask a developer
+  to check the server log), never the exception text; the other sources still show, because
+  `usages_by_source` isolates failures for display only. Retirement is unchanged and still fails
+  closed (`dependency_check_failed`). Derived artifacts (`apps/assets/artifact_usage.py`) are an
+  informational source only: they never block retirement in any state.
+  `manage.py asset_usage` also reports `historical` (JSON `historical`; text `[historical]`). The
+  panel on the asset version change page is not part of W2-5.
 
 ### 25.5 Tests (PostgreSQL 18, slot 9; unit only)
 

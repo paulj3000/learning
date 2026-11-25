@@ -39,15 +39,29 @@ def test_the_aggregate_guard_is_registered_by_the_app():
     assert dependencies.retirement_guard in services.RETIREMENT_GUARDS
 
 
-def test_the_npc_and_avatar_guards_stay_in_place_beside_the_registry():
-    """W2-1 changes no behaviour: the NPC and avatar guards keep refusing until each owner
-    agrees to move them to a provider (ASSET_LIBRARY.md s. 25.2)."""
+def test_the_npc_and_avatar_guards_are_now_usage_providers():
+    """W2-4b: the NPC and avatar guards moved to usage providers on the registry, with the
+    owner's approval (ASSET_LIBRARY.md s. 25.7)."""
     from apps.avatars import dependencies as avatar_dependencies
     from apps.npcs import dependencies as npc_dependencies
 
-    assert npc_dependencies.retirement_guard in services.RETIREMENT_GUARDS
-    assert avatar_dependencies.retirement_guard in services.RETIREMENT_GUARDS
-    assert not {"npcs", "avatars"} & set(dependencies.registered_sources())
+    # W2-4b: both moved to usage providers; only the aggregate guard is registered.
+    assert npc_dependencies.retirement_guard not in services.RETIREMENT_GUARDS
+    assert avatar_dependencies.retirement_guard not in services.RETIREMENT_GUARDS
+    assert {"npcs", "avatars"} <= set(dependencies.registered_sources())
+    assert services.RETIREMENT_GUARDS == [dependencies.retirement_guard]
+
+
+def test_running_ready_again_registers_nothing_twice():
+    """`ready()` can run more than once (tests); each source and the guard stay registered once."""
+    from django.apps import apps as django_apps
+
+    sources = dependencies.registered_sources()
+    for label in ("assets", "npcs", "avatars", "regions", "catalog"):
+        django_apps.get_app_config(label).ready()
+    assert dependencies.registered_sources() == sources
+    assert len(sources) == len(set(sources))
+    assert services.RETIREMENT_GUARDS == [dependencies.retirement_guard]
 
 
 def test_with_no_providers_retirement_is_unchanged(registry):
@@ -228,7 +242,9 @@ def test_the_command_lists_blocking_and_listed_usages(registry):
     register_usage_provider(
         "npcs",
         lambda asset, version: [
-            Usage("npcs", "npc_release_dependency", "NPC release 7", True, "/admin/npcs/7/"),
+            Usage(
+                "npcs", "npc_release_dependency", "NPC release 7", True, admin_url="/admin/npcs/7/"
+            ),
             listed("npcs", "pip variant default (model)"),
         ],
     )
@@ -258,6 +274,7 @@ def test_the_command_reports_json_for_one_version(registry):
             "code": "sound_release_dependency",
             "label": "Sound release 3",
             "blocksRetirement": True,
+            "historical": False,
             "adminUrl": "",
             "details": {"release": 3},
         }
