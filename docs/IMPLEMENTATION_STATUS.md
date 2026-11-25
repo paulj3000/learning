@@ -37,6 +37,35 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## GE-247 engine follow-ups: archway passages, asset-resolution contract, delivery identity (2026-11-25, `feature/GE-247-engine-followups`, `main` `05b54d8a`, Trello #247, #244, #245); Development Complete, NOT merged
+
+Owner-authorized 2026-11-25. Agent 4 (Game Engine Core).
+
+- **Archway passages** (found by LAI 02): a passage piece's opening is carved out of every box it
+  gets, whether built-in, Automatic or a staff Solid box (`PASSAGE_OPENINGS`, `carveOpening` in
+  `derivedColliders.ts`). The jambs block. The lintel is a raised Solid, so GE-L16 makes it a
+  walk-under passage at 2.6 m, and no jump goes over or onto it. `archway` gets a built-in
+  footprint. A passage's centre is kept clear of other pieces, and overhead Solid parts (2.2 m and
+  up) no longer drop a piece over a checkpoint. A jamb profile is used as authored. Details:
+  `docs/engineering/game-engine/raised-solid-clearance.md` section 5.
+- **Realms:**
+  - Storykeeper Castle: routes unchanged.
+  - Treasure Cove: the ruins archway's jambs now block (they could be walked through).
+  - Firepeak: `firepeak-arch` never gets an Asset Library box; the gate colliders are its jambs
+    and opening.
+  - North Pole: no archway.
+- **Asset-resolution contract** (`react/src/api/assets/assetResolutionContract.test.ts`):
+  - retired, unpublished and unknown ids;
+  - a retired LOD twin;
+  - the default ground;
+  - one model load per visit despite rotating signed URLs;
+  - one asset-id shape in every realm, checked against `formats.ASSET_ID`.
+- **LOD pin:** `regionLayout.test.ts` refuses `LOD_PLACEMENTS` (the regions provider follows no
+  twin).
+- **Delivery identity:** no engine change. Models are keyed by asset id per visit; textures and
+  audio by `asset@versionId`. Nothing is keyed on the URL.
+- **Not done:** the Asset Library help text for pieces with openings (LAI 07, owner decision).
+
 ## LAI-07 Asset Library W5: documentation close-out (2026-11-25, `docs/asset-library-w5-reconcile`, `main` `8f3a7b3c`)
 
 - `docs/ASSET_LIBRARY.md` 25.5 to 25.8: the final test map and owner acceptance checks, the W2
