@@ -541,7 +541,9 @@ class ContentAssetAdmin(CatalogModelAdmin):
             # Shipped scenes never block retirement (GE-247); they are listed so staff see it.
             try:
                 scenes = [u for u in scene_usage.shipped_scene_usages(asset) if u.current]
-            except Exception:  # the catalog check is informational: the retire warns instead
+            except Exception:
+                # Not swallowed: the same failure reaches the registry below, which logs it
+                # (ids only) and reports it through unverified_checks, so staff get one warning.
                 scenes = []
             try:
                 with unverified_checks() as unverified:
