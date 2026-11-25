@@ -37,6 +37,22 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## GE-247 engine follow-ups: asset-resolution contract and LOD pin (2026-11-25, `feature/GE-247-engine-followups`, `main` `05b54d8a`, Trello #247, #244); Development Complete
+
+Owner-authorized 2026-11-25. Agent 4 (Game Engine Core). The archway passage fix is split out to
+GE-L17 (`feature/GE-L17-archway-passages`, owner decision 2026-11-25).
+
+- **Asset-resolution contract** (`react/src/api/assets/assetResolutionContract.test.ts`):
+  - retired, unpublished and unknown ids;
+  - a retired LOD twin (both levels kept, bundled twin);
+  - the default ground (a shipped file);
+  - one model load per visit however the signed URL rotates;
+  - one asset-id shape in every realm, checked against `formats.ASSET_ID`.
+- **LOD pin:** `regionLayout.test.ts` refuses `LOD_PLACEMENTS`, so the regions provider follows no
+  low-detail twin (`docs/ASSET_LIBRARY.md` 25.3).
+- **Delivery identity:** no engine change. Models are keyed by asset id per visit; textures and
+  audio by `asset@versionId`. Nothing is keyed on the signed URL.
+
 ## LAI-07 Asset Library W5: documentation close-out (2026-11-25, `docs/asset-library-w5-reconcile`, `main` `8f3a7b3c`)
 
 - `docs/ASSET_LIBRARY.md` 25.5 to 25.8: the final test map and owner acceptance checks, the W2
