@@ -90,6 +90,20 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   capture, image and artifact admin are unchanged. No migration. Tests:
   `apps/assets/tests/test_inspection_admin.py`.
 
+## LAI-07 Asset Library W2: client-derived region ids, low-detail twins and the default ground (2026-11-25, `feature/asset-library-w2-lod-twins`, `main` `8f3a7b3c`)
+
+- **Low-detail twins** (owner decision 2026-11-25, semantics agreed with LAI 04): a twin a
+  PUBLISHED region actually needs blocks retiring it. Today no Django region needs one: the engine
+  pairs twins only from the bundled manifest and a region layout refuses `LOD_PLACEMENTS`. So the
+  regions provider follows no twin; the shipped scene lists it (catalog, non-blocking). Regression
+  tests `apps/regions/tests/test_lod_twins.py` (D1 to D3); the rule for later is in
+  ASSET_LIBRARY 25.3, with LAI 04's engine test pointing at it.
+- **Default ground** (LAI 01 finding): a region whose scene names no `groundAssetId` tiles
+  `ground-tile` (`regionManifest.ts`), so the provider now reports that usage: PUBLISHED blocks,
+  DRAFT lists, RETIRED is historical. A drift test pins the constant to the client's.
+- RETIRED regions' usages are `historical`. `Usage.historical` is the same field as W2-2 and W2-5.
+- No migration. Tests: `test_lod_twins.py` (3), `test_default_ground.py`.
+
 ## LAI-07 Asset Library W4: shared asset-id pattern and one upload dry run (2026-11-24, `refactor/asset-library-w4-shared-helpers`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
 
 - **One asset-id pattern:** `formats.ASSET_ID`, used by validation, the importer and storage
