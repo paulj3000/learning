@@ -37,6 +37,17 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W2-4: NPC and avatar usage providers with parity (2026-11-24, `feature/asset-library-w2-4-parity`, stacked on W2-3, Trello #246); Development Complete, NOT merged
+
+- `apps/npcs/dependencies.py` and `apps/avatars/dependencies.py` gain usage providers: live NPC
+  releases and AVAILABLE avatars block; drafts, disabled avatars and thumbnails are listed only.
+  Their refusal is the legacy guard's own, word for word.
+- **Not registered:** the NPC and avatar retirement guards stay registered and refuse exactly as
+  before. No behaviour change.
+- Parity matrices (`test_dependency_parity.py` in both apps) prove that, registered alone, each
+  provider refuses the same retirements with the same code, message and details as its guard.
+- The switch (W2-4b) waits for owner approval: `docs/ASSET_LIBRARY.md` section 25.7.
+
 ## LAI-07 Asset Library W2-3: regions dependency protection (2026-11-24, `feature/asset-library-w2-3-regions` from `main` `f0de1087`, Trello #246); Development Complete, NOT merged
 
 - **Rule** (owner, 2026-11-22; confirmed by Agent 4, the region-semantics coordinator, 2026-11-23):
