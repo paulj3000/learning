@@ -37,6 +37,17 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W5: documentation close-out (2026-11-25, `docs/asset-library-w5-reconcile`, `main` `8f3a7b3c`)
+
+- `docs/ASSET_LIBRARY.md` 25.5 to 25.8: the final test map and owner acceptance checks, the W2
+  sequence by PR, the agreed merge order (#85, #86, #87, #84, #88, then this), and the decisions
+  not to change code: the four GLB readers stay separate (verdict parity enforced by
+  `test_glb_processing_parity.py`), no shared transform helper, informational providers fail
+  closed, and the follow-ups awaiting the owner (archway collision warning, engine passage
+  keep-clear).
+- `docs/adventures/asset-standard.md` section 2: what refuses retirement and what is listed only.
+- Docs only. The section 25 status header is updated by #85 and again after the round merges.
+
 ## LAI-07 Asset Library W2: client-derived region ids, low-detail twins and the default ground (2026-11-25, `feature/asset-library-w2-lod-twins`, `main` `8f3a7b3c`)
 
 - **Low-detail twins** (owner decision 2026-11-25, semantics agreed with LAI 04): a twin a

@@ -38,7 +38,7 @@ The "Asset Manager" is now called the Asset Library (ADR-045). The workflow, in 
 | 3. Preview | View permission | Version page (sandboxed 3D viewer, image thumbnail, native audio player) | Staff check scale, clips, look |
 | 4. Publish | `assets.publish_assetversion` | Actions | `PUBLISHED`; the first published version becomes the default |
 | 5. Make default or roll back | `assets.publish_assetversion` | Actions | Unpinned references get the new default |
-| 6. Retire | `assets.retire_assetversion` | Actions | Stops resolution; refused while depended on (NPC releases, sound releases) |
+| 6. Retire | `assets.retire_assetversion` | Actions | Stops resolution; refused while a LIVE NPC release, an AVAILABLE player avatar, the LIVE sound release or a PUBLISHED 3D Area uses it (one refusal names every blocker). Shipped scenes, drafts, superseded releases and derived artifacts are listed only (`asset_usage`, "Used by"): [`ASSET_LIBRARY.md`](../ASSET_LIBRARY.md) section 25 |
 | 7. Reference | Content author | Content revision, NPC release, sound cue, region seed | Stable id or pin |
 
 Roles come from `manage.py ensure_asset_roles` (viewers, editors, publishers). Every transition is
