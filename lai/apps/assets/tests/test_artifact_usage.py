@@ -140,7 +140,7 @@ def test_a_failing_provider_is_isolated_for_display_but_retirement_still_fails_c
     with pytest.raises(AssetActionRefused) as refused:
         services.retire_asset(definition)
     assert refused.value.code == "dependency_check_failed"
-    assert refused.value.details == {"source": "broken"}
+    assert refused.value.details == {"source": "broken", "check_class": "unclassified"}
     assert "secret" not in refused.value.message
     definition.refresh_from_db()
     assert definition.status != AssetStatus.RETIRED

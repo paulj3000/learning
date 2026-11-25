@@ -17,7 +17,7 @@ from django.urls import NoReverseMatch, reverse
 
 from apps.catalog.models import ContentAsset
 
-from .dependencies import Usage, register_usage_provider
+from .dependencies import CheckClass, Usage, register_usage_provider
 from .models import ArtifactState, AssetVersion, DerivedArtifact
 
 SOURCE = "artifacts"
@@ -70,4 +70,6 @@ def artifact_usages(asset: ContentAsset, version: AssetVersion | None) -> list[U
 
 
 def register() -> None:
-    register_usage_provider(SOURCE, artifact_usages)
+    # Informational: artifact usages never block (see above), so a failed check cannot conceal an
+    # active dependency. Retirement goes ahead and the failure is logged and reported.
+    register_usage_provider(SOURCE, artifact_usages, check_class=CheckClass.INFORMATIONAL)
