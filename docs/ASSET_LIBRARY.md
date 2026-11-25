@@ -1378,6 +1378,17 @@ flow, outcome codes, retries and deployment order: `docs/processing/ASYNC_MODEL_
   informational: it reads structure and dimensions of a model, image or sound, keeps the result on
   the job and never changes a version. `asset.validate_model` is the full GLB validator; its
   applied result decides a draft's status and is what the publication gate reads.
+- **Inspect in background, admin behaviour.** (1) Permission: the action needs the same
+  permission as Validate in background (staff who may add and view versions); view-only staff do
+  not see it and a direct POST creates no job. Publishing, retiring and artifact promotion keep
+  their own separate permissions. (2) No duplicates: a version that already has a queued or
+  running `asset.inspect` job for its stored file is skipped with an informational message
+  ("Skipped N version(s) with an inspection already running."); the check and the submission run
+  in one transaction under a row lock on the version, so a double click or two staff queue one
+  job. A completed or failed inspection never blocks a new one. (3) The version page gets a
+  read-only "Latest inspection" section (status, finish time, reported dimensions, counts and
+  issue codes; only codes and numbers, never raw error text) when the version has an inspection
+  job; versions without one show no section.
 
 ## 27. Image privacy baseline (Workstream B, 2026-11-18)
 

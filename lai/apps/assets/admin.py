@@ -187,6 +187,7 @@ class AssetVersionAdmin(
     def get_readonly_fields(self, request, obj=None):
         return [name for name in self.fields if name not in EDITABLE_FIELDS] + [
             *BACKGROUND_FIELDS,
+            *INSPECTION_FIELDS,
             *IMAGE_FIELDS,
             *CAPTURE_FIELDS,
         ]
@@ -208,7 +209,12 @@ class AssetVersionAdmin(
         fieldsets = list(super().get_fieldsets(request, obj))
         if obj is not None and (async_validation_enabled() or _latest_job(obj) is not None):
             fieldsets.append(("Background validation", {"fields": BACKGROUND_FIELDS}))
-        return self.capture_fieldset(request, obj, fieldsets) if obj is not None else fieldsets
+        if obj is None:
+            return fieldsets
+        fieldsets = list(self.capture_fieldset(request, obj, fieldsets))
+        if _latest_inspection(obj) is not None:
+            fieldsets.append(("Latest inspection", {"fields": INSPECTION_FIELDS}))
+        return fieldsets
 
     # --- upload: the add page ---
 
@@ -543,7 +549,8 @@ class AssetVersionAdmin(
             )
 
     @admin.action(
-        description="Inspect in background (file structure and dimensions)", permissions=["view"]
+        description="Inspect in background (file structure and dimensions)",
+        permissions=["validate"],
     )
     def inspect_in_background(self, request, queryset):
         """Read-only: the media worker reads each file and reports its metadata on a background
@@ -553,9 +560,10 @@ class AssetVersionAdmin(
         from . import jobs
 
         submitted = []
+        skipped = 0
         for version in self._first_batch(request, queryset):
             try:
-                job = jobs.submit_inspection(version, request.user)
+                job = jobs.submit_inspection_once(version, request.user)
             except JobsError as error:
                 if error.code == "object_too_large":
                     self.message_user(
@@ -569,14 +577,25 @@ class AssetVersionAdmin(
                     request, f"Background jobs are unavailable ({error.code}).", messages.ERROR
                 )
                 return
+            if job is None:
+                skipped += 1
+                continue
             submitted.append(job)
-        finished = sum(1 for job in submitted if job.is_terminal)
-        self.message_user(
-            request,
-            f"Inspection submitted for {len(submitted)} version(s); {finished} already finished. "
-            "Results are on the background jobs page.",
-            messages.SUCCESS,
-        )
+        if skipped:
+            self.message_user(
+                request,
+                f"Skipped {skipped} version(s) with an inspection already running.",
+                messages.INFO,
+            )
+        if submitted or not skipped:
+            finished = sum(1 for job in submitted if job.is_terminal)
+            self.message_user(
+                request,
+                f"Inspection submitted for {len(submitted)} version(s); {finished} already "
+                "finished. Results are on the background jobs page and in each version's "
+                "Latest inspection section.",
+                messages.SUCCESS,
+            )
 
     def _first_batch(self, request, queryset) -> list:
         """At most `BULK_LIMIT` of the selected versions; says so when more were selected."""
@@ -690,6 +709,34 @@ class AssetVersionAdmin(
             "<dl>{}</dl>{}", format_html_join("", "<dt>{}</dt><dd>{}</dd>", rows), table
         )
 
+    @admin.display(description="Latest inspection result")
+    def inspection_result(self, obj):
+        """The newest "Inspect in background" job (`asset.inspect`): status, finish time and the
+        reported metadata. Read-only; only short codes and numbers from the job are shown."""
+        job = _latest_inspection(obj)
+        if job is None:
+            return "-"
+        rows = [("Status", _status_label(job)), ("Finished", _when(job.finished_at))]
+        if job.status == "failed":
+            rows.append(("Error code", job.error_code or "-"))
+        meta = ((job.result or {}).get("metadata") if job.status == "completed" else None) or {}
+        if not isinstance(meta, dict):
+            meta = {}
+        for key, value in meta.items():
+            if key == "problems" or isinstance(value, (dict, list)):
+                continue
+            if isinstance(value, bool) or isinstance(value, (int, float)):
+                rows.append((key, str(value)))
+            elif isinstance(value, str) and len(value) <= 64:
+                rows.append((key, value))
+        counts = meta.get("counts")
+        if isinstance(counts, dict):
+            rows.extend((f"counts.{k}", _number(v)) for k, v in counts.items())
+        problems = [str(p)[:64] for p in _items(meta.get("problems"))]
+        if job.status == "completed":
+            rows.append(("Issues", ", ".join(problems) or "None"))
+        return format_html("<dl>{}</dl>", format_html_join("", "<dt>{}</dt><dd>{}</dd>", rows))
+
     @admin.display(description="Model information")
     def background_model(self, obj):
         summary = _summary(_latest_job(obj))
@@ -700,6 +747,8 @@ class AssetVersionAdmin(
 
 #: The read-only "Background validation" section of the version change page.
 BACKGROUND_FIELDS = ("background_status", "background_result", "background_model")
+#: The read-only "Latest inspection" section of the version change page.
+INSPECTION_FIELDS = ("inspection_result",)
 #: The only fields the change page edits (and the only ones its save writes).
 EDITABLE_FIELDS = ("notes",)
 #: Most versions one background action processes.
@@ -723,6 +772,23 @@ def _latest_job(version):
     if not hasattr(version, "_lai_validation_job"):
         version._lai_validation_job = validation_jobs(version).first()
     return version._lai_validation_job
+
+
+def _latest_inspection(version):
+    """The version's newest `asset.inspect` job, read once per page (never locked)."""
+    if not hasattr(version, "_lai_inspection_job"):
+        from apps.jobs.models import ProcessingJob
+
+        version._lai_inspection_job = (
+            ProcessingJob.objects.filter(
+                kind="asset.inspect",
+                subject_type="assets.assetversion",
+                subject_id=str(version.pk),
+            )
+            .order_by("-created_at")
+            .first()
+        )
+    return version._lai_inspection_job
 
 
 def _outcome_is_mismatch(code: str) -> bool:
