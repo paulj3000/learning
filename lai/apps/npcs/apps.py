@@ -8,9 +8,9 @@ class NpcsConfig(AppConfig):
 
     def ready(self):
         # LAI-NPC-036: the asset library refuses to retire an asset or version a live NPC release
-        # uses. Registered here so `apps.assets` never imports the NPC Manager.
-        from apps.assets.services import register_retirement_guard
+        # uses. Since LAI-07 W2-4b this is a usage provider on the asset library's registry
+        # (`apps.assets.dependencies`) instead of a separate retirement guard; it refuses with the
+        # same code and wording. Registered here so `apps.assets` never imports the NPC Manager.
+        from .dependencies import register_usage_provider
 
-        from .dependencies import retirement_guard
-
-        register_retirement_guard(retirement_guard)
+        register_usage_provider()

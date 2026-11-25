@@ -53,6 +53,29 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   `test_usages_by_source.py`, `test_artifact_usage.py`, `catalog/tests/test_used_by_panel.py`,
   `npcs/` and `avatars/tests/test_dependency_historical.py`.
 
+## LAI-07 Asset Library W2-2: sound releases protect the audio they pin (2026-11-25, `feature/asset-library-w2-2-audio-provider`, `main` `8f3a7b3c`)
+
+- New `audio` usage provider (`apps/audio/dependencies.py`), registered from `AudioConfig.ready()`
+  after `transcoding.register()`, which is unchanged. Owner decision 2026-11-25:
+  - the LIVE `SoundRelease` blocks retiring an asset it pins, and an exact version it pins (even
+    with a replacement default): `sound_release_dependency`;
+  - SUPERSEDED releases are listed as history (`historical`), never blocking; working cues are
+    listed only.
+- `Usage` gains `historical` (default False; the same field as W2-5 and the regions branch).
+- The four Sound Manager tests that retired audio the LIVE release pins now first assert the
+  refusal, then publish a release that supersedes it and check the original outcome (approved).
+- No migration. Tests: `apps/audio/tests/test_dependencies.py` (11).
+
+## LAI-07 Asset Library W2-4b: NPC and avatar guards become usage providers (2026-11-24, `feature/asset-library-w2-4b-guard-switch`, stacked on W2-4, Trello #246); prepared for owner approval, NOT merged
+
+- `NpcsConfig.ready()` and `AvatarsConfig.ready()` register their usage providers instead of their
+  legacy retirement guards. The aggregate guard is then the only retirement guard.
+- **What changes:** a retirement that only an NPC release or an AVAILABLE avatar blocks is refused
+  exactly as before (same code, wording and details; parity matrices). When it is blocked by more
+  than one source (for example an NPC release and a published 3D Area), the refusal becomes one
+  `asset_in_use` naming every blocker, with `details.blockers`.
+- Rollback: revert the PR (two `ready()` blocks); no data.
+
 ## LAI-07 Asset Library W4: shared asset-id pattern and one upload dry run (2026-11-24, `refactor/asset-library-w4-shared-helpers`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
 
 - **One asset-id pattern:** `formats.ASSET_ID`, used by validation, the importer and storage
