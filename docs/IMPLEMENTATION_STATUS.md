@@ -37,6 +37,22 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W2-5: "Used by" panel (2026-11-25, `feature/asset-library-w2-5-used-by`, `main` `8f3a7b3c`)
+
+- The content asset change page gains a read-only **Used by** section built only from the usage
+  registry (`dependencies.usages_by_source`): every registered source (NPCs, avatars, audio,
+  regions, shipped scenes, derived artifacts) in three groups, **Blocks retirement**,
+  **Informational** and **Historical**. A source whose check fails shows a fixed line and no
+  exception text; retirement itself still fails closed (`dependency_check_failed`).
+- New informational `artifacts` provider (`apps/assets/artifact_usage.py`): derived artifacts made
+  from, or promoted into, the asset or version. It never blocks (owner decision 2026-11-25);
+  expired, deleted and rejected artifacts are historical.
+- `Usage` gains `historical` (the same field as W2-2 and the regions branch); DISABLED player
+  avatars are historical. `manage.py asset_usage` shows it (`[historical]`, JSON `historical`).
+- No migration, no new permission; Lambda modules unchanged. Tests:
+  `test_usages_by_source.py`, `test_artifact_usage.py`, `catalog/tests/test_used_by_panel.py`,
+  `npcs/` and `avatars/tests/test_dependency_historical.py`.
+
 ## LAI-07 Asset Library W4: shared asset-id pattern and one upload dry run (2026-11-24, `refactor/asset-library-w4-shared-helpers`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
 
 - **One asset-id pattern:** `formats.ASSET_ID`, used by validation, the importer and storage
