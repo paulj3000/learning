@@ -39,8 +39,9 @@ def test_the_provider_is_registered():
 
 
 def test_working_cues_are_reported_and_never_block(coin):
-    assert [(u.label, u.blocks_retirement) for u in audio_usages(coin["asset"])] == [
-        ("Sound cue sfx.coin.collect (working copy)", False)
+    usages = audio_usages(coin["asset"])
+    assert [(u.label, u.blocks_retirement, u.historical) for u in usages] == [
+        ("Sound cue sfx.coin.collect (working copy)", False, False)
     ]
     asset_services.retire_asset(coin["asset"])  # nothing published: retires
 
@@ -77,16 +78,30 @@ def test_retiring_the_default_with_a_replacement_is_refused_while_live(coin):
     assert refused.value.code == "sound_release_dependency"
 
 
+def test_retiring_an_unpinned_version_is_allowed_while_live(coin):
+    services.publish(None)  # pins v1
+    v2 = asset_services.publish_version(asset_upload(coin["asset"], seconds=2))
+    assert blocking(coin["asset"], v2) == []
+    asset_services.retire_version(v2)
+    v2.refresh_from_db()
+    assert v2.status == VersionStatus.RETIRED
+
+
 def test_a_superseded_release_is_reported_only(coin):
     first = services.publish(None)  # v1
     v2 = second_version(coin["asset"])
     second = services.publish(None)  # v2; first is SUPERSEDED
     first.refresh_from_db()
     assert first.status == ReleaseStatus.SUPERSEDED
-    labels = [(u.label, u.blocks_retirement) for u in audio_usages(coin["asset"], coin["v1"])]
-    assert labels == [
-        (f"Sound release {first.number} (superseded), cue(s) sfx.coin.collect", False)
+    usages = audio_usages(coin["asset"], coin["v1"])
+    assert [(u.label, u.blocks_retirement, u.historical) for u in usages] == [
+        (f"Sound release {first.number} (superseded), cue(s) sfx.coin.collect", False, True)
     ]
+    assert usages[0].details == {
+        "release": first.number,
+        "cues": ["sfx.coin.collect"],
+        "status": "SUPERSEDED",
+    }
     asset_services.retire_version(coin["v1"])  # only the superseded release pinned it
     assert blocking(coin["asset"], v2) == [
         f"Sound release {second.number} (live), cue(s) sfx.coin.collect"
@@ -110,7 +125,7 @@ def test_an_asset_no_cue_uses_has_no_audio_usages(coin):
     assert audio_usages(unused) == [] and audio_usages(unused, v1) == []
 
 
-def test_a_provider_failure_refuses_retirement(coin, monkeypatch):
+def test_a_provider_failure_refuses_retirement(coin, monkeypatch, caplog):
     def broken(*args, **kwargs):
         raise RuntimeError("boom")
 
@@ -120,6 +135,8 @@ def test_a_provider_failure_refuses_retirement(coin, monkeypatch):
         asset_services.retire_asset(coin["asset"])
     assert refused.value.code == "dependency_check_failed"
     assert refused.value.details == {"source": "audio"}
+    assert "boom" not in caplog.text and "coin-clink" in caplog.text  # ids only, no detail
+    assert "RuntimeError" in caplog.text
 
 
 def test_audio_and_another_blocker_are_named_together(coin, monkeypatch):
@@ -137,3 +154,6 @@ def test_audio_and_another_blocker_are_named_together(coin, monkeypatch):
         asset_services.retire_asset(coin["asset"])
     assert refused.value.code == "asset_in_use"
     assert set(refused.value.details["blockers"]) == {"audio", "zz-test"}
+    audio = refused.value.details["blockers"]["audio"]
+    assert audio["code"] == "sound_release_dependency"
+    assert audio["cues"] == ["sfx.coin.collect"]

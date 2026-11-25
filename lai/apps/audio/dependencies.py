@@ -1,7 +1,6 @@
 """Which sound releases and cues use an asset (LAI-07 W2-2; ASSET_LIBRARY.md s. 25.3).
 
-DRAFT for the Sound Manager owner's review; registered from `AudioConfig.ready()`. Rules: owner
-decision 2026-11-23 (#246):
+Registered from `AudioConfig.ready()`. Rules: owner decision 2026-11-25 (#246):
 
 - Retiring an **asset** is refused while the LIVE `SoundRelease` pins any version of it
   (`snapshot.cues[].asset`). Games read only the LIVE release, so retiring it would silently
@@ -9,7 +8,8 @@ decision 2026-11-23 (#246):
 - Retiring an exact **version** is refused while the LIVE release pins that version
   (`snapshot.cues[].versionId`), even when a replacement default is named: the release pins the
   exact version, so a new default does not reach it until the next release is published.
-- SUPERSEDED releases are reported only (a rollback to one already refuses a retired version).
+- SUPERSEDED releases are reported only, as `historical` and never blocking (a rollback to one
+  already refuses a retired version).
 - Working `SoundCue` rows are reported only: they are copied into a release at publish time,
   and publishing already refuses a retired asset or version (`library_report`).
 
@@ -59,6 +59,7 @@ def usages(asset, version=None):
         if not cue_ids:
             continue
         live = release.status == ReleaseStatus.LIVE
+        historical = release.status == ReleaseStatus.SUPERSEDED
         found.append(
             Usage(
                 SOURCE,
@@ -66,8 +67,13 @@ def usages(asset, version=None):
                 f"Sound release {release.number} ({release.get_status_display().lower()}), "
                 f"cue(s) {', '.join(cue_ids)}",
                 blocks_retirement=live,
+                historical=historical,
                 admin_url=_admin_url("soundrelease", release.pk),
-                details={"release": release.number, "cues": cue_ids},
+                details={
+                    "release": release.number,
+                    "cues": cue_ids,
+                    "status": release.status,
+                },
             )
         )
     for cue in SoundCue.objects.filter(asset=asset).order_by("cue_id"):
@@ -78,7 +84,7 @@ def usages(asset, version=None):
                     REFUSAL_CODE,
                     f"Sound cue {cue.cue_id} (working copy)",
                     admin_url=_admin_url("soundcue", cue.pk),
-                    details={"cue": cue.cue_id},
+                    details={"cue": cue.cue_id, "status": "working"},
                 )
             )
     return found
