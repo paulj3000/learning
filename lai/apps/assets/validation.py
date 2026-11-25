@@ -75,7 +75,7 @@ IMAGE_TYPES = {"image/png": b"\x89PNG\r\n\x1a\n", "image/jpeg": b"\xff\xd8\xff"}
 BUFFER_URI_TYPES = ("application/octet-stream", "application/gltf-buffer")
 DATA_URI = re.compile(r"^data:([a-z0-9.+/-]+)?(;[a-z0-9=.-]+)*;base64,", re.I)
 BASE64 = re.compile(r"[A-Za-z0-9+/]*={0,2}")
-ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+ASSET_ID = formats.ASSET_ID
 # KTX2 texture side limit: the processor's default `max_texture_dimension` (glb-default v1).
 KTX2_MAX_SIDE = 8192
 # A KTX2 texture is read whole (header, level index, DFD) for validate_basisu; bounded by this.

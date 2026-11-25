@@ -41,8 +41,8 @@ Django Admin: Assets > Collision profiles          (staff, apps/assets/admin.py)
 
 | Field | Meaning |
 |---|---|
-| Asset | The asset (`ContentAsset`) the profile applies to. |
-| Version | Empty: the asset's default for every version. Set: an override for that version only (one per version). |
+| Asset | The asset (`ContentAsset`) the profile applies to. Only 3D model kinds (`character`, `prop`, `collectible`, `kit-piece`); an image or audio asset is refused. |
+| Version | Empty: the asset's default for every version. Set: an override for that version only (one per version). The list offers validated and published versions of 3D models, and, once an asset is chosen or saved, only that asset's versions. |
 | Shape | `None`, `Box`, `Cylinder`, `Capsule`, `Compound boxes`. |
 | Behavior | `Automatic` (jumpable up to 1.2 m tall; taller is Solid), `Solid`, `Jumpable`, `Walkable`, `Decorative`. |
 | Axis | Cylinder and capsule: `Upright`, or lying along model X or Z (a log). |

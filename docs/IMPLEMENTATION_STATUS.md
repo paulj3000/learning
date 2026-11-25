@@ -47,6 +47,32 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   `asset_in_use` naming every blocker, with `details.blockers`.
 - Rollback: revert the PR (two `ready()` blocks); no data.
 
+## LAI-07 Asset Library W4: shared asset-id pattern and one upload dry run (2026-11-24, `refactor/asset-library-w4-shared-helpers`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
+
+- **One asset-id pattern:** `formats.ASSET_ID`, used by validation, the importer and storage
+  instead of three copies.
+- **One dry run:** `services.upload_version(dry_run=True)` makes the same checks as a real upload
+  (validation, a retired asset, a duplicate file), raises the same refusals and writes nothing (no
+  row, object, job or lock). The bundled and Amplify importers and the model pack import use it
+  instead of their own copies, so a dry run reports what the real run would. Visible change: a
+  dry run's bad file is now reported as `invalid_file` (the real run's code) instead of
+  `invalid_model`, and a dry run now also reports `asset_retired` and `duplicate_version`.
+- **Declined:** one transform helper for `validation` and `gltf_prep` (they behave differently on
+  `matrix` nodes and bad input); an agreement test covers TRS nodes instead.
+- Local code only: no migration, no AWS call, nothing deployed, no deployed database touched.
+- Tests: `test_shared_helpers.py` (9), `test_upload_dry_run.py` (4).
+
+## LAI-07 Asset Library W3(a): collision profiles only on 3D models (2026-11-24, `feature/asset-library-w3a-collision-admin`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
+
+- `collision.clean_profile` refuses a profile on an asset whose kind is not a 3D model (images,
+  audio): "Collision profiles are for 3D models only."
+- The collision profile admin form lists only versions of 3D-model assets, and only the chosen
+  asset's versions once one is chosen. Choosing another asset's version is refused.
+- Form and validation only: no migration, no resolver, API or client change. Existing profiles are
+  unaffected; a stray profile on a non-model asset can still be deleted.
+- Tests: 5 new in `apps/assets/tests/test_collision_profiles.py`. Doc:
+  `docs/ASSET_COLLISION_PROFILES.md` field table.
+
 ## LAI-07 Asset Library W2-4: NPC and avatar usage providers with parity (2026-11-24, `feature/asset-library-w2-4-parity`, stacked on W2-3, Trello #246); Development Complete, NOT merged
 
 - `apps/npcs/dependencies.py` and `apps/avatars/dependencies.py` gain usage providers: live NPC
@@ -95,7 +121,7 @@ everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it
   clean. Deferred to merge readiness: full suites and browser tests.
 - **Docs:** `docs/ASSET_LIBRARY.md` section 7, `docs/ASSET_COLLISION_PROFILES.md`.
 
-## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, Trello #247); merged to `main` in PR #70 (`9b881fda`), follow-up `fix/ge-247-retirement-note-collision-kept` from `c9123f48`; NOT owner-accepted
+## GE-247: shipped-scene asset references in Asset Library usage (LAI 04 / Agent 4, 2026-11-24, `feature/ge-247-bundled-asset-references` from `1b0a50a3`, Trello #247); merged to `main` in PR #70 (`9b881fda`) and #77 (`d834443f`), with LAI 07's resolver rule #75 (`c9123f48`); verified on `main` `f0de1087` (2026-11-24); NOT owner-accepted
 
 - Owner direction (2026-11-23): shipped-scene references are listed, never blocking (S6 not required). Collision-profile effects are reported. The hub becomes a Place only if that has no side effects.
 - Built:
@@ -107,7 +133,7 @@ everywhere, CI and EC2 included. Once this PR is on `main` and #71 has merged it
   - the client test that a retired entry keeps the bundled model and any collision the server sends.
   - S1: the `catalog` usage provider (`apps/catalog/dependencies.py`) on LAI 07's W2-1 registry. It lists shipped scenes, the hub included, never blocks, returns nothing for a version question, and fails closed. `manage.py asset_usage` shows these usages.
 - Owner decisions (2026-11-24):
-  - a retired asset that still ships with the app keeps its collision profile. LAI 07's resolver change is on `main` (#75, `c9123f48`); the follow-up makes the staff note say the profile keeps applying, with a test that the note matches the resolver;
+  - a retired asset that still ships with the app keeps its collision profile. LAI 07's resolver change is on `main` (#75, `c9123f48`); the staff note says the profile keeps applying (#77), with a test that the note matches the resolver;
   - the hub stays in the release report, not a Place.
 - Tests (PostgreSQL 18): `apps/catalog` and `apps/assets` pass, `djangoAssetResolver.test.ts` passes, and `makemigrations --check` is clean. Browser tests are not run.
 - S7 is not recommended now.
@@ -585,8 +611,8 @@ dependency matrices, ownership, status, defects, acceptance). Trello parent GE-0
 - **GE-S1 fixed (2026-11-22, merged to main through PR #57 and the D6 baseline):** the last 8
   island-map engine shims are removed and react/ imports the engine only through listed
   exports-map entry points (branch `fix/GE-S1-import-shims`).
-- **GE-L16 raised Solid clearance (2026-11-22, owner-approved, Development Complete, not
-  merged):** a raised Solid collision part keeps its height and leaves a walk-under gap only with
+- **GE-L16 raised Solid clearance (2026-11-22, owner-approved, Development Complete; merged in
+  PR #59 `4b949994`, verified on `main` `f0de1087` 2026-11-24; not owner-accepted):** a raised Solid collision part keeps its height and leaves a walk-under gap only with
   clearance (the avatar's 1.7 m collision height plus a configurable margin); otherwise it blocks
   at every height. Elevation never makes a part jumpable. Branch
   `feature/ge-raised-solid-clearance`, Trello #245; design and audit in

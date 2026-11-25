@@ -1144,7 +1144,7 @@ Status:
 | Player avatars (`apps/avatars/dependencies.py`) | `model_asset`, `pinned_version` (or the default), `thumbnail_asset` | Refused (`player_avatar_in_use`) for AVAILABLE avatars' model | The thumbnail is unguarded. A retired thumbnail silently disappears (`avatars/services._thumbnail`). |
 | Sound releases (`apps/audio`) | The LIVE `SoundRelease.snapshot` pins each cue's exact `versionId` (JSON) | **Not guarded** | Retiring a pinned version or its asset silently drops the cue from the manifest (`audio/manifest._available_versions`). It also blocks rolling back to any release that pins it (`audio/services.release_problems`). `asset-standard.md` section 2 already claims sound releases are protected. |
 | Realm placements (`apps/regions`) | `WorldObjectPlacement.asset_id` and `TreasureChest.asset_id` (string asset ids, always the default version) | **Not guarded** | Retiring the asset makes a PUBLISHED 3D Area draw a placeholder. Retiring a *version* cannot break a placement: the default version can only be retired by moving the default first (`default_in_use`). |
-| Catalog (`catalog.LocationAsset`) | FK `PROTECT` (deletion only) | Not guarded | Listed nowhere. Since GE-247 S1: listed, never blocking, by the `catalog` provider (25.3). |
+| Catalog (`catalog.LocationAsset`) | FK `PROTECT` (deletion only) | Not guarded | None: listed, never blocking, by the `catalog` provider (GE-247 S1, 25.3). |
 
 There are two structural limits. First, guards run in registration order and the first refusal
 stops the run, so staff see one blocker at a time. Second, no page answers "where is this used"
@@ -1163,7 +1163,9 @@ These resolve through the bundled resolver, so retiring a Django asset never rem
 They are still coupled through **collision**. When a child is signed in, `regionAssetsFor` applies
 the Asset Manager's collision profiles to bundled regions. So a Django asset whose id matches a
 bundled id (for example `rock`, `crate`, `archway`, `bridge-plank`, `npc-pip`) controls collision
-in a shipped region, and no provider can see that.
+in a shipped region. The `catalog` provider lists that use. Collision still follows the served
+profile, and it survives retirement for a model the app ships (section 7, owner decision
+2026-11-24).
 
 Closed by GE-247 (2026-11-24): the engine's scene asset index reaches Django through the content
 export, and the `catalog` provider lists each shipped scene that uses an asset, Welcome Harbor

@@ -16,7 +16,6 @@ import base64
 import hashlib
 import io
 import os
-import re
 import tempfile
 import threading
 import uuid
@@ -35,7 +34,7 @@ KEY_PREFIX = "assets/"  # everything the library stores; one key directory per f
 #: Derived artifacts (ADR-066) live beside the library, never under `assets/`, so they can never be
 #: resolved, published or served; see `apps.assets.artifact_storage`.
 ARTIFACT_PREFIX = "processing/artifacts/"
-ASSET_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+ASSET_ID = formats.ASSET_ID
 CHUNK = 1024 * 1024
 
 
