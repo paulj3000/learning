@@ -37,6 +37,31 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library follow-ups: check classes, stable delivery URLs, docs reconciled (2026-11-25, `feature/asset-library-final-followups`, `main` `05b54d8a`)
+
+Owner-approved follow-ups after the W1 to W5 merges (Trello #244, #246, #247).
+- **Retirement-check classes** (`apps/assets/dependencies.py`, `CheckClass`): `regions`,
+  `audio`, `npcs` and `avatars` are AUTHORITATIVE; `artifacts` and `catalog` (Agent 4's decision)
+  are INFORMATIONAL. AUTHORITATIVE and UNCLASSIFIED failures refuse
+  (`dependency_check_failed`, now with `check_class` in `details`). An INFORMATIONAL failure is
+  logged as a warning, and the two retire admin actions warn staff (`unverified_checks()`);
+  retirement goes ahead. A blocking usage always blocks.
+- `usages_for` and `usages_by_source` return no usages for an unsaved asset or version, without
+  asking any provider (LAI 01's finding).
+- `Usage.historical`, `admin_url` and `details` are keyword-only (`KW_ONLY`); no caller passed
+  them by position.
+- **Stable delivery URLs** (`apps/assets/delivery.py`): the `django` token is a plain `Signer`
+  (salt `lai.assets.delivery.v2`) over `{versionId, expiry}`, so the same version in the same
+  half-TTL window always gets the same URL. Legacy v1 tokens are read until they expire.
+  Expiry, publication and retirement checks are unchanged. No engine or client change.
+- Docs: `ASSET_LIBRARY.md` 8.1 and 25 (status header and merge commits reconciled against
+  `main` `05b54d8a`; new 25.9), `asset-standard.md`, `bundled-asset-references.md`.
+- Tests: `apps/assets/tests/test_check_classes.py` (new), `test_delivery_identity.py` (new),
+  `test_resolver_api.py` (the flake test now requires equal URLs), and `check_class` added to
+  the refusal-details assertions in four existing tests. The catalog failure test now checks that
+  retirement goes ahead with a warning and that a blocker still blocks.
+- No migration. Rollback: revert the PR. Old-format URLs keep working either way.
+
 ## GE-247 engine follow-ups: asset-resolution contract and LOD pin (2026-11-25, `feature/GE-247-engine-followups`, `main` `05b54d8a`, Trello #247, #244); Development Complete
 
 Owner-authorized 2026-11-25. Agent 4 (Game Engine Core). The archway passage fix is split out to

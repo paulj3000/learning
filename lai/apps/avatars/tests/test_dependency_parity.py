@@ -140,4 +140,5 @@ def test_a_provider_failure_refuses_retirement(only_avatars, monkeypatch):
 
     monkeypatch.setattr(dependencies, "avatars_using", broken)
     refused = outcome(only_avatars, asset, None)
-    assert refused[0] == "dependency_check_failed" and refused[2] == {"source": "avatars"}
+    assert refused[0] == "dependency_check_failed"
+    assert refused[2] == {"source": "avatars", "check_class": "authoritative"}

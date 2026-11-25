@@ -131,4 +131,5 @@ def test_a_provider_failure_refuses_retirement(only_npcs, monkeypatch):
 
     monkeypatch.setattr(dependencies, "release_dependents", broken)
     refused = outcome(only_npcs, asset, None)
-    assert refused[0] == "dependency_check_failed" and refused[2] == {"source": "npcs"}
+    assert refused[0] == "dependency_check_failed"
+    assert refused[2] == {"source": "npcs", "check_class": "authoritative"}

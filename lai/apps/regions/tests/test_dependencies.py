@@ -244,6 +244,6 @@ def test_a_regions_failure_refuses_retirement(monkeypatch):
     with pytest.raises(AssetActionRefused) as refused:
         services.retire_asset(asset)
     assert refused.value.code == "dependency_check_failed"
-    assert refused.value.details == {"source": "regions"}
+    assert refused.value.details == {"source": "regions", "check_class": "authoritative"}
     asset.refresh_from_db()
     assert asset.status == AssetStatus.ACTIVE
