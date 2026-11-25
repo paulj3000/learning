@@ -37,6 +37,17 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W3(a): collision profiles only on 3D models (2026-11-24, `feature/asset-library-w3a-collision-admin`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
+
+- `collision.clean_profile` refuses a profile on an asset whose kind is not a 3D model (images,
+  audio): "Collision profiles are for 3D models only."
+- The collision profile admin form lists only versions of 3D-model assets, and only the chosen
+  asset's versions once one is chosen. Choosing another asset's version is refused.
+- Form and validation only: no migration, no resolver, API or client change. Existing profiles are
+  unaffected; a stray profile on a non-model asset can still be deleted.
+- Tests: 5 new in `apps/assets/tests/test_collision_profiles.py`. Doc:
+  `docs/ASSET_COLLISION_PROFILES.md` field table.
+
 ## LAI-07 Asset Library W2-4: NPC and avatar usage providers with parity (2026-11-24, `feature/asset-library-w2-4-parity`, stacked on W2-3, Trello #246); Development Complete, NOT merged
 
 - `apps/npcs/dependencies.py` and `apps/avatars/dependencies.py` gain usage providers: live NPC

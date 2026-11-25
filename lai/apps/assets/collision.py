@@ -32,6 +32,7 @@ from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError
 
+from .formats import KIND_FAMILY, MODEL
 from .models import CollisionAxis, CollisionBehavior, CollisionProfile, CollisionShape
 
 # Matches the client's `JUMPABLE_MAX_HEIGHT`: the default jump reaches 1.2 m.
@@ -214,8 +215,14 @@ def profile_boxes(profile: CollisionProfile, bounds: Bounds | None) -> list[dict
 
 
 def clean_profile(profile: CollisionProfile) -> None:
-    """Admin-side validation: the shape must be buildable, sized and within limits."""
+    """Admin-side validation: a 3D model asset, its own version, and a shape that is buildable,
+    sized and within limits."""
     errors: dict[str, str] = {}
+    if profile.asset_id and KIND_FAMILY.get(profile.asset.kind) != MODEL:
+        errors["asset"] = (
+            "Collision profiles are for 3D models only. "
+            f'"{profile.asset.asset_id}" is a {profile.asset.kind} asset.'
+        )
     if profile.version_id and profile.asset_id and profile.version.asset_id != profile.asset_id:
         errors["version"] = "That version belongs to another asset."
     if profile.shape == CollisionShape.COMPOUND:
