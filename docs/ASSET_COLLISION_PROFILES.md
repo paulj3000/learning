@@ -74,6 +74,28 @@ only have a size, so their bounds are taken as that size centred on the pivot an
   lists each raised Solid part and whether it is a walk-under passage;
   `python manage.py collision_clearance_audit` lists them for every profile (read-only).
 
+### Pieces with an opening (archways, gateways, doors)
+
+The engine's rules are canonical in
+[raised-solid-clearance.md](engineering/game-engine/raised-solid-clearance.md): section 2 (raised
+Solid parts) and section 5 (passage pieces, GE-L17, pending merge). This section only says what
+staff do.
+
+- **`archway`**: the engine carves its opening out of every box it gets (built-in, Automatic or a
+  staff Solid box). The sides block and the part over the opening is a lintel the child walks
+  under. One box over the whole model is safe; a profile already split into sides is used as
+  written.
+- **Any other model with an opening** (a gateway, a door frame, a published `firepeak-arch` placed
+  as a plain model): the engine does not know where its opening is. Use **Compound boxes**, one
+  box per side and, if wanted, one box over the opening with its bottom at the walk-under
+  clearance or higher. One box over the whole model closes the opening.
+- **The admin warns, never refuses** (owner decision 2026-11-25). Saving a Solid profile (or
+  Automatic that resolves to Solid) with one box that stands on the ground, reaches the walk-under
+  clearance and covers the whole measured footprint shows a warning on save and on the change
+  page, because Django cannot see whether the model has an opening; a rock or a pillar is drawn
+  the same way. For `archway` the page says the engine carves the opening instead. The profile
+  form carries the same guidance at the top, with the numbers taken from `collision.py`.
+
 ### Shapes
 
 - **Box**: one box. With every size and offset empty this is the automatic bounding box.
@@ -116,6 +138,8 @@ see them over the model.
 | Fallen log | Capsule, lying along its length axis | Jumpable | Radius about half its thickness | Rounded ends; a log turned at an angle blocks only where it lies. |
 | NPC | Capsule, upright | Solid | Radius 0.3, Height 1.6 | A body, not the arms: the child can still walk up to talk. |
 | Building | Compound boxes | Solid | One box per wall, leaving the doorway open | The interior stays walkable. |
+| Archway (`archway`) | Box | Solid (or Automatic) | Empty | The engine keeps the opening clear. |
+| Gateway, door frame | Compound boxes | Solid | One box per side; optionally one over the opening from the walk-under clearance up | One box over the whole model would close the opening (the admin warns). |
 | Path, plank, carpet | Box | Walkable | | Never blocks, and keeps other pieces off the trail. |
 | Flowers, grass | None | Decorative | | Visual only. |
 
