@@ -1108,8 +1108,9 @@ MODEL_KINDS = sorted(kind for kind, family in KIND_FAMILY.items() if family == M
 #: from `collision`, which mirrors the engine's constants.
 _CLEAR = f"{collision.WALK_UNDER_CLEARANCE:g} m"
 PROFILE_HELP = (
-    f"Collision boxes are model-space metres. The child is {_CLEAR} tall and about 0.74 m wide, "
-    f"and jumps {collision.JUMPABLE_MAX_HEIGHT:g} m. A Solid part {_CLEAR} or more above the "
+    "Collision boxes are model-space metres. The child's collision body is "
+    f"{_CLEAR} tall and about 0.74 m wide, and jumps {collision.JUMPABLE_MAX_HEIGHT:g} m by "
+    f"default. A Solid part {_CLEAR} or more above the "
     "ground is something to walk under; lower, it is a wall down to the ground. Only Jumpable "
     "parts can be jumped onto, and raising a part never makes it jumpable. For pieces with an "
     "opening (archways, gateways), use one box per side and, if wanted, one box over the opening "

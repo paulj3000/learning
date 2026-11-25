@@ -522,7 +522,8 @@ def test_the_admin_help_text_states_the_raised_solid_rule():
 
 def test_the_profile_form_explains_walk_under_jumping_and_openings(roles):
     page = staff("pub", "Asset publishers").get(f"{PROFILES}add/").content.decode()
-    assert "The child is 1.7 m tall and about 0.74 m wide, and jumps 1.2 m." in page
+    assert "collision body is 1.7 m tall and about 0.74 m wide" in page
+    assert "and jumps 1.2 m by default." in page
     assert "A Solid part 1.7 m or more above the ground is something to walk under" in page
     assert "Only Jumpable parts can be jumped onto" in page
     assert "use one box per side and, if wanted, one box over the opening at 1.7 m" in page
@@ -533,8 +534,10 @@ def test_the_profile_form_explains_walk_under_jumping_and_openings(roles):
 def test_the_help_numbers_come_from_the_engine_mirrors():
     from apps.assets import admin as assets_admin
 
-    assert f"{collision.WALK_UNDER_CLEARANCE:g} m tall" in assets_admin.PROFILE_HELP
-    assert f"jumps {collision.JUMPABLE_MAX_HEIGHT:g} m" in assets_admin.PROFILE_HELP
+    assert f"collision body is {collision.WALK_UNDER_CLEARANCE:g} m tall" in (
+        assets_admin.PROFILE_HELP
+    )
+    assert f"jumps {collision.JUMPABLE_MAX_HEIGHT:g} m by default" in assets_admin.PROFILE_HELP
 
 
 def test_an_archway_profile_says_the_engine_carves_its_opening(roles):
