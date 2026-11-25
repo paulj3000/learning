@@ -274,6 +274,7 @@ def test_the_command_reports_json_for_one_version(registry):
             "code": "sound_release_dependency",
             "label": "Sound release 3",
             "blocksRetirement": True,
+            "historical": False,
             "adminUrl": "",
             "details": {"release": 3},
         }
