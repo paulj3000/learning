@@ -33,7 +33,7 @@ CLIENT = Path(__file__).resolve().parents[4] / "react/src/features/region-play/r
 
 @pytest.fixture
 def ground():
-    asset = make_definition(DEFAULT_GROUND_ASSET_ID, kind="prop", category="prop")
+    asset = make_definition(DEFAULT_GROUND_ASSET_ID, kind="kit-piece", category="scenery")
     v1 = make_version(asset, 1, status=VersionStatus.PUBLISHED)
     asset.default_version = v1
     asset.save()

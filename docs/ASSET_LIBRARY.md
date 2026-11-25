@@ -1271,6 +1271,11 @@ because an explicit `groundAssetId: "ground-tile"` already does. A drift test pi
 the client's (`apps/regions/tests/test_default_ground.py`); a change to it is LAI 04's. No other
 region-play default names an asset (LAI 04, `main` `8f3a7b3c`).
 
+Known over-block (Agent 4, 2026-11-25): a `WorldRegion` whose id matches a built-in scene is
+shadowed on the client (`regionManifestRepository.ts` prefers the bundled manifest), yet its JSON
+ids and default ground are still reported and, when PUBLISHED, block. No seed does this; it errs
+on the safe side.
+
 Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,
 `Sound release 12, cue sfx.chest.open`, `3D Area treasure-cove, placement palm-03`. Labels never
 contain child data.
