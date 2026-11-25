@@ -1,13 +1,14 @@
 # North Pole: local startup and owner acceptance checklist (NP-060)
 
-Status: **on `main`** (GE-090 step 22, PR #44; re-checked at `aa8adb33` on 2026-11-23). Unit
+Status: **on `main`** (GE-090 step 22, PR #44; re-checked at `aa8adb33` on 2026-11-23, and the
+FPV-D10 re-tag at `f0de1087` on 2026-11-24). Unit
 tested only. **Not owner-tested, not browser-verified, not deployed.** Nothing in this checklist
 has been ticked by a development session; every item is for the owner. Record pass, fail or skip
 per id.
 
 ## 1. Local startup (no AWS)
 
-From the repository root of `main` (or any branch at or after `aa8adb33`), with Docker running.
+From the repository root of `main` (at or after `f0de1087`, for skill evidence), with Docker running.
 `make up` starts PostgreSQL 18 (an old PostgreSQL 16 volume cannot be reused; set
 `POSTGRES_PORT` if 5432 is taken):
 
@@ -87,6 +88,7 @@ Rewards and persistence (NP-034, NP-035, NP-038)
 - [ ] P2 Leaving mid-way and returning resumes at the furthest zone reached with everything kept.
 - [ ] P3 Quests appear in the in-world backpack (see the known gap about the `/quests` page).
 - [ ] P4 Sign out, sign in, open the same child: badges, trophy, fragments and completed quests are still there, and replaying a solved puzzle says "Practice" and grants nothing new.
+- [ ] P5 Parent dashboard: after a playthrough the child's activity by skill lists North Pole learning (for example "Counting sets of objects" for a Sprout, "Addition within ten" for a Pathfinder), not only the chests. Replays add nothing.
 
 Staff (NP-048, Django Admin)
 - [ ] T1 Puzzles, chests, challenge specs, placements, NPC records, sound cues and the seasonal
@@ -116,12 +118,13 @@ From `NORTH_POLE_CLIENT_REVIEW.md` and the workstream reports:
    snowflake scarf once (`test_the_tenth_snowflake_completes_the_set_and_gives_the_scarf_once`).
 6. Snowball's resting spot in the stable uses the NPC seed's fallback position (46, 20); confirm
    it looks right or add an `np-snowball-stable` placement.
-7. Learning by skill on the parent dashboard needs FPV-D10 (LAI 06, PR #73) and this branch's
-   re-tag (`CURRICULUM_AUDIT.md`) both on the branch under test, and a database seeded after
-   them. Before that, Area puzzle solves record no `SkillEvidence` and only the chests show by
-   skill: record that as this known gap, not a new failure. After it, every quiz band names a
-   catalog objective (the 9 invalid ids are gone) and `np-obs-final` Explorer asks two-step
-   take-away questions within ten.
+7. **Resolved on `main` `f0de1087` (2026-11-24).** Area puzzle solves now record
+   `SkillEvidence` (FPV-D10, PR #73), and every quiz band and variant names a catalog objective
+   (re-tag, PR #69; `CURRICULUM_AUDIT.md`). `puzzle_skill_report --strict` finds nothing unmapped
+   after seeding, and `test_every_quiz_solve_records_skill_evidence_for_the_dashboard` plays every
+   band through the API and checks the parent's skill view. Check it in the playthrough with P5.
+   A database seeded before `f0de1087` keeps the old skill ids (the seed never overwrites
+   authored revisions): start QA from a fresh database.
 8. Fragment, restoration, reindeer and sleigh-bell cues have no North Pole-specific call point
    yet. Found 2026-11-18, still true on `main` `aa8adb33`: `RegionPlayCompanion` raises `crystalCollect` for every pickup with new
    items, so every collectible (snowflakes, candy canes, cookies) also plays the star-fragment
