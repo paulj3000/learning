@@ -7,7 +7,7 @@ from django.test import Client
 from django.utils import timezone
 
 from apps.assets import jobs as asset_jobs
-from apps.assets.models import VersionStatus
+from apps.assets.models import AssetVersion, VersionStatus
 from apps.game_sessions.tests.test_concurrency import race
 from apps.jobs import services as jobs
 from apps.jobs.models import JobStatus, ProcessingJob
@@ -129,8 +129,15 @@ def test_simultaneous_submissions_queue_one_job(sqs):
     version = stored_version()
     results = race(lambda: asset_jobs.submit_inspection_once(version, None), count=4)
     assert not [r for r in results if isinstance(r, Exception)], results
-    assert len([r for r in results if r is not None]) == 1
+    assert len([r for r in results if r is not asset_jobs.ALREADY_RUNNING]) == 1
+    assert len([r for r in results if r is asset_jobs.ALREADY_RUNNING]) == 3
     assert inspections().count() == 1
+
+
+def test_a_version_deleted_meanwhile_is_not_reported_as_running(version, sqs):
+    gone = AssetVersion(pk=version.pk + 10_000, storage_key=version.storage_key)
+    assert asset_jobs.submit_inspection_once(gone, None) is None
+    assert inspections().count() == 0
 
 
 # --- W3(b): latest result on the version page ---

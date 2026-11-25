@@ -577,8 +577,10 @@ class AssetVersionAdmin(
                     request, f"Background jobs are unavailable ({error.code}).", messages.ERROR
                 )
                 return
-            if job is None:
+            if job is jobs.ALREADY_RUNNING:
                 skipped += 1
+                continue
+            if job is None:  # the version was deleted meanwhile: nothing to inspect
                 continue
             submitted.append(job)
         if skipped:
@@ -779,10 +781,12 @@ def _latest_inspection(version):
     if not hasattr(version, "_lai_inspection_job"):
         from apps.jobs.models import ProcessingJob
 
+        from .jobs import ASSET_INSPECT, SUBJECT
+
         version._lai_inspection_job = (
             ProcessingJob.objects.filter(
-                kind="asset.inspect",
-                subject_type="assets.assetversion",
+                kind=ASSET_INSPECT,
+                subject_type=SUBJECT,
                 subject_id=str(version.pk),
             )
             .order_by("-created_at")

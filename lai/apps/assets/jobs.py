@@ -49,8 +49,13 @@ def inspection_in_progress(version) -> bool:
     ).exists()
 
 
+#: `submit_inspection_once` found an inspection already queued or running and submitted none.
+ALREADY_RUNNING = object()
+
+
 def submit_inspection_once(version, user):
-    """`submit_inspection`, unless one is already queued or running: returns None then.
+    """`submit_inspection`, unless one is already queued or running (returns `ALREADY_RUNNING`)
+    or the version no longer exists (returns None).
 
     The check and the submission run in one transaction under a row lock on the version, so two
     simultaneous submissions queue one job (the second waits for the first to commit, then sees
@@ -61,8 +66,10 @@ def submit_inspection_once(version, user):
 
     with transaction.atomic():
         locked = AssetVersion.objects.select_for_update().filter(pk=version.pk).first()
-        if locked is None or inspection_in_progress(locked):
+        if locked is None:
             return None
+        if inspection_in_progress(locked):
+            return ALREADY_RUNNING
         return submit_inspection(version, user)
 
 
