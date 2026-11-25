@@ -7,10 +7,15 @@ Registered with `apps.assets.dependencies` from `RegionsConfig.ready()`. Rules: 
   `WorldObjectPlacement` or `TreasureChest` row, or anywhere in its `scene` JSON under `assetId`
   or any `...AssetId` key (backdrop, ground, layout props, vegetation, procedural, scenery,
   jump-platform specs, building wall/roof/door), or in an `assetIds`/`...AssetIds` list.
-  A client-derived id (the LOD low-detail twin) is not in the JSON and is not seen (#247).
+  A low-detail twin is not followed: no Django region can draw one (owner decision 2026-11-25,
+  semantics agreed with LAI 04; `docs/ASSET_LIBRARY.md` section 25.3, `tests/test_lod_twins.py`).
   Children would see the bundled model or a placeholder, and the placement could lose its
   collision (a model the app ships keeps it: `docs/ASSET_LIBRARY.md` section 7, #75).
-- Placements in DRAFT or RETIRED 3D Areas are reported only.
+- Placements in DRAFT or RETIRED 3D Areas are reported only (RETIRED ones as historical).
+- A region whose scene names no `groundAssetId` tiles `ground-tile` (the client's default), so it
+  uses that asset like any scene id (LAI 01 finding, 2026-11-25; agreed with LAI 04). The ground
+  is bundled, so retiring it falls back to the same file; it blocks anyway for consistency, since
+  an explicit `groundAssetId: "ground-tile"` already blocks and the implicit one must match.
 - Retiring a **version** is unchanged. Placements store an asset id, never a version, so they
   are served the default, and the default cannot be retired without naming a replacement
   (`default_in_use`). Asked about the default version, placements are reported, never blocking.
@@ -30,6 +35,10 @@ from .models import TreasureChest, WorldObjectPlacement, WorldRegion
 
 SOURCE = "regions"
 REFUSAL_CODE = "region_placement_dependency"
+#: The ground a region tiles when its scene names none: `DEFAULT_GROUND_ASSET_ID` in
+#: `react/src/features/region-play/regionManifest.ts` (`ground()`). Keep the two equal.
+DEFAULT_GROUND_ASSET_ID = "ground-tile"
+DEFAULT_GROUND_PATH = "groundAssetId (default ground-tile)"
 
 
 def _admin_url(region) -> str:
@@ -76,6 +85,14 @@ def scene_asset_ids(scene) -> dict[str, list[str]]:
     return found
 
 
+def _draws_default_ground(scene) -> bool:
+    """The client tiles `DEFAULT_GROUND_ASSET_ID` unless `scene.groundAssetId` is a non-empty
+    string (`regionManifest.ts`), so such a region uses that asset although its JSON never
+    names it."""
+    ground = scene.get("groundAssetId") if isinstance(scene, dict) else None
+    return not (isinstance(ground, str) and ground)
+
+
 def _rows(asset):
     placements = WorldObjectPlacement.objects.filter(asset_id=asset.asset_id).select_related(
         "region"
@@ -84,7 +101,9 @@ def _rows(asset):
     rows = [("placement", row.region, row.entity_id) for row in placements]
     rows += [("chest", row.region, row.entity_id) for row in chests]
     for region in WorldRegion.objects.all():
-        paths = scene_asset_ids(region.scene).get(asset.asset_id)
+        paths = list(scene_asset_ids(region.scene).get(asset.asset_id, []))
+        if asset.asset_id == DEFAULT_GROUND_ASSET_ID and _draws_default_ground(region.scene):
+            paths.append(DEFAULT_GROUND_PATH)
         if paths:
             more = f" and {len(paths) - 1} more" if len(paths) > 1 else ""
             rows.append(("scene", region, f"{paths[0]}{more}"))
@@ -108,6 +127,7 @@ def usages(asset, version=None):
                 f"3D Area {region.region_id} ({region.get_status_display().lower()}), "
                 f"{what} {entity}",
                 blocks_retirement=published and version is None,
+                historical=region.status == ContentStatus.RETIRED,
                 admin_url=_admin_url(region),
                 details={"region": region.region_id, what: entity},
             )

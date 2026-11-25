@@ -1239,12 +1239,37 @@ Rules:
 | `catalog` (catalog owner; built by GE-247) | None | Shipped scenes: `LocationAsset` rows (stale ones marked) and the Welcome Harbor hub from the latest release report | None. Built by GE-247 (Trello #247, Agent 4, 2026-11-24): `apps/catalog/dependencies.py`, listed only, never blocking, asset-level only |
 | `assets` derived artifacts (Lambda owner) | None (retirement keeps the files) | Live `DerivedArtifact` rows for the version (`source_version`, `promoted_version`) | Not built yet: the model is on `main` since #71; a provider comes with or after W2-5 |
 
-Known limit (`regions`, LAI 04, 2026-11-24): a published 3D Area can also draw an asset's
-low-detail twin (`ContentAsset.low_detail`, loaded by `withLod` in `region-play/regionAssets.ts`).
-The twin is not in the area's JSON, so the provider neither lists nor protects it. Retiring a twin
-keeps the base model drawn; the far level of detail falls back to the bundled twin or a
-placeholder. Following `low_detail` from the ids a PUBLISHED area names (listed only, or blocking)
-is an owner decision for a follow-up.
+Low-detail twins (`regions`; owner decision 2026-11-25, semantics agreed with LAI 04 on `main`
+`8f3a7b3c`): a low-detail asset that a PUBLISHED region actually needs blocks retiring it. Today
+no Django region needs one, so the regions provider follows no twin:
+
+- The engine pairs a model with its twin only from the bundled manifest's `lod`
+  (`instantiateWithLod` reads `getAssetManifestEntry`). The resolver sends no lod, and
+  `ContentAsset.low_detail` is only the importer's copy of it. Every twin is a bundled file.
+- Only `LOD_PLACEMENTS` scene items draw a twin, and a Django region's layout refuses that kind
+  (`region-play/regionLayout.ts`). MODEL, CLUSTER, SCATTER, placements and chests never draw it,
+  so following `low_detail` from them would block retirement for nothing.
+- The shipped scenes that do draw a twin (Welcome Harbor's `foliage-tree-lod1`) list it through
+  the `catalog` provider, never blocking. Retiring a twin changes no collision: profiles are
+  requested for the base id only.
+
+Rule for later: whoever lets a Django region hold `LOD_PLACEMENTS` adds, in the same change, a
+blocking twin usage in this provider: for each `LOD_PLACEMENTS` item of a PUBLISHED region, the
+base's `catalog.ContentAsset.low_detail` (whatever the base's own status), code
+`region_placement_dependency` with `details.role = "low_detail"`; DRAFT listed, RETIRED historical,
+exact-version retirement never blocks. LAI 04's engine test "low-detail twins in a Django 3D
+Area" (`react/src/features/region-play/regionLayout.test.ts`) refuses `LOD_PLACEMENTS` in a
+region layout and points here. Regression tests: `apps/regions/tests/test_lod_twins.py`.
+
+Default ground (`regions`; LAI 01 finding 2026-11-25, agreed with LAI 04 and LAI 05): a region
+whose `scene.groundAssetId` is not a non-empty string tiles `ground-tile`, the client's
+`DEFAULT_GROUND_ASSET_ID` (`region-play/regionManifest.ts`, `ground()`). The provider mirrors that
+rule exactly (a missing key, `null`, a non-string or `""` gets the default; `" "` does not), so the
+area uses `ground-tile` like any scene id: PUBLISHED blocks, DRAFT lists, RETIRED keeps it as
+history. The ground is bundled, so retiring it would fall back to the same file; it blocks anyway
+because an explicit `groundAssetId: "ground-tile"` already does. A drift test pins the constant to
+the client's (`apps/regions/tests/test_default_ground.py`); a change to it is LAI 04's. No other
+region-play default names an asset (LAI 04, `main` `8f3a7b3c`).
 
 Labels name the referring row by content id or slug, for example `NPC release 7 (pip, model)`,
 `Sound release 12, cue sfx.chest.open`, `3D Area treasure-cove, placement palm-03`. Labels never

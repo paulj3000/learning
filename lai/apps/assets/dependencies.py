@@ -51,6 +51,8 @@ class Usage:
     #: Staff-readable, by content id or slug ("NPC release 7 (pip, model)"). Never child data.
     label: str
     blocks_retirement: bool = False
+    #: Past use kept for the record (a superseded release, a retired region); never blocks.
+    historical: bool = False
     #: Admin link to the referring row; "" when there is none.
     admin_url: str = ""
     #: Structured facts a client can act on (release numbers, avatar keys, region slugs).
