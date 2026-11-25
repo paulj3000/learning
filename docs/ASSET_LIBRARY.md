@@ -1226,8 +1226,11 @@ UsageProvider = Callable[[ContentAsset, AssetVersion | None], Iterable[Usage]]
 RefusalBuilder = Callable[[ContentAsset, AssetVersion | None, list[Usage]], AssetActionRefused]
 
 
-def register_usage_provider(source, provider, *, refusal=None, check_class=CheckClass.UNCLASSIFIED): ...
-def usages_for(asset, version=None) -> list[Usage]: ...  # every provider, stable order; [] if unsaved
+def register_usage_provider(
+    source, provider, *, refusal=None, check_class=CheckClass.UNCLASSIFIED
+): ...
+# every provider, stable order; [] if unsaved
+def usages_for(asset, version=None) -> list[Usage]: ...
 def usages_by_source(asset, version=None) -> list[SourceUsages]: ...  # per source, failures marked
 def unverified_checks() -> ContextManager[list[str]]: ...  # informational failures, for staff
 def retirement_guard(asset, version=None) -> None: ...  # raises AssetActionRefused
