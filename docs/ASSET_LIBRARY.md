@@ -171,6 +171,7 @@ Two modes (`LAI_ASSET_DELIVERY`):
 Both modes reuse one URL per version per half-TTL window, so a browser's HTTP cache hits
 across scenes. The bytes of a version never change, so responses are cacheable for the URL's
 remaining life and the loader's in-memory cache (keyed by asset id) needs no invalidation.
+Section 8.1 says exactly what makes two URLs equal.
 Cross-origin: the API is same-origin by design (no CORS on Django, TR-D14; the React host must
 route `/api/*` to Django; CloudFront does, `infra/lib/frontendStack.ts`). In `s3` mode the bucket
 needs a CORS rule allowing `GET` from the app origin (`allowedOrigins` in `infra/`, section 12).
@@ -186,6 +187,36 @@ mode.
 - The cost is Django bandwidth: the cove's three bundled models are about 17 KB together, cached by the
   browser for the URL's life (`private, max-age=<remaining>, immutable`) and by the loader for
   the visit.
+
+### 8.1 Stable delivery identity (owner, 2026-11-25)
+
+A delivery URL is a pure function of the version's canonical identity and the window:
+
+- **Identity.** Caching and deduplication key on `asset@versionId`, the resolver's
+  `cache.key`. `versionId` is a UUID that never changes and never names two files, and a
+  version's bytes never change (`sha256` is the `ETag`). The client's media and audio caches key
+  on `cache.key` (`mediaAssets.ts`, `AudioEngine.ts`); the model loader caches by asset id for
+  its own lifetime.
+- **Equal URLs.** The same version in the same half-TTL window gets the same URL for every
+  request, child and family. The `django` token is `Signer(salt="lai.assets.delivery.v2")` over
+  `{v: versionId, e: expiry}` and nothing else: no child, user or storage key. It is not
+  `signing.dumps`, whose `TimestampSigner` stamped the signing second, so two requests a second
+  apart used to get two URLs for the same bytes (and a flaky test). `s3` presigns once per
+  version and window (Django cache key `lai-asset-url:<versionId>:<window>`).
+- **Different URLs.** A different version, or the next window, gets a different URL. Replacing
+  an asset (a new default version) changes `cache.key` and the URL at once, so nothing serves
+  the old file under the new identity. An old version's URL keeps serving that version's own
+  bytes until it expires or the version is retired.
+- **Unchanged.** Expiry (`e`, checked on every read), the publication and retirement re-check
+  on every `django` fetch, the file-name check, private objects and presigned `s3` URLs, and
+  preview tokens (their own salt; neither kind is accepted as the other).
+- **Rollout.** Tokens signed the old way (`lai.assets.delivery.v1`, timestamped) are still read
+  until their own expiry, so a deploy breaks no URL a client holds. New URLs are never issued
+  in the old format. Once every v1 token has expired (one TTL after deploy), the v1 branch in
+  `delivery.read_token` can be removed.
+- No engine or client change: the resolver's answer has the same shape.
+
+Tests: `apps/assets/tests/test_delivery_identity.py`, `test_resolver_api.py`.
 
 Switch to `LAI_ASSET_DELIVERY=s3` (presigned URLs straight from the bucket) only if model
 traffic becomes material; deploy the stack with `allowedOrigins` first. **CloudFront is not
@@ -1119,20 +1150,22 @@ records each model's bounding corners in `metadata["bounds"]`, which automatic p
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
 
-## 25. Dependency tracking (LAI-07 W2; W2-1, W2-3 and W2-4 on `main`, W2-4b in review)
+## 25. Dependency tracking (LAI-07 W2; all on `main` `05b54d8a`)
 
-Status:
+Status (reconciled against `main` `05b54d8a`, 2026-11-25):
 - **On `main`:** the registry, the aggregate retirement guard and `manage.py asset_usage` (W2-1,
-  PR #65); the `catalog` provider for shipped scenes (GE-247, Agent 4, PR #70); the regions
-  provider (W2-3, PR #80); the NPC and avatar providers with their parity tests, not registered
-  (W2-4, PR #81).
-- **In review: guard switch (W2-4b,** `feature/asset-library-w2-4b-guard-switch`): the NPC and
-  avatar guards become usage providers. A single NPC or avatar refusal keeps its code, wording and
-  details; together with another blocker it becomes one `asset_in_use` refusal naming both.
-- **Approved for development (owner, 2026-11-25):** the audio provider (W2-2), low-detail twins
-  in the regions provider and the "Used by" admin panel (W2-5), each as its own PR.
+  #65); the `catalog` provider for shipped scenes (GE-247, Agent 4, #70, #77); the regions
+  provider (W2-3, #80); the NPC and avatar providers (W2-4, #81), registered in place of their
+  legacy guards (W2-4b, #85); the audio provider (W2-2, #86); the "Used by" panel, the
+  informational `artifacts` provider and `Usage.historical` (W2-5, #87); low-detail twins and the
+  default ground tile in the regions provider (#88). `services.RETIREMENT_GUARDS` holds only the
+  aggregate guard. Merge commits: 25.7.
+- **In review (follow-ups, owner-approved 2026-11-25,** `feature/asset-library-final-followups`):
+  check classes (25.9); `usages_for` on an unsaved asset returns `[]`; `Usage.historical`,
+  `admin_url` and `details` keyword-only; stable delivery URLs (8.1).
+- **Owner decisions still open:** 25.8.
 
-`apps/assets/services.py` is unchanged. Integration plan: 25.7.
+`apps/assets/services.py` is unchanged.
 
 ### 25.1 What protects an asset today (reviewed 2026-11-22 on `main` `aa8adb33`)
 
@@ -1181,7 +1214,9 @@ class Usage:
     source: str  # app label: "npcs", "avatars", "audio", "regions", "catalog"
     code: str  # refusal code when blocking (e.g. "npc_release_dependency")
     label: str  # staff-readable; content ids only, never child data (ADR-025)
-    blocks_retirement: bool
+    blocks_retirement: bool = False
+    _: KW_ONLY  # everything below is keyword-only
+    historical: bool = False  # past use kept for the record; never blocks
     admin_url: str = ""  # link to the referring row, "" when none
     details: Mapping = {}  # structured facts (release numbers, avatar keys, region slugs)
 
@@ -1191,8 +1226,13 @@ UsageProvider = Callable[[ContentAsset, AssetVersion | None], Iterable[Usage]]
 RefusalBuilder = Callable[[ContentAsset, AssetVersion | None, list[Usage]], AssetActionRefused]
 
 
-def register_usage_provider(source, provider, *, refusal: RefusalBuilder | None = None): ...
-def usages_for(asset, version=None) -> list[Usage]: ...  # every provider, stable order
+def register_usage_provider(
+    source, provider, *, refusal=None, check_class=CheckClass.UNCLASSIFIED
+): ...
+# every provider, stable order; [] if unsaved
+def usages_for(asset, version=None) -> list[Usage]: ...
+def usages_by_source(asset, version=None) -> list[SourceUsages]: ...  # per source, failures marked
+def unverified_checks() -> ContextManager[list[str]]: ...  # informational failures, for staff
 def retirement_guard(asset, version=None) -> None: ...  # raises AssetActionRefused
 ```
 
@@ -1211,8 +1251,10 @@ Rules:
    `<what> is used by: <labels>.` The NPC and avatar refusal codes and texts are unchanged, and
    their tests still pass. If several sources block, it raises `asset_in_use` with one line per
    blocker and `details={"blockers": {source: details}}`.
-4. **Fail closed.** If a provider raises, retirement is refused (`dependency_check_failed`, naming
-   the source). The failure is logged with ids only. The guard never assumes "no usages".
+4. **Fail closed, by class.** If an AUTHORITATIVE or UNCLASSIFIED provider raises, retirement is
+   refused (`dependency_check_failed`, naming the source and its class). An INFORMATIONAL
+   provider's failure is logged and reported, and retirement goes ahead (25.9). Failures are
+   logged with ids only. The guard never assumes "no usages".
 5. **Read-only.** Providers only query. No migration; everything is a query over existing rows.
    The registry imports nothing from processing, artifacts or jobs code, so it merges with the
    Lambda stack in either order (LAI 05, 2026-11-22).
@@ -1322,6 +1364,8 @@ details, several give `asset_in_use`, a raising provider gives `dependency_check
 | Shipped scenes | `apps/catalog/tests/test_catalog_usage_provider.py` (GE-247) |
 | Derived artifacts | `apps/assets/tests/test_artifact_usage.py` |
 | "Used by" panel | `apps/catalog/tests/test_used_by_panel.py` |
+| Check classes, unsaved assets, keyword-only fields | `apps/assets/tests/test_check_classes.py` |
+| Stable delivery URLs (8.1) | `apps/assets/tests/test_delivery_identity.py`, `test_resolver_api.py` |
 
 Owner acceptance checks (Django Admin, local or staging; no browser automation):
 1. Retire an asset a LIVE NPC release uses: refused, `npc_release_dependency`, wording unchanged.
@@ -1333,20 +1377,26 @@ Owner acceptance checks (Django Admin, local or staging; no browser automation):
 6. As view-only staff, the version list offers no "Inspect in background"; as an editor, a second
    click while an inspection runs reports "Skipped ...".
 7. `manage.py asset_usage <id> --json` lists the same rows, with `historical`.
+8. (Follow-ups) Resolve the same asset twice a few seconds apart: the same `url`. Publish a new
+   default version: a new `url` and `cache.key`, and the old URL still serves the old file.
+9. (Follow-ups) With the `artifacts` check broken (developer-only fault injection), retiring an
+   unused asset succeeds with a warning naming `artifacts`; with the `regions` check broken it is
+   refused with `dependency_check_failed`.
 
-### 25.6 Sequence (all approved by the owner; merge status in 25.7)
+### 25.6 Sequence (all approved by the owner; merge commits in 25.7)
 
 | Step | Scope | PR |
 |---|---|---|
 | W2-0 | This contract | — |
 | W2-1 | Registry, aggregate guard, `asset_usage` | #65 (merged) |
-| W2-2 | Audio provider: LIVE pins block asset and exact-version retirement; SUPERSEDED historical | #86 |
+| W2-2 | Audio provider: LIVE pins block asset and exact-version retirement; SUPERSEDED historical | #86 (merged) |
 | W2-3 | Regions provider (PUBLISHED blocks; DRAFT listed) | #80 (merged) |
 | W2-4 | NPC and avatar providers with parity tests | #81 (merged) |
-| W2-4b | Register them in place of the legacy guards | #85 |
-| W2-5 | "Used by" panel; informational `artifacts` provider; `Usage.historical` | #87 |
-| W2 LOD | Low-detail twins (none region-required today); default ground tile | #88 |
+| W2-4b | Register them in place of the legacy guards | #85 (merged) |
+| W2-5 | "Used by" panel; informational `artifacts` provider; `Usage.historical` | #87 (merged) |
+| W2 LOD | Low-detail twins (none region-required today); default ground tile | #88 (merged) |
 | GE-247 | Shipped-scene (`catalog`) provider, listed only (Agent 4) | #70, #77 (merged) |
+| Follow-ups | Check classes, unsaved assets, keyword-only fields, stable delivery URLs | in review |
 
 Owners: `apps/regions` semantics Agent 4 (Game Engine Core); the `catalog` provider Agent 4;
 implementation LAI 07; integration LAI 05. `ready()` merges keep both sides: `optimize.register()`
@@ -1356,21 +1406,25 @@ Noted, not fixed in W2 (Agent 4): `game_sessions/play_state.region_catalog`, the
 client validates a 3D Area against, does not read `layout.scenery[].assetId` or the jump-platform
 `assetId`s. The regions provider does cover them.
 
-### 25.7 Final integration (2026-11-25, `main` `8f3a7b3c`)
+### 25.7 Final integration and merges (2026-11-25, `main` `05b54d8a`)
 
-Merge order agreed with LAI 05, who tests one combined candidate of every open PR first:
+LAI 05 tested one combined candidate (`c21c8b00`: `main` `8f3a7b3c` and every PR below): EC2
+full unit 45574717304 passed (Django 5508, python-repo 3641, engine 705, React 6473; 0 failed),
+PostgreSQL 18 app suites 3002 passed. Merged with the owner's authorization, in this order:
 
-| Order | PR | Behaviour change |
-|---|---|---|
-| 1 | #85 W2-4b | NPC and avatar refusals come from the registry; several blockers give one `asset_in_use` |
-| 2 | #86 W2-2 | **new refusals:** audio the LIVE sound release pins |
-| 3 | #87 W2-5 | staff see "Used by"; no retirement change (`artifacts` never blocks) |
-| 4 | #84 W3(b)(c)(d) | inspect needs the validate permission; no duplicate inspections; latest result shown |
-| 5 | #88 LOD and ground | **new refusal:** `ground-tile` while a published 3D Area tiles it by default |
-| 6 | this docs PR | none |
+| Order | PR | Merge commit | Behaviour change |
+|---|---|---|---|
+| 1 | #85 W2-4b | `ab614541` | NPC and avatar refusals come from the registry; several blockers give one `asset_in_use` |
+| 2 | #90 resolver flake | `aff45f67` | none (test only) |
+| 3 | #86 W2-2 | `fa524a5c` | **new refusals:** audio the LIVE sound release pins |
+| 4 | #87 W2-5 | `fb24b027` | staff see "Used by"; no retirement change (`artifacts` never blocks) |
+| 5 | #84 W3(b)(c)(d) | `9b1697dc` | inspect needs the validate permission; no duplicate inspections; latest result shown |
+| 6 | #88 LOD and ground | `30b43182` | **new refusal:** `ground-tile` while a published 3D Area tiles it by default |
+| 7 | #89 docs | `05b54d8a` | none |
 
-#86 and #87 may swap. Each later PR needs `docs/IMPLEMENTATION_STATUS.md` merged (keep both
-entries). No migration in any of them; rollback is reverting the merge commit (no data).
+Each later PR merged `main` first; only `docs/IMPLEMENTATION_STATUS.md` conflicted (both entries
+kept). Apart from that file, `main` equals the tested candidate plus #90's test. No migration;
+rollback is reverting a merge commit (no data).
 
 Staff-visible changes to announce: the new refusals above, the "Used by" section, and that
 queueing an inspection needs the validate permission.
@@ -1388,12 +1442,39 @@ queueing an inspection needs the validate permission.
   Django and Lambda verdicts are kept equal by `test_glb_processing_parity.py` (43 cases).
 - **One transform helper (W4): declined** (owner rule 10): `validation` and `gltf_prep` treat
   `matrix` nodes and bad input differently; `test_shared_helpers.py` checks they agree on TRS.
-- **Informational providers fail closed too:** a provider that raises refuses retirement
-  (`dependency_check_failed`) even when it never blocks (catalog, artifacts). Changing that is an
-  owner decision.
-- **Follow-ups raised, not in this round:** a collision-profile admin warning for one Solid box on
-  a shipped-scene asset with an opening (LAI 02 finding on `archway`), and LAI 04's engine
-  passage keep-clear; both await the owner (Trello #246).
+- **Informational providers:** decided by the owner on 2026-11-25; see 25.9 (superseded the
+  "informational providers fail closed too" note).
+- **Open, awaiting the owner:** a collision-profile admin warning for one Solid box on a
+  shipped-scene asset with an opening (LAI 02 finding on `archway`), and LAI 04's engine passage
+  keep-clear (Trello #246).
+
+### 25.9 Retirement-check classes (owner decision, 2026-11-25)
+
+Each usage source registers a `CheckClass` (`apps/assets/dependencies.py`):
+
+| Class | When its check fails | Sources |
+|---|---|---|
+| `AUTHORITATIVE` | Refused: `dependency_check_failed`, `details={"source", "check_class"}` | `regions`, `audio`, `npcs`, `avatars` |
+| `INFORMATIONAL` | Logged as a warning (ids only); staff warned; retirement goes ahead | `artifacts`, `catalog` |
+| `UNCLASSIFIED` (default) | Refused, exactly like `AUTHORITATIVE` | none today; any new source until it is classified |
+
+Rules:
+- `INFORMATIONAL` is only for a source registered as unable to conceal an active dependency: its
+  usages never block. `artifacts` qualifies (derived artifacts are informational only, owner
+  decision 8), and so does `catalog` (shipped scenes never block, owner 2026-11-23; classified
+  by Agent 4, 2026-11-25). A test keeps both from ever returning a blocking usage. If the catalog
+  check fails, the retire action loses only its shipped-scene note and warns instead.
+- A blocking usage always blocks, whatever its source's class. An informational failure never
+  hides another source's blocker or failure.
+- Never silently: every failure is logged (`asset dependency check failed` at error level, and
+  for informational ones `asset dependency check unverified ... retirement continues` as a
+  warning). The two retire admin actions warn staff through `unverified_checks()`, and the "Used
+  by" panel marks the failed source.
+- Listing is not retiring: `usages_for` (and `asset_usage`) still raise when any check fails.
+- Historical references and published-content protection are unchanged.
+- Re-registering a source with a different class is refused; an unknown class is refused.
+
+Tests: `apps/assets/tests/test_check_classes.py`.
 
 ## 26. Asynchronous model validation (LAI-LAMBDA-006 and 007, ADR-064)
 

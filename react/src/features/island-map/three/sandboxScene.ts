@@ -25,7 +25,8 @@ import type { ThreeEngineHandle } from './engineHandle';
 import { FirstPersonController } from '@lai/game-engine/movement';
 import { attachPointerControls } from '@lai/game-engine/input';
 import { hasApproached, isInRange, isInsideZone } from './sandboxTriggers';
-import { SANDBOX_NPC_ID, type WorldEngineEventBus } from './worldEngineEvents';
+import { SANDBOX_NPC_ID } from './sandboxContent';
+import type { WorldEngineEventBus } from './worldEngineEvents';
 
 const COLLECTIBLE_ID = 'sandbox-collectible-1';
 const COLLECTIBLE_INTERACTION_ID = 'sandbox-collectible-1:collect';

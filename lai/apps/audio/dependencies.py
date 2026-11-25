@@ -107,6 +107,7 @@ def refusal(asset, version, blocking):
 
 
 def register() -> None:
-    from apps.assets.dependencies import register_usage_provider
+    from apps.assets.dependencies import CheckClass, register_usage_provider
 
-    register_usage_provider(SOURCE, usages, refusal=refusal)
+    # Authoritative: a failed check could hide a live sound release that pins the audio.
+    register_usage_provider(SOURCE, usages, refusal=refusal, check_class=CheckClass.AUTHORITATIVE)
