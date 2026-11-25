@@ -63,9 +63,9 @@ def assert_parity(only_avatars, asset, *versions):
         assert blocks == (old is not None)
 
 
-def test_the_guard_is_still_the_registered_one():  # no fixture: the real registrations
-    assert dependencies.retirement_guard in services.RETIREMENT_GUARDS
-    assert "avatars" not in registry.registered_sources()
+def test_the_provider_replaces_the_guard():  # no fixture: the real registrations (W2-4b)
+    assert dependencies.retirement_guard not in services.RETIREMENT_GUARDS
+    assert "avatars" in registry.registered_sources()
 
 
 @pytest.mark.parametrize("status", list(AvatarStatus))
