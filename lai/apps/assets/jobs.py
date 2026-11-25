@@ -35,6 +35,44 @@ def submit_inspection(version, user):
     return jobs.submit(ASSET_INSPECT, payload, user=user, subject=version)
 
 
+def inspection_in_progress(version) -> bool:
+    """True when `version` has an `asset.inspect` job, queued or running, for its stored file.
+    Other job kinds for the version (a validation, an optimization) do not count."""
+    from apps.jobs.models import JobStatus, ProcessingJob
+
+    return ProcessingJob.objects.filter(
+        kind=ASSET_INSPECT,
+        subject_type=SUBJECT,
+        subject_id=str(version.pk),
+        payload__storage_key=version.storage_key,
+        status__in=[JobStatus.PENDING, JobStatus.RUNNING],
+    ).exists()
+
+
+#: `submit_inspection_once` found an inspection already queued or running and submitted none.
+ALREADY_RUNNING = object()
+
+
+def submit_inspection_once(version, user):
+    """`submit_inspection`, unless one is already queued or running (returns `ALREADY_RUNNING`)
+    or the version no longer exists (returns None).
+
+    The check and the submission run in one transaction under a row lock on the version, so two
+    simultaneous submissions queue one job (the second waits for the first to commit, then sees
+    its job). A finished (completed or failed) inspection never blocks a new one."""
+    from django.db import transaction
+
+    from .models import AssetVersion
+
+    with transaction.atomic():
+        locked = AssetVersion.objects.select_for_update().filter(pk=version.pk).first()
+        if locked is None:
+            return None
+        if inspection_in_progress(locked):
+            return ALREADY_RUNNING
+        return submit_inspection(version, user)
+
+
 def apply(job) -> None:
     logger.info(
         "asset inspection finished id=%s status=%s code=%s",

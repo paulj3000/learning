@@ -76,6 +76,20 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   `test_usages_by_source.py`, `test_artifact_usage.py`, `catalog/tests/test_used_by_panel.py`,
   `npcs/` and `avatars/tests/test_dependency_historical.py`.
 
+## LAI-07 Asset Library W3(b)(c)(d): background inspection admin (2026-11-25, `feature/asset-library-w3bcd-inspections`, `main` `8f3a7b3c`)
+
+- **W3(d):** "Inspect in background" needs the validate permission (as the validate action),
+  not view. View-only staff no longer see or run it.
+- **W3(c):** a version with an `asset.inspect` job already queued or running for its stored file
+  is skipped ("Skipped N version(s) with an inspection already running.", info). The check and
+  submission run under a row lock on the version (`jobs.submit_inspection_once`), so simultaneous
+  clicks queue one job. A finished inspection never blocks a new one.
+- **W3(b):** the version page gains a "Latest inspection" section (status, finish time, codes,
+  dimensions, counts), shown only when an inspection exists. No raw error text, keys or URLs.
+- Lambda's `validate_in_background`, `_latest_job`, `_summary`, `BACKGROUND_FIELDS` and the
+  capture, image and artifact admin are unchanged. No migration. Tests:
+  `apps/assets/tests/test_inspection_admin.py`.
+
 ## LAI-07 Asset Library W4: shared asset-id pattern and one upload dry run (2026-11-24, `refactor/asset-library-w4-shared-helpers`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
 
 - **One asset-id pattern:** `formats.ASSET_ID`, used by validation, the importer and storage
