@@ -104,10 +104,7 @@ def test_retired_versions_and_assets_resolve_as_retired(api, world):
 
 
 def served(url: str) -> tuple:
-    """What a django-delivery URL serves: (version id, expiry, file name).
-
-    The token itself is not compared: `signing.dumps` stamps it with the signing second, so two
-    requests a second apart get different tokens for the same delivery (the old flake)."""
+    """What a django-delivery URL serves: (version id, expiry, file name)."""
     token, file_name = url.rstrip("/").split("/")[-2:]
     return (*delivery.read_token(token), file_name)
 
@@ -118,19 +115,20 @@ def test_one_published_asset_serves_every_family_and_region(api, world):
     b = entries(resolve(api, f.b, f.b2, "npc-pip"))["npc-pip"]
     assert (a["versionId"], a["sha256"]) == (b["versionId"], b["sha256"])
     assert served(a["url"]) == served(b["url"])
+    assert a["cache"]["key"] == b["cache"]["key"]  # URL equality: test_delivery_identity.py
     assert AssetVersion.objects.filter(asset=world["pip"]).count() == 2  # no copy per region
 
 
-def test_two_requests_across_a_second_boundary_serve_the_same_file(world, monkeypatch):
-    """Pins the old flake's cause: the signing second changes the URL, not what it serves."""
+def test_two_requests_across_a_second_boundary_get_the_same_url(world, monkeypatch):
+    """The old flake's cause is gone: the signing second no longer reaches the URL."""
     from django.core.signing import TimestampSigner
 
     world["pip"].refresh_from_db()
     version = world["pip"].default_version
-    seconds = iter(["1a", "1b"])  # two different base62 signing timestamps
+    seconds = iter(["1a", "1b"])  # two different base62 signing timestamps, if one were taken
     monkeypatch.setattr(TimestampSigner, "timestamp", lambda self: next(seconds))
     first, second = delivery.deliver(version).url, delivery.deliver(version).url
-    assert first != second
+    assert first == second
     assert served(first) == served(second)
 
 

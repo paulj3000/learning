@@ -12,6 +12,14 @@ URLs are issued only by the resolver, and only for published versions.
 
 Both use windows of half the TTL: inside a window the same version gets the same URL (and at
 least half the TTL of life), so browser HTTP caches hit across scenes and requests.
+
+Stable identity (ASSET_LIBRARY.md s. 8.1): a URL is a pure function of the version's canonical
+identity (`version_id`, which never changes and never names two files) and the window. The django
+token is signed with a plain `Signer`, not `signing.dumps`, whose `TimestampSigner` stamped the
+signing second, so two requests a second apart got two URLs for the same bytes. Replacing an
+asset publishes a new version, so its URL (and the resolver's `cache.key`) changes at once.
+Tokens signed the old way (`SALT`) stay valid until their own expiry, so a deploy never breaks a
+URL a client already holds.
 """
 
 import time
@@ -25,7 +33,14 @@ from django.urls import reverse
 
 from .storage import get_storage
 
+#: Legacy timestamped tokens (`signing.dumps`), still read until they expire.
 SALT = "lai.assets.delivery.v1"
+#: Stable tokens: the same version and window always sign to the same token.
+STABLE_SALT = "lai.assets.delivery.v2"
+
+
+def _signer() -> signing.Signer:
+    return signing.Signer(salt=STABLE_SALT)
 
 
 @dataclass(frozen=True)
@@ -63,7 +78,7 @@ def deliver(version, *, now: float | None = None) -> Delivery:
             )
             cache.set(cache_key, url, timeout=max(expires - start - ttl() // 2, 1))
         return Delivery(url, expires)
-    token = signing.dumps({"v": str(version.version_id), "e": expires}, salt=SALT)
+    token = _signer().sign_object({"v": str(version.version_id), "e": expires}, compress=False)
     return Delivery(reverse("asset-file", args=[token, version.file_name]), expires)
 
 
@@ -74,8 +89,13 @@ class InvalidToken(Exception):
 def read_token(token: str, *, now: float | None = None) -> tuple[str, int]:
     """(version id, expiry) from a django-delivery token, or InvalidToken."""
     try:
-        payload = signing.loads(token, salt=SALT)
+        payload = _signer().unsign_object(token)
     except signing.BadSignature:
+        try:  # a legacy token issued before stable URLs; its own expiry still applies below
+            payload = signing.loads(token, salt=SALT)
+        except signing.BadSignature:
+            raise InvalidToken from None
+    except (ValueError, UnicodeDecodeError):
         raise InvalidToken from None
     if not isinstance(payload, dict) or not isinstance(payload.get("e"), int):
         raise InvalidToken
