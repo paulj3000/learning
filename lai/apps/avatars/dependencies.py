@@ -86,6 +86,8 @@ def usages(asset, version=None):
                 SOURCE,
                 "",
                 f"Player avatar {a.avatar_key} ({a.status.lower()}, model)",
+                # A disabled avatar was withdrawn; a draft is still being prepared.
+                historical=a.status == AvatarStatus.DISABLED,
                 admin_url=url(a),
                 details={"avatar": a.avatar_key},
             )
@@ -97,6 +99,7 @@ def usages(asset, version=None):
                 SOURCE,
                 "",
                 f"Player avatar {a.avatar_key} ({a.status.lower()}, thumbnail)",
+                historical=a.status == AvatarStatus.DISABLED,
                 admin_url=url(a),
                 details={"avatar": a.avatar_key},
             )

@@ -49,8 +49,11 @@ def _client(*groups, superuser=False):
     return client
 
 
-def test_the_npc_guard_is_registered_with_the_asset_library():
-    assert dependencies.retirement_guard in services.RETIREMENT_GUARDS
+def test_the_npc_provider_is_registered_with_the_asset_library():
+    from apps.assets import dependencies as registry
+
+    assert "npcs" in registry.registered_sources()
+    assert dependencies.retirement_guard not in services.RETIREMENT_GUARDS
 
 
 def test_retiring_a_version_the_active_release_uses_is_refused(staff):

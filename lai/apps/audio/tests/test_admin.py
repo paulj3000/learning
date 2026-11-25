@@ -170,7 +170,17 @@ def test_the_list_shows_publishing_status_and_blocked_references(editor, publish
     obj.save()
     assert b"Changes not yet published" in client.get(CUES).content
     from apps.assets import services as asset_services
+    from apps.assets.services import AssetActionRefused
 
+    with pytest.raises(AssetActionRefused) as refused:  # the LIVE release still pins it
+        asset_services.retire_asset(obj.asset)
+    assert refused.value.code == "sound_release_dependency"
+    cue("ui.menu.select")  # a second cue so a release can omit the first
+    obj.enabled = False
+    obj.save()
+    services.publish(None)  # a new LIVE release without the coin cue; the old one is SUPERSEDED
+    obj.enabled = True
+    obj.save()
     asset_services.retire_asset(obj.asset)
     page = client.get(f"{CUES}{obj.pk}/change/").content.decode()
     assert "blocked" in page and "retired" in page

@@ -129,6 +129,31 @@ def usages_for(asset: ContentAsset, version: AssetVersion | None = None) -> list
     return usages
 
 
+@dataclass(frozen=True)
+class SourceUsages:
+    """One source's answer for the staff panel: its usages, or that its check failed."""
+
+    source: str
+    usages: tuple[Usage, ...] = ()
+    failed: bool = False
+
+
+def usages_by_source(
+    asset: ContentAsset, version: AssetVersion | None = None
+) -> list[SourceUsages]:
+    """One entry per registered source, in registration order.
+
+    Unlike `usages_for`, a provider that raises marks only its own entry as failed, so staff still
+    see what the other sources report. Read-only; the failure is logged by `_source_usages`."""
+    entries: list[SourceUsages] = []
+    for source in _PROVIDERS:
+        try:
+            entries.append(SourceUsages(source, tuple(_source_usages(source, asset, version))))
+        except DependencyCheckFailed:
+            entries.append(SourceUsages(source, failed=True))
+    return entries
+
+
 def default_refusal(
     asset: ContentAsset, version: AssetVersion | None, blocking: list[Usage]
 ) -> AssetActionRefused:

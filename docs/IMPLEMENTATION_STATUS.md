@@ -51,6 +51,59 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 - RETIRED regions' usages are `historical`. `Usage.historical` is the same field as W2-2 and W2-5.
 - No migration. Tests: `test_lod_twins.py` (3), `test_default_ground.py`.
 
+## LAI-07 Asset Library W3(b)(c)(d): background inspection admin (2026-11-25, `feature/asset-library-w3bcd-inspections`, `main` `8f3a7b3c`)
+
+- **W3(d):** "Inspect in background" needs the validate permission (as the validate action),
+  not view. View-only staff no longer see or run it.
+- **W3(c):** a version with an `asset.inspect` job already queued or running for its stored file
+  is skipped ("Skipped N version(s) with an inspection already running.", info). The check and
+  submission run under a row lock on the version (`jobs.submit_inspection_once`), so simultaneous
+  clicks queue one job. A finished inspection never blocks a new one.
+- **W3(b):** the version page gains a "Latest inspection" section (status, finish time, codes,
+  dimensions, counts), shown only when an inspection exists. No raw error text, keys or URLs.
+- Lambda's `validate_in_background`, `_latest_job`, `_summary`, `BACKGROUND_FIELDS` and the
+  capture, image and artifact admin are unchanged. No migration. Tests:
+  `apps/assets/tests/test_inspection_admin.py`.
+
+## LAI-07 Asset Library W2-5: "Used by" panel (2026-11-25, `feature/asset-library-w2-5-used-by`, `main` `8f3a7b3c`)
+
+- The content asset change page gains a read-only **Used by** section built only from the usage
+  registry (`dependencies.usages_by_source`): every registered source (NPCs, avatars, audio,
+  regions, shipped scenes, derived artifacts) in three groups, **Blocks retirement**,
+  **Informational** and **Historical**. A source whose check fails shows a fixed line and no
+  exception text; retirement itself still fails closed (`dependency_check_failed`).
+- New informational `artifacts` provider (`apps/assets/artifact_usage.py`): derived artifacts made
+  from, or promoted into, the asset or version. It never blocks (owner decision 2026-11-25);
+  expired, deleted and rejected artifacts are historical.
+- `Usage` gains `historical` (the same field as W2-2 and the regions branch); DISABLED player
+  avatars are historical. `manage.py asset_usage` shows it (`[historical]`, JSON `historical`).
+- No migration, no new permission; Lambda modules unchanged. Tests:
+  `test_usages_by_source.py`, `test_artifact_usage.py`, `catalog/tests/test_used_by_panel.py`,
+  `npcs/` and `avatars/tests/test_dependency_historical.py`.
+
+## LAI-07 Asset Library W2-2: sound releases protect the audio they pin (2026-11-25, `feature/asset-library-w2-2-audio-provider`, `main` `8f3a7b3c`)
+
+- New `audio` usage provider (`apps/audio/dependencies.py`), registered from `AudioConfig.ready()`
+  after `transcoding.register()`, which is unchanged. Owner decision 2026-11-25:
+  - the LIVE `SoundRelease` blocks retiring an asset it pins, and an exact version it pins (even
+    with a replacement default): `sound_release_dependency`;
+  - SUPERSEDED releases are listed as history (`historical`), never blocking; working cues are
+    listed only.
+- `Usage` gains `historical` (default False; the same field as W2-5 and the regions branch).
+- The four Sound Manager tests that retired audio the LIVE release pins now first assert the
+  refusal, then publish a release that supersedes it and check the original outcome (approved).
+- No migration. Tests: `apps/audio/tests/test_dependencies.py` (11).
+
+## LAI-07 Asset Library W2-4b: NPC and avatar guards become usage providers (2026-11-24, `feature/asset-library-w2-4b-guard-switch`, stacked on W2-4, Trello #246); prepared for owner approval, NOT merged
+
+- `NpcsConfig.ready()` and `AvatarsConfig.ready()` register their usage providers instead of their
+  legacy retirement guards. The aggregate guard is then the only retirement guard.
+- **What changes:** a retirement that only an NPC release or an AVAILABLE avatar blocks is refused
+  exactly as before (same code, wording and details; parity matrices). When it is blocked by more
+  than one source (for example an NPC release and a published 3D Area), the refusal becomes one
+  `asset_in_use` naming every blocker, with `details.blockers`.
+- Rollback: revert the PR (two `ready()` blocks); no data.
+
 ## LAI-07 Asset Library W4: shared asset-id pattern and one upload dry run (2026-11-24, `refactor/asset-library-w4-shared-helpers`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
 
 - **One asset-id pattern:** `formats.ASSET_ID`, used by validation, the importer and storage
