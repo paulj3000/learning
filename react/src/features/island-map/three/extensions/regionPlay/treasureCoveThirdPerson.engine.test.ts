@@ -59,7 +59,9 @@ describe('Treasure Cove in third-person (LAI-JMP-01a)', () => {
       controller.update(delta, { forward: 1, strafe: 0 });
       feetZ = controller.position.z;
     });
-    for (let i = 0; i < 400; i += 1) {
+    // 480 frames (400 before #247): the ruins archway's jambs block since the GE-247 engine
+    // follow-up, and a child swinging the view slides along one on the way through the opening.
+    for (let i = 0; i < 480; i += 1) {
       // Swing the view now and then, as a child does while walking.
       heading = FACE_SOUTH + Math.sin(i / 20) * 0.6;
       harness.runFrames(1);
