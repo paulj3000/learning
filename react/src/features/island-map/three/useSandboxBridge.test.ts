@@ -1,7 +1,8 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useSandboxBridge } from './useSandboxBridge';
-import { SANDBOX_NPC_ID, WorldEngineEventBus } from './worldEngineEvents';
+import { SANDBOX_NPC_ID } from './sandboxContent';
+import { WorldEngineEventBus } from './worldEngineEvents';
 
 describe('useSandboxBridge', () => {
   it('calls noteCharacterMet and emits NpcStateChanged when the sandbox NPC is approached', () => {

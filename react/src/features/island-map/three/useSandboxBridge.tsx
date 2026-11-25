@@ -1,5 +1,6 @@
 import { useNpcApproachBridge } from './npcApproachBridge';
-import { SANDBOX_NPC_ID, type WorldEngineEventBus } from './worldEngineEvents';
+import { SANDBOX_NPC_ID } from './sandboxContent';
+import type { WorldEngineEventBus } from './worldEngineEvents';
 
 /**
  * The single React-level bridge from the Three.js event bus to real domain
