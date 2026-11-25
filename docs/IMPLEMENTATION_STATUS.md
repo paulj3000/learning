@@ -37,6 +37,19 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W2-2: sound releases protect the audio they pin (2026-11-25, `feature/asset-library-w2-2-audio-provider`, `main` `8f3a7b3c`)
+
+- New `audio` usage provider (`apps/audio/dependencies.py`), registered from `AudioConfig.ready()`
+  after `transcoding.register()`, which is unchanged. Owner decision 2026-11-25:
+  - the LIVE `SoundRelease` blocks retiring an asset it pins, and an exact version it pins (even
+    with a replacement default): `sound_release_dependency`;
+  - SUPERSEDED releases are listed as history (`historical`), never blocking; working cues are
+    listed only.
+- `Usage` gains `historical` (default False; the same field as W2-5 and the regions branch).
+- The four Sound Manager tests that retired audio the LIVE release pins now first assert the
+  refusal, then publish a release that supersedes it and check the original outcome (approved).
+- No migration. Tests: `apps/audio/tests/test_dependencies.py` (11).
+
 ## LAI-07 Asset Library W2-4b: NPC and avatar guards become usage providers (2026-11-24, `feature/asset-library-w2-4b-guard-switch`, stacked on W2-4, Trello #246); prepared for owner approval, NOT merged
 
 - `NpcsConfig.ready()` and `AvatarsConfig.ready()` register their usage providers instead of their
