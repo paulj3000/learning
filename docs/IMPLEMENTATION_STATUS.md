@@ -37,6 +37,16 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W2-4b: NPC and avatar guards become usage providers (2026-11-24, `feature/asset-library-w2-4b-guard-switch`, stacked on W2-4, Trello #246); prepared for owner approval, NOT merged
+
+- `NpcsConfig.ready()` and `AvatarsConfig.ready()` register their usage providers instead of their
+  legacy retirement guards. The aggregate guard is then the only retirement guard.
+- **What changes:** a retirement that only an NPC release or an AVAILABLE avatar blocks is refused
+  exactly as before (same code, wording and details; parity matrices). When it is blocked by more
+  than one source (for example an NPC release and a published 3D Area), the refusal becomes one
+  `asset_in_use` naming every blocker, with `details.blockers`.
+- Rollback: revert the PR (two `ready()` blocks); no data.
+
 ## LAI-07 Asset Library W4: shared asset-id pattern and one upload dry run (2026-11-24, `refactor/asset-library-w4-shared-helpers`, `main` `f0de1087` merged in, Trello #244); Development Complete, NOT merged
 
 - **One asset-id pattern:** `formats.ASSET_ID`, used by validation, the importer and storage
