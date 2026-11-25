@@ -176,3 +176,58 @@ def report(asset_id: str | None = None) -> list[AssetReport]:
         )
         for asset in assets.order_by("asset_id")
     ]
+
+
+# --- usage provider for the asset library's registry (LAI-07 W2-4) ---------------------------
+#
+# Proven equal to `retirement_guard` by the parity matrix in tests/test_dependency_parity.py. Not
+# registered yet: `retirement_guard` stays the registered guard until the NPC Manager owner and
+# the project owner approve the switch (`register_usage_provider()` below, from `ready()`).
+
+SOURCE = "npcs"
+
+
+def usages(asset: ContentAsset, version=None):
+    """Live releases (blocking) and, for the whole asset, draft rows (reported only)."""
+    from django.urls import NoReverseMatch, reverse
+
+    from apps.assets.dependencies import Usage
+
+    def url(release) -> str:
+        try:
+            return reverse("admin:npcs_npcrelease_change", args=[release.pk])
+        except NoReverseMatch:
+            return ""
+
+    found = [
+        Usage(
+            SOURCE,
+            REFUSAL_CODE,
+            f"NPC release {release.number} ({release.get_status_display().lower()})",
+            blocks_retirement=True,
+            admin_url=url(release),
+            details={"release": release.number},
+        )
+        for release in release_dependents(asset, version)
+    ]
+    if version is None:
+        found += [Usage(SOURCE, "", line) for line in draft_dependents(asset).describe()]
+    return found
+
+
+def refusal(asset: ContentAsset, version, blocking):
+    """The guard's own refusal, word for word (one source of the wording)."""
+    from apps.assets.dependencies import default_refusal
+    from apps.assets.services import AssetActionRefused
+
+    try:
+        retirement_guard(asset, version)
+    except AssetActionRefused as refused:
+        return refused
+    return default_refusal(asset, version, blocking)
+
+
+def register_usage_provider() -> None:
+    from apps.assets.dependencies import register_usage_provider as register
+
+    register(SOURCE, usages, refusal=refusal)

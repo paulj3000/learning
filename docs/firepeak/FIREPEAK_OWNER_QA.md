@@ -10,7 +10,7 @@ Each line has an id, what to do, and what passes. Record pass, fail or skip with
 ## 1. Launch locally (about 10 minutes)
 
 Prerequisites, Cognito settings and the Django Admin account: `docs/TREASURE_RUSH_LOCAL_DEV.md`
-sections 1, 3 and 5. Branch: `main` (or any branch at or after `aa8adb33`). The database is
+sections 1, 3 and 5. Branch: `main` at or after `f0de1087` (skill evidence). The database is
 PostgreSQL 18 (`make up`); an old PostgreSQL 16 volume cannot be reused.
 
 ```bash
@@ -84,7 +84,7 @@ that case.
 - [ ] F2 The backpack shows the four elemental crystals, the badges (First Steps, Emberwood Explorer, Master of the Forge, Volcano Scientist, Heart of Firepeak, Crystal Collector) and the journal entries.
 - [ ] F3 Collect all seven ember shards (hidden, elevated, Lava Jumper, Summit Explorer). Firepeak Master Explorer appears once.
 - [ ] F4 Re-solving a finished puzzle says "Practice" and gives no new rewards. Re-entering after completion allows free exploration.
-- [ ] F5 **Persistence.** Sign out, sign in, open the same child: crystals, badges and the completed quest are still there. The parent dashboard shows the activity by skill. The dashboard part needs FPV-D10 (LAI 06, PR #73) and this branch's re-tag (`CURRICULUM_AUDIT.md`) both on the branch under test, and a database seeded after them. Before that, puzzle solves record no skill evidence: record F5's dashboard part as that known defect. After it, a solved Explorer lava-numbers question shows under "Addition within 100" (or the objective of the variant answered).
+- [ ] F5 **Persistence.** Sign out, sign in, open the same child: crystals, badges and the completed quest are still there. The parent dashboard shows the activity by skill. Since `main` `f0de1087` (FPV-D10 and the re-tag) puzzle solves record skill evidence under catalog objectives; on a database seeded at or after that SHA the dashboard part should pass (for example a Pathfinder lava-numbers solve shows under "Addition within ten"). A database seeded earlier keeps the old ids: start QA from a fresh database.
 - [ ] F6 The return portal takes the child back to the Landing. "Leave" returns to the Realm Explorer, which shows "Completed".
 
 ### G. Staff authoring (Django Admin)

@@ -1,9 +1,10 @@
 # GE-247: bundled asset references in Asset Library dependency reporting
 
-Status: **Implemented; merged to `main`, not yet owner-accepted** (Agent 4 / LAI 04, Game Engine
-Core). Trello #247. Shipped-scene references are listed, never blocking (S6 not required). PR #70
-(`9b881fda`, on LAI 07's W2-1 registry #65), LAI 07's resolver rule #75 (`c9123f48`), and the
-staff-note follow-up `fix/ge-247-retirement-note-collision-kept`. Section 8 records what is built.
+Status: **Implemented and merged; verified on `main` `f0de1087` (2026-11-24); not yet
+owner-accepted** (Agent 4 / LAI 04, Game Engine Core). Trello #247. Shipped-scene references are
+listed, never blocking (S6 not required). PR #70 (`9b881fda`, on LAI 07's W2-1 registry #65),
+LAI 07's resolver rule #75 (`c9123f48`) and the staff-note follow-up #77 (`d834443f`). Section 8
+records what is built; section 8.5 is the final S1 to S7 disposition.
 
 ## 1. Summary
 
@@ -229,10 +230,10 @@ which needs a `discovery.py` change).
 
 | Step | Disposition |
 |---|---|
-| S1 | Built: helper, admin uses and the registered `catalog` provider (8.2) |
-| S2 | Client half built; resolver half (owner-approved 2026-11-24) is LAI 07's |
-| S3 | Hub references kept through import in the release report; staying there is the owner's decision (8.3) |
-| S4 | Built (collision profile page) |
-| S5 | Already enforced by the schema; pinned by a test |
+| S1 | Done (#70): helper, admin uses and the registered `catalog` provider (8.2) |
+| S2 | Done: client half (#70) and resolver rule (#75); the staff note follows it (#77) |
+| S3 | Done: hub references kept through import in the release report (owner, 2026-11-24: no Place) |
+| S4 | Done (#70): collision profile page |
+| S5 | Done: enforced by the schema; pinned by a test |
 | S6 | Not required (owner) |
 | S7 | Not recommended now: per-id use kinds would only enrich labels. Every consumer here needs only "which scene uses this id", and a v2 index means an export schema bump, a golden digest change and an importer change for no staff-visible decision. Revisit if staff need "placed vs LOD twin" in the UI. |

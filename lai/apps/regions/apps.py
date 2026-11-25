@@ -10,3 +10,7 @@ class RegionsConfig(AppConfig):
         from .authoring_kinds import register_kinds
 
         register_kinds()
+        from . import dependencies
+
+        # Published 3D Area placements block retiring their asset (LAI-07 W2-3).
+        dependencies.register()

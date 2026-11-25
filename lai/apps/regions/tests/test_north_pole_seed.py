@@ -378,6 +378,38 @@ class TestPlaythrough:
         assert all(statuses[q] == QuestStatus.COMPLETED for q in QUEST_IDS), statuses
         assert COMPLETION_KEY in keys(child)
 
+    @pytest.mark.parametrize("band", ["SPROUT", "PATHFINDER", "EXPLORER"])
+    def test_every_quiz_solve_records_skill_evidence_for_the_dashboard(self, north_pole, api, band):
+        """FPV-D10: each graded quiz answer records evidence under a catalog objective, and the
+        parent's skill view shows it. Mechanical kinds record none."""
+        from apps.catalog.models import LearningObjective
+        from apps.education.models import SkillEvidence
+        from apps.regions import puzzles
+
+        child = north_pole.a1
+        child.age_band = band
+        child.save()
+        client = api(north_pole.a)
+        play = Play(client, child)
+        assert play.accept(QUEST_IDS[0]).status_code in (200, 201)
+        play_everything(play, band)
+
+        known = set(LearningObjective.objects.values_list("code", flat=True))
+        expected = set()
+        for body in PUZZLES:
+            if body["kind"] in puzzles.SKILL_KINDS:
+                params = body["ageBands"][band]
+                code = puzzles.skill_for(body["kind"], params, submission(body["puzzleId"], band))
+                assert code in known, (body["puzzleId"], code)
+                expected.add((body["puzzleId"], code))
+        recorded = {
+            (e.puzzle_attempt.puzzle_key, e.learning_objective_code)
+            for e in SkillEvidence.objects.filter(child=child, puzzle_attempt__isnull=False)
+        }
+        assert recorded == expected
+        skills = client.get(f"/api/v1/children/{child.pk}/skill-progress/").json()["skills"]
+        assert {code for _pid, code in expected} <= {s["learningObjectiveCode"] for s in skills}
+
     def test_stage_order_is_the_servers(self, north_pole, api):
         play = Play(api(north_pole.a), north_pole.a1)
         locked = play.solve("np-workshop-count", submission("np-workshop-count", "PATHFINDER"))
