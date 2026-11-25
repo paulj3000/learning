@@ -1119,19 +1119,20 @@ records each model's bounding corners in `metadata["bounds"]`, which automatic p
 themselves from. The preview's **Show collision** button draws the boxes. Full workflow, shapes,
 behaviours and the rules the game always protects: `docs/ASSET_COLLISION_PROFILES.md`.
 
-## 25. Dependency tracking (LAI-07 W2; W2-1 on `main`, W2-3 and W2-4 in review)
+## 25. Dependency tracking (LAI-07 W2; W2-1, W2-3 and W2-4 on `main`, W2-4b in review)
 
 Status:
 - **On `main`:** the registry, the aggregate retirement guard and `manage.py asset_usage` (W2-1,
-  PR #65), and the `catalog` provider for shipped scenes (GE-247, Agent 4, PR #70).
-- **In review** (Trello #246): the regions provider (W2-3,
-  `feature/asset-library-w2-3-regions`). The NPC and avatar providers with their parity tests
-  (W2-4, `feature/asset-library-w2-4-parity`, stacked on W2-3) are **not registered**, so their guards refuse exactly as
-  before.
-- **Waiting:** the audio provider (W2-2) and the guard switch (W2-4b) for owner decisions; the
-  "Used by" admin panel (W2-5) is unblocked by the Lambda merge (#71) and comes as its own PR.
+  PR #65); the `catalog` provider for shipped scenes (GE-247, Agent 4, PR #70); the regions
+  provider (W2-3, PR #80); the NPC and avatar providers with their parity tests, not registered
+  (W2-4, PR #81).
+- **In review: guard switch (W2-4b,** `feature/asset-library-w2-4b-guard-switch`): the NPC and
+  avatar guards become usage providers. A single NPC or avatar refusal keeps its code, wording and
+  details; together with another blocker it becomes one `asset_in_use` refusal naming both.
+- **Approved for development (owner, 2026-11-25):** the audio provider (W2-2), low-detail twins
+  in the regions provider and the "Used by" admin panel (W2-5), each as its own PR.
 
-`apps/assets/services.py` and the Django Admin classes are unchanged. Integration plan: 25.7.
+`apps/assets/services.py` is unchanged. Integration plan: 25.7.
 
 ### 25.1 What protects an asset today (reviewed 2026-11-22 on `main` `aa8adb33`)
 
