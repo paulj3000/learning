@@ -1257,10 +1257,26 @@ contain child data.
   (`AssetVersionAdmin._run`, `catalog` `retire_assets`), so no admin code changes.
 - **`manage.py asset_usage <asset_id> [--number N] [--json]`**: a read-only report of
   `usages_for`. It is new and lives only in `apps/assets`.
-- **"Used by" panel** on the asset version and content asset change pages. This is W2-5, its own
-  PR: the Lambda admin (#71) is now on `main`, and the catalog asset admin needs its owner's
-  agreement. Only users with view permission on the
-  referring model see its rows.
+- **"Used by" panel** on the content asset change page (W2-5, `ContentAssetAdmin.usage_panel`, in
+  its own "Used by" section; the "Used by shipped scenes" list column is unchanged). It is
+  read-only, adds no permission or action, and does not appear on the add page. It renders
+  `usages_by_source(asset)`, so every registered source (npcs, avatars, audio, regions, catalog,
+  artifacts) appears without per-source code. Rows show the source, the label (linked when the
+  usage has an admin URL) and the code, in three groups:
+  - **Blocks retirement**: usages that make a retire refuse.
+  - **Informational**: listed usages that never block (draft rows, shipped scenes, derived
+    artifacts still under review).
+  - **Historical**: past use kept for the record (`Usage.historical`): a disabled player avatar,
+    a retired region, an expired or rejected derived artifact. Historical never blocks.
+
+  Sources with no usages are summarised in one line ("No usages from: audio, avatars"). A source
+  whose check raised shows a fixed sentence (retiring is refused until it works; ask a developer
+  to check the server log), never the exception text; the other sources still show, because
+  `usages_by_source` isolates failures for display only. Retirement is unchanged and still fails
+  closed (`dependency_check_failed`). Derived artifacts (`apps/assets/artifact_usage.py`) are an
+  informational source only: they never block retirement in any state.
+  `manage.py asset_usage` also reports `historical` (JSON `historical`; text `[historical]`). The
+  panel on the asset version change page is not part of W2-5.
 
 ### 25.5 Tests (PostgreSQL 18, slot 9; unit only)
 

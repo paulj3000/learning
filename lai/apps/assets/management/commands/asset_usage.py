@@ -58,6 +58,7 @@ class Command(BaseCommand):
                         "code": u.code,
                         "label": u.label,
                         "blocksRetirement": u.blocks_retirement,
+                        "historical": u.historical,
                         "adminUrl": u.admin_url,
                         "details": dict(u.details),
                     }
@@ -77,6 +78,6 @@ class Command(BaseCommand):
             f"(checked: {', '.join(sources)})."
         )
         for u in usages:
-            flag = "BLOCKS" if u.blocks_retirement else "listed"
+            flag = "BLOCKS" if u.blocks_retirement else "historical" if u.historical else "listed"
             link = f" {u.admin_url}" if u.admin_url else ""
             self.stdout.write(f"  [{flag}] {u.source}: {u.label}{link}")
