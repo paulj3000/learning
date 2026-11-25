@@ -228,7 +228,9 @@ def test_the_command_lists_blocking_and_listed_usages(registry):
     register_usage_provider(
         "npcs",
         lambda asset, version: [
-            Usage("npcs", "npc_release_dependency", "NPC release 7", True, "/admin/npcs/7/"),
+            Usage(
+                "npcs", "npc_release_dependency", "NPC release 7", True, admin_url="/admin/npcs/7/"
+            ),
             listed("npcs", "pip variant default (model)"),
         ],
     )
