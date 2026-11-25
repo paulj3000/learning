@@ -37,6 +37,19 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library W2-3: regions dependency protection (2026-11-24, `feature/asset-library-w2-3-regions` from `main` `f0de1087`, Trello #246); Development Complete, NOT merged
+
+- **Rule** (owner, 2026-11-22; confirmed by Agent 4, the region-semantics coordinator, 2026-11-23):
+  retiring an asset a PUBLISHED 3D Area names, in a placement, a chest or its `scene` JSON
+  (`assetId` and `groundAssetId` at any depth), is refused with `region_placement_dependency`,
+  naming the areas. DRAFT and RETIRED areas are listed only. Version retirement never blocks.
+- **Precedence:** a guard not yet moved to a usage provider (NPC, avatar) keeps its exact refusal
+  when the regions provider also blocks.
+- Builds on W2-1 (#65). The `catalog` provider is GE-247's (#70) and is not duplicated. No
+  migration; `services.py`, admin, API, resolver, engine and client unchanged.
+- Tests: `apps/regions/tests/test_dependencies.py`, one precedence test in
+  `apps/assets/tests/test_dependencies.py`. Plan: `docs/ASSET_LIBRARY.md` section 25.7.
+
 ## LAI 05: jsonschema as a dev dependency (2026-11-24, `chore/jsonschema-dev-dependency` from `main` `9b881fda`); owner-approved, NOT merged
 
 The owner approved it on 2026-11-24. `requirements-dev.txt` now pins `jsonschema==4.26.0` and its
