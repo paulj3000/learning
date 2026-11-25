@@ -64,6 +64,9 @@ Owner-authorized 2026-11-25. Agent 4 (Game Engine Core).
   twin).
 - **Delivery identity:** no engine change. Models are keyed by asset id per visit; textures and
   audio by `asset@versionId`. Nothing is keyed on the URL.
+- **Storykeeper walls test split per door** (`playerFootprint.engine.test.ts`): the archway
+  colliders pushed the single case further past the 5 s default; each door now runs in about
+  1 s, and the assertions are unchanged.
 - **Not done:** the Asset Library help text for pieces with openings (LAI 07, owner decision).
 
 ## LAI-07 Asset Library W5: documentation close-out (2026-11-25, `docs/asset-library-w5-reconcile`, `main` `8f3a7b3c`)
