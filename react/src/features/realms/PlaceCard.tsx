@@ -28,7 +28,7 @@ export function PlaceCard({
   const theme = themeFor(place.slug);
   const adventureTotal = place.adventureCount + place.questCount;
   const titleId = `place-card-${place.slug}`;
-  const areaTitle = displayTitle === place.title ? place.area?.title : displayTitle;
+  const areaTitle = displayTitle === place.title ? (place.area?.title ?? displayTitle) : displayTitle;
   return (
     <article
       aria-labelledby={titleId}
@@ -42,7 +42,11 @@ export function PlaceCard({
         <RealmPicture
           assetId={place.thumbnailAssetId}
           scene={theme.scene}
-          label={displayTitle === place.title && place.area ? `${place.title}: ${place.area.title}` : displayTitle}
+          label={
+            displayTitle === place.title && place.area
+              ? `${place.title}: ${place.area.title}`
+              : displayTitle
+          }
           eager={eager}
           className={cn('aspect-[16/10] w-full', theme.wash)}
         />
@@ -61,7 +65,7 @@ export function PlaceCard({
         ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-3 p-5">
-        <h3 id={titleId} className="m-0 font-display text-xl leading-tight text-ocean-900">
+        <h3 id={titleId} className="m-0 font-display text-2xl leading-tight text-ocean-900">
           {displayTitle}
         </h3>
         {displayTagline ? <p className="m-0">{displayTagline}</p> : null}
