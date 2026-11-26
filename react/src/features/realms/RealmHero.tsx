@@ -13,15 +13,14 @@ export function RealmHero({ children }: { children?: ReactNode }) {
       className="grid w-full gap-4 overflow-hidden rounded-3xl border-b-4 border-ocean-900 bg-ocean-700 p-6 text-white shadow-sm md:grid-cols-[1fr_auto] md:items-center md:p-8"
     >
       <div className="flex min-w-0 flex-col gap-3">
-        <p className="m-0 text-lg font-semibold text-white">Learning Adventure Island</p>
         <h1
           id="realm-explorer-heading"
           className="m-0 font-display text-4xl leading-tight text-white md:text-5xl"
         >
-          Realm Explorer
+          Explore the Realms
         </h1>
         <p className="m-0 max-w-xl text-lg text-white md:text-xl">
-          Choose a Realm to learn, play, and go on an adventure!
+          Choose your next adventure. Discover hidden treasures, solve mysteries and explore magical worlds.
         </p>
         {children}
       </div>
