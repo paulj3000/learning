@@ -1167,6 +1167,24 @@ describe("Pip's Missing Treasure (TR-14)", () => {
     expect(api.requestChestChallenge).not.toHaveBeenCalled();
   });
 
+  it('says a chest opened by the stage before it opens by itself, with Pip’s clue, and asks nothing (#102)', async () => {
+    const api = fakeApi({
+      getRegion: vi.fn(async () =>
+        pips({
+          'cove-beach-chest': {
+            lockReason: 'PUZZLE',
+            clue: 'Help me load my boat from the cargo crates by the chest.',
+          },
+          'cove-grove-chest': { isOpen: true },
+        }),
+      ),
+    });
+    render(<RegionPlayCompanion {...playing(api, { claimedInteraction: interaction(BEACH) })} />);
+    expect(await screen.findByText(PLAY_COPY.chestOpensByPuzzle)).toBeInTheDocument();
+    expect(screen.getByText(/load my boat/)).toBeInTheDocument();
+    expect(api.requestChestChallenge).not.toHaveBeenCalled();
+  });
+
   it('puts the puzzle’s numbers on the stones and answers with the stone the child touches', async () => {
     const scene = fakeScene();
     const api = fakeApi({

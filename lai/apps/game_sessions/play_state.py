@@ -92,7 +92,7 @@ def world_change_keys_by_location(child) -> set[tuple[str, str]]:
 
 def region_bootstrap(child, region: WorldRegion) -> dict:
     # Imported here: `play` imports this module's neighbours, and the lock rule lives there.
-    from .play import chest_lock
+    from .play import chest_lock, puzzle_opened_keys
 
     changes = world_change_keys_by_location(child)
     items = owned_item_ids(child)
@@ -108,6 +108,7 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
         if p.kind != PlacementKind.NPC
     ]
     chests = []
+    puzzle_keys = puzzle_opened_keys(region)
     for chest in region.chests.select_related(
         "region__location",
         "required_item",
@@ -123,7 +124,11 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
                 "is_open": is_open,
                 "challenge_available": spec is not None and spec.status == ContentStatus.PUBLISHED,
                 "lock_reason": (
-                    None if is_open else chest_lock(child, chest, keys=changes, items=items)
+                    None
+                    if is_open
+                    else chest_lock(
+                        child, chest, keys=changes, items=items, puzzle_keys=puzzle_keys
+                    )
                 ),
             }
         )

@@ -93,9 +93,14 @@ def _apply_puzzle(puzzle: AreaPuzzle, body: dict, problems: list[str]):
             if rule is None:
                 problems.append(f"$.rewardRuleId: unknown reward rule {body['rewardRuleId']!r}")
         key = body["worldChangeKey"]
+        # #102: a puzzle may record the key of a chest in its own 3D Area. That is the one
+        # defined sharing: the puzzle opens the chest (`game_sessions.play.chest_lock`), so the
+        # chest never asks its own question. Any other owner of the key is a clash.
         if (
             AreaPuzzle.objects.filter(world_change_key=key).exclude(pk=puzzle.pk).exists()
-            or TreasureChest.objects.filter(world_change_key=key).exists()
+            or TreasureChest.objects.filter(world_change_key=key)
+            .exclude(region_id=puzzle.region_id)
+            .exists()
         ):
             problems.append(f"$.worldChangeKey: {key} is already recorded by something else")
         # Objects a child moves or turns are this puzzle's own placements (seed-authored).

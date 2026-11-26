@@ -357,8 +357,17 @@ export interface DiscoveryPanelProps {
   params: CollectParams;
   phase: 'ready' | 'discovering' | 'found';
   busy: boolean;
+  /** The touched object's label, for the button ("Pick up the torn map piece 1"). */
+  objectLabel?: string | null;
   onCollect(): void;
   onClose(): void;
+}
+
+/** "Pick up the torn map piece 1" for a labelled object, else the crystal's own words. */
+function pickUpLabel(objectLabel: string | null | undefined): string {
+  const label = objectLabel?.trim();
+  if (!label) return AREA_COPY.pickCrystal;
+  return `${AREA_COPY.pickUp} the ${label.charAt(0).toLowerCase()}${label.slice(1)}`;
 }
 
 export function DiscoveryPanel(props: DiscoveryPanelProps) {
@@ -385,7 +394,7 @@ export function DiscoveryPanel(props: DiscoveryPanelProps) {
             aria-busy={props.busy}
             onClick={props.onCollect}
           >
-            {AREA_COPY.pickCrystal}
+            {pickUpLabel(props.objectLabel)}
           </button>
         ) : null}
         <button type="button" className={styles.button} onClick={props.onClose}>

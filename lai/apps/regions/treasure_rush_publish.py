@@ -11,8 +11,10 @@ other way to publish it. This does that, for a developer's own machine only:
   same validation an admin save runs: TR-1 parameters, chest age bands, asset ids, quest stages),
   and the region must be playable (a default spawn, at least one chest, a published location).
   Any problem refuses the whole publish; nothing is half-published.
-- **Only the seed's rows.** The seeded region, its chests' challenge specs and its Adventure
-  launch points (ADR-041), the Treasure Rush rows with a publication status. The location, its
+- **Only the seed's rows.** The seeded region, its chests' challenge specs, its Adventure
+  launch points (ADR-041) and its 3D Area puzzles (the redesign's stages, #102), the Treasure
+  Rush rows with a publication status. Each puzzle's content is checked with the rules an admin
+  publish runs (`authoring.validate`) and every object it uses must be placed. The location, its
   world, and the offered quests are catalog content owned by the export: they must already be
   `active`, and an inactive one blocks this instead of being switched on.
 """
@@ -21,6 +23,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from apps.catalog import authoring
 from apps.core.content_status import ContentStatus
 
 from .models import WorldRegion
@@ -88,6 +91,18 @@ def publish_treasure_rush() -> list[str]:
     points = list(region.launch_points.select_related("adventure__location"))
     for point in points:
         problems.extend(launch_point_problems(point))
+    puzzles = list(region.puzzles.all())
+    placed = set(region.placements.values_list("entity_id", flat=True))
+    for puzzle in puzzles:
+        label = f"puzzle {puzzle.puzzle_id}"
+        missing = [entity for entity in puzzle.entity_ids if entity not in placed]
+        if missing:
+            problems.append(f"{label}: no placement for {', '.join(missing)}")
+        _check(puzzle, label, problems)
+        problems.extend(
+            f"{label} {problem}"
+            for problem in authoring.validate(puzzle, authoring.current_body(puzzle))
+        )
 
     if problems:
         raise PublishRefused(problems)
@@ -97,6 +112,7 @@ def publish_treasure_rush() -> list[str]:
         (region, f"region {region.region_id}"),
         *[(spec, f"challenge {spec.slug}") for spec in specs.values()],
         *[(point, f"launch point {point.launch_id}") for point in points],
+        *[(puzzle, f"puzzle {puzzle.puzzle_id}") for puzzle in puzzles],
     ]:
         if row.status != ContentStatus.PUBLISHED:
             row.status = ContentStatus.PUBLISHED

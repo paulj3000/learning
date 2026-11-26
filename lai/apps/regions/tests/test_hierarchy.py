@@ -14,6 +14,7 @@ from django.test import RequestFactory
 
 from apps.catalog.models import Adventure, Location, Quest, World
 from apps.core.content_status import ContentStatus
+from apps.regions import treasure_cove_stages as stages
 from apps.regions.admin import AreaAdmin, LaunchPointAdmin, LaunchPointForm
 from apps.regions.models import (
     AdventureLaunchPoint,
@@ -249,9 +250,12 @@ def test_the_launch_point_form_offers_only_this_areas_objects_and_places_adventu
     form = LaunchPointForm(region=treasure.region)
     objects = [value for value, _ in form.fields["entity_id"].choices if value]
     # Every placement here, including TR-14's rune stones and key; chests are not offered.
-    # Pirate's Leap's signpost and collectibles (LAI-JMP-03) are placements of the cove too.
+    # Pirate's Leap's signpost and collectibles (LAI-JMP-03) and the redesign's stage objects
+    # (#102) are placements of the cove too.
     leap = {"cove-leap-signpost", "cove-leap-shell", "cove-leap-feather"}
-    assert set(objects) - leap == {
+    stage_objects = {row["entity_id"] for row in stages.placement_rows()}
+    assert stage_objects <= set(objects)
+    assert set(objects) - leap - stage_objects == {
         "cove-pip",
         SIGNPOST_ID,
         "cove-brass-key",

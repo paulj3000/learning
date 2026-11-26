@@ -190,9 +190,15 @@ describe('the unlock and ambience blocks (TR-17, TR-18)', () => {
     }
   });
 
-  it('reads Treasure Cove’s real ambience: three bodies of water and three clouds of fireflies', async () => {
+  it('reads Treasure Cove’s real ambience: four bodies of water and three clouds of fireflies', async () => {
     const layout = readRegionLayout((await coveSceneJson()).layout as JsonValue);
-    expect(layout.ambience?.water).toHaveLength(3);
+    // The channel, the two shallows and Crocodile Creek (#102).
+    expect(layout.ambience?.water).toEqual([
+      'cove-channel',
+      'cove-north-shallows',
+      'cove-east-shallows',
+      'cove-creek',
+    ]);
     expect(layout.ambience?.fireflies.map((cloud) => cloud.id)).toEqual([
       'cove-fireflies-grove',
       'cove-fireflies-ruins',

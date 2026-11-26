@@ -105,6 +105,15 @@ The pedestal itself stays the TR-13 `PEDESTAL` placeholder; the puzzle draws no 
 | Fireflies: one `Points` object, 68 lights | Grove, ruins, Lookout Point | none | effect | none | 0.16 m dots | Decoration; replace only with a better particle, never a model per light |
 | Gate bars lifted by the game | The ruins gate | `ruins-gate` `Open` clip | prop | `Open` | as the gate | When the finished gate lands, its `Open` clip replaces the game-driven lift |
 
+## 3c. The redesigned stages (#102, 2026-11-26)
+
+Nothing new is required to play: each stage object is drawn as a region-play stand-in shape
+(`scene.effects.standIns`) until a model is published for its asset id, and the signs and crates
+already use bundled models. Entity ids, stand-ins and what would replace them are in
+[TREASURE_RUSH_GAME_DESIGN.md, "Content and asset requirements"](TREASURE_RUSH_GAME_DESIGN.md).
+Wanted, none blocking: a torn map fragment, a flat stepping stone, a friendly crocodile, carved
+stone tablets (star, moon, triangle) and a standing torch.
+
 ## 4. Simpler stand-ins also in use
 
 | Stand-in | Where | Wanted |
