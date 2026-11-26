@@ -125,7 +125,8 @@ Authoring conventions (canonical: [`THREE_WORLD_ASSET_CONVENTIONS.md`](../THREE_
 |---|---|
 | Implemented (main) | Collision is authored data, decoupled from the visual mesh. Authored zones become `Box3` colliders; a mesh's silhouette never silently changes where a child can walk. Built-in per-asset footprints live in the shared runtime |
 | Implemented (main) | **Collision profiles**: staff set per asset (or per version) a shape (`None`, `Box`, `Cylinder`, `Capsule`, `Compound boxes`) and a behaviour (`Automatic`, `Solid`, `Jumpable`, `Walkable`, `Decorative`) in Django Admin; the resolver returns them and the shared runtime applies them to every placement ([`ASSET_COLLISION_PROFILES.md`](../ASSET_COLLISION_PROFILES.md)) |
-| Owner-approved 2026-11-22, Pending merge (`feature/ge-raised-solid-clearance`, GE-L16) | **Raised Solid parts and walk-under clearance**, the rule below |
+| Implemented (main, PR #59, GE-L16) | **Raised Solid parts and walk-under clearance**, the rule below |
+| Owner-decided 2026-11-25, Pending merge (engine GE-L17; Asset Library help and warning, LAI 07) | **Passage pieces**: the engine carves `archway`'s opening out of every box; the profile admin explains openings and warns (never refuses) about one Solid box over a whole tall model |
 
 Behaviour rules (GE-L16, the shared engine's controller decides; no adventure code):
 
@@ -144,6 +145,12 @@ Behaviour rules (GE-L16, the shared engine's controller decides; no adventure co
   narrower than about 0.74 m stays blocked, whatever the headroom.
 - **Multi-part profiles** (`Compound boxes`) share one behaviour; each part is classified on its
   own. A building with a doorway: wall parts from 0, a lintel part from 2.0 m or higher.
+- **Pieces with an opening.** The engine keeps `archway`'s opening clear whatever its profile.
+  Any other model with an opening needs one box per side (and optionally a lintel box from the
+  walk-under clearance up); one box over the whole model closes it, and the admin warns
+  ([`ASSET_COLLISION_PROFILES.md`](../ASSET_COLLISION_PROFILES.md); the engine rules are in
+  [`raised-solid-clearance.md`](../engineering/game-engine/raised-solid-clearance.md) sections 2
+  and 5).
 - **Elevation never makes a part jumpable.** A surface the child should stand on is a `Jumpable`
   profile (or `Automatic` and no taller than 1.2 m); a deck marked `Solid` is not stood on.
 

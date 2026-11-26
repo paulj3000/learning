@@ -517,6 +517,156 @@ def test_the_admin_help_text_states_the_raised_solid_rule():
     )
 
 
+# --- passage pieces: archways (GE-247; raised-solid-clearance.md s. 5) ----------------------
+
+
+def test_the_profile_form_explains_walk_under_jumping_and_openings(roles):
+    page = staff("pub", "Asset publishers").get(f"{PROFILES}add/").content.decode()
+    assert "collision body is 1.7 m tall and about 0.74 m wide" in page
+    assert "and jumps 1.2 m by default." in page
+    assert "A Solid part 1.7 m or more above the ground is something to walk under" in page
+    assert "Only Jumpable parts can be jumped onto" in page
+    assert "use one box per side and, if wanted, one box over the opening at 1.7 m" in page
+    assert "a single box over the whole model closes the opening" in page
+    assert "The engine always keeps an archway" in page
+
+
+def test_the_help_numbers_come_from_the_engine_mirrors():
+    from apps.assets import admin as assets_admin
+
+    assert f"collision body is {collision.WALK_UNDER_CLEARANCE:g} m tall" in (
+        assets_admin.PROFILE_HELP
+    )
+    assert f"jumps {collision.JUMPABLE_MAX_HEIGHT:g} m by default" in assets_admin.PROFILE_HELP
+
+
+def test_an_archway_profile_says_the_engine_carves_its_opening(roles):
+    asset = make_definition("archway", kind="kit-piece", category="prop")
+    published(asset, half_size=(1.6, 1.6, 0.3))
+    row = profile(asset, shape=CollisionShape.BOX, behavior=CollisionBehavior.SOLID)
+    page = staff("pub", "Asset publishers").get(f"{PROFILES}{row.pk}/change/").content.decode()
+    assert "carves this piece&#x27;s opening (2 m wide and 2.6 m high, model space)" in page
+    assert "lower than 1.7 m, the piece is a wall" in page
+
+
+def test_other_pieces_with_an_opening_get_no_carving_note(roles):
+    asset = make_definition("gateway", kind="prop", category="prop")
+    published(asset)
+    row = profile(
+        asset, shape=CollisionShape.COMPOUND, boxes=GATEWAY, behavior=CollisionBehavior.SOLID
+    )
+    page = staff("pub", "Asset publishers").get(f"{PROFILES}{row.pk}/change/").content.decode()
+    assert "carves this piece" not in page
+    assert collision.PASSAGE_OPENINGS == {"archway": "2 m wide and 2.6 m high"}
+
+
+TALL = (1.0, 2.0, 0.3)  # test models are centred on the pivot: 2 m above the ground
+
+
+def solid_box(asset, **fields):
+    return profile(asset, shape=CollisionShape.BOX, behavior=CollisionBehavior.SOLID, **fields)
+
+
+def check(row):
+    row.asset.refresh_from_db()  # publishing set the default version after the row was made
+    version = row.asset.default_version
+    result = collision.runtime_collision(row, version)
+    return collision.opening_check(row.asset.asset_id, result, collision.version_bounds(version))
+
+
+def test_one_solid_box_over_a_tall_model_may_seal_an_opening():
+    asset = make_definition("gateway", kind="prop", category="prop")
+    published(asset, half_size=TALL)
+    assert check(solid_box(asset)) == "sealed"
+
+
+def test_automatic_over_a_tall_model_is_solid_and_warned_too():
+    asset = make_definition("gateway", kind="prop", category="prop")
+    published(asset, half_size=TALL)
+    row = profile(asset, shape=CollisionShape.BOX, behavior=CollisionBehavior.AUTO)
+    assert check(row) == "sealed"
+
+
+@pytest.mark.parametrize(
+    ("half_size", "fields"),
+    [
+        (TALL, {"behavior": CollisionBehavior.JUMPABLE}),  # not Solid
+        ((1.0, 0.6, 0.3), {}),  # 1.2 m tall: nothing to walk through
+        (TALL, {"width": 0.5, "offset_x": -0.75}),  # one jamb, not the whole model
+    ],
+)
+def test_no_warning_where_nothing_can_be_sealed(half_size, fields):
+    asset = make_definition("gateway", kind="prop", category="prop")
+    published(asset, half_size=half_size)
+    fields = {"behavior": CollisionBehavior.SOLID, **fields}
+    assert check(profile(asset, shape=CollisionShape.BOX, **fields)) is None
+
+
+def test_a_jamb_compound_is_not_warned():
+    asset = make_definition("gateway", kind="prop", category="prop")
+    published(asset, half_size=TALL)
+    row = profile(asset, shape=CollisionShape.COMPOUND, boxes=GATEWAY, behavior="SOLID")
+    assert check(row) is None
+
+
+def test_an_archway_is_never_warned_because_the_engine_carves_it():
+    asset = make_definition("archway", kind="kit-piece", category="prop")
+    published(asset, half_size=(1.6, 1.6, 0.3))
+    assert check(solid_box(asset)) == "carved"
+
+
+def test_saving_a_sealing_profile_warns_and_still_saves(roles):
+    asset = make_definition("gateway", kind="prop", category="prop")
+    published(asset, half_size=TALL)
+    response = staff("pub", "Asset publishers").post(
+        f"{PROFILES}add/",
+        {
+            "asset": asset.pk,
+            "version": "",
+            "shape": "BOX",
+            "behavior": "SOLID",
+            "axis": "Y",
+            "boxes": "[]",
+            "notes": "",
+        },
+        follow=True,
+    )
+    page = response.content.decode()
+    assert response.status_code == 200 and CollisionProfile.objects.count() == 1
+    assert "One Solid box covers this whole model." in page
+    assert "Saved: this is a warning, not a refusal." in page
+
+
+def test_the_change_page_keeps_showing_the_warning(roles):
+    asset = make_definition("gateway", kind="prop", category="prop")
+    published(asset, half_size=TALL)
+    row = solid_box(asset)
+    page = staff("pub", "Asset publishers").get(f"{PROFILES}{row.pk}/change/").content.decode()
+    assert "Warning: One Solid box covers this whole model." in page
+
+
+def test_saving_an_archway_box_explains_the_carving_instead(roles):
+    asset = make_definition("archway", kind="kit-piece", category="prop")
+    published(asset, half_size=(1.6, 1.6, 0.3))
+    response = staff("pub", "Asset publishers").post(
+        f"{PROFILES}add/",
+        {
+            "asset": asset.pk,
+            "version": "",
+            "shape": "BOX",
+            "behavior": "SOLID",
+            "axis": "Y",
+            "boxes": "[]",
+            "notes": "",
+        },
+        follow=True,
+    )
+    page = response.content.decode()
+    assert CollisionProfile.objects.count() == 1
+    assert "carves this piece&#x27;s opening" in page
+    assert "One Solid box covers this whole model." not in page
+
+
 # --- W3a: model assets only, and only the chosen asset's versions ------------------------------
 
 

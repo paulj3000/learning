@@ -17,7 +17,9 @@ existing movement controller), so:
 Raised Solid parts (GE-L16): a Solid box keeps its height and leaves the space under it open only
 when the gap under it is at least the avatar's collision height (`WALK_UNDER_CLEARANCE`, the
 engine's standard 1.7 m) plus the location's margin; otherwise the engine blocks it down to the
-ground. Elevation never makes a part jumpable. `solid_clearance` reports that classification for
+ground. Elevation never makes a part jumpable. A passage piece (`PASSAGE_OPENINGS`, today only
+`archway`) has its opening carved out of every box by the engine: its sides stay walls and the
+part above the opening is a raised Solid lintel. `solid_clearance` reports that classification for
 staff (admin preview and `manage.py collision_clearance_audit`); the engine decides at runtime,
 with the placement's own elevation and the real avatar.
 
@@ -40,6 +42,10 @@ JUMPABLE_MAX_HEIGHT = 1.2
 # Mirrors the engine's standard avatar collision height (`DEFAULT_BODY_HEIGHT`, margin 0): the
 # gap a raised Solid part needs before the child can walk under it. Reporting only.
 WALK_UNDER_CLEARANCE = 1.7
+# Mirrors the engine's `PASSAGE_OPENINGS` (`react/.../runtime/derivedColliders.ts`;
+# `docs/engineering/game-engine/raised-solid-clearance.md` s. 5): pieces whose opening the engine
+# carves out of every box they get, built-in or profile. Model space. Reporting only.
+PASSAGE_OPENINGS = {"archway": "2 m wide and 2.6 m high"}
 MAX_BOXES = 32
 MAX_EXTENT = 200.0  # metres; anything larger is a typo, not a prop
 _OCTAGON = math.tan(math.pi / 8)  # half-width of an octagon's flats, per unit radius
@@ -329,3 +335,36 @@ def _positive(value) -> bool:
 
 def _corner(value) -> bool:
     return isinstance(value, list | tuple) and len(value) == 3 and all(_number(v) for v in value)
+
+
+# Share of the measured footprint (X and Z) a single box must cover to count as "the whole model".
+_WHOLE_FOOTPRINT = 0.9
+
+
+def opening_check(asset_id: str, runtime: dict | None, bounds: Bounds | None) -> str | None:
+    """Whether a Solid profile could seal a piece's opening (GE-247; staff warning only).
+
+    - "carved": a passage piece (`PASSAGE_OPENINGS`); the engine keeps its opening clear whatever
+      the boxes, so nothing is sealed.
+    - "sealed": one Solid box stands on the ground, is at least `WALK_UNDER_CLEARANCE` tall and
+      covers the whole measured footprint. If the model has an opening (a gateway, a door), the
+      child cannot pass through it. Django cannot see openings, so this is a warning, never a
+      refusal: a solid rock or a pillar is drawn the same way.
+    - None: nothing to say (not Solid, already in parts, too low to walk through, or unmeasured).
+    """
+    if not runtime or runtime.get("behavior") != str(CollisionBehavior.SOLID):
+        return None
+    if asset_id in PASSAGE_OPENINGS:
+        return "carved"
+    if bounds is None:
+        return None
+    width, _height, depth = bounds.size
+    for box in runtime.get("boxes") or []:
+        if (
+            box["minY"] <= bounds.low[1] + 0.01
+            and box["maxY"] - max(box["minY"], 0) >= WALK_UNDER_CLEARANCE
+            and box["maxX"] - box["minX"] >= _WHOLE_FOOTPRINT * width
+            and box["maxZ"] - box["minZ"] >= _WHOLE_FOOTPRINT * depth
+        ):
+            return "sealed"
+    return None

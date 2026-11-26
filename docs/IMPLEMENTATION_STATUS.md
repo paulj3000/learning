@@ -37,6 +37,24 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 Asset Library: archway help text and opening warning (2026-11-25, `docs/asset-library-archway-help`, `main` `05b54d8a`)
+
+Owner decision 2026-11-25: LAI 04 makes the engine keep passage centres clear (GE-L17, its own
+PR); LAI 07 adds the admin warning and help text, warning and never refusing. Separate PRs, not
+merged.
+
+- `apps/assets/collision.py`: `PASSAGE_OPENINGS` (mirrors the engine's; today `archway`) and
+  `opening_check`: "carved" for a passage piece, "sealed" for one Solid box on the ground that
+  reaches the walk-under clearance and covers the whole measured footprint, else nothing.
+- `apps/assets/admin.py`: the profile form opens with the help text (numbers from `collision`);
+  saving warns, and the change page keeps the warning, when a profile may seal an opening; an
+  `archway` profile says the engine carves the opening instead. Nothing is refused.
+- Docs: `ASSET_COLLISION_PROFILES.md` "Pieces with an opening" and two table rows;
+  `asset-standard.md` section 8 (GE-L16 marked merged in PR #59; the passage row). Both cite
+  `raised-solid-clearance.md` sections 2 and 5 rather than restating the engine's numbers.
+- Tests: `test_collision_profiles.py` (help text, check classes, warning on save and on the change
+  page, archway note). PG18 slot 9; no browser tests. No migration.
+
 ## GE-L17 archway passages keep their opening under any collision box (2026-11-25, `feature/GE-L17-archway-passages`, `main` `05b54d8a`); Development Complete, NOT merged
 
 Owner decision 2026-11-25: separate ticket and PR; do not merge. Agent 4 (Game Engine Core). Found by
