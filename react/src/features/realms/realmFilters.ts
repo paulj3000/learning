@@ -10,6 +10,9 @@
 import { SUBJECT_AREAS, type SubjectArea } from '../../api/play/islandsApi';
 import type { Realm } from './realmCatalog';
 
+/** Shared filter metadata for Realms and their published destination cards. */
+type FilterableDestination = Pick<Realm, 'subjectAreas' | 'ageBands'>;
+
 export const AGE_BANDS = ['SPROUT', 'PATHFINDER', 'EXPLORER'] as const;
 export type AgeBand = (typeof AGE_BANDS)[number];
 
@@ -60,24 +63,27 @@ export function ageRangeLabel(bands: readonly string[]): string | null {
 }
 
 /** The subject chips to offer: those some Realm teaches, in display order. */
-export function subjectOptions(realms: readonly Realm[]): SubjectArea[] {
+export function subjectOptions(realms: readonly FilterableDestination[]): SubjectArea[] {
   const taught = new Set(realms.flatMap((realm) => realm.subjectAreas));
   return SUBJECT_AREAS.filter((subject) => taught.has(subject));
 }
 
 /** The age chips to offer: the bands some Realm supports, youngest first. */
-export function ageOptions(realms: readonly Realm[]): AgeBand[] {
+export function ageOptions(realms: readonly FilterableDestination[]): AgeBand[] {
   const supported = new Set(realms.flatMap((realm) => realm.ageBands));
   return AGE_BANDS.filter((band) => supported.has(band));
 }
 
-export function matchesFilter(realm: Realm, filter: RealmFilter): boolean {
+export function matchesFilter(realm: FilterableDestination, filter: RealmFilter): boolean {
   if (filter.subject && !realm.subjectAreas.includes(filter.subject)) return false;
   if (filter.ageBand && !realm.ageBands.includes(filter.ageBand)) return false;
   return true;
 }
 
-export function filterRealms(realms: readonly Realm[], filter: RealmFilter): Realm[] {
+export function filterRealms<T extends FilterableDestination>(
+  realms: readonly T[],
+  filter: RealmFilter,
+): T[] {
   return realms.filter((realm) => matchesFilter(realm, filter));
 }
 
