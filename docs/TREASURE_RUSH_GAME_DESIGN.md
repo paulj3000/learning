@@ -112,9 +112,11 @@ existing reward rule**. So:
 **treasure chest in its own 3D Area**. Before, any chest with that key was refused. The sharing has
 one defined meaning: the puzzle opens the chest. `game_sessions.play.chest_lock` then gives that
 chest the lock reason `PUZZLE`, so it never issues its old question; the server refuses one if
-asked. A chest in **another** 3D Area with the key, or another puzzle, is still refused
+asked. A chest in **another** 3D Area with the key, or another puzzle, is still refused, and so is
+a replay activity's key (TR-20: it never opens)
 (`test_a_puzzle_may_record_the_key_of_a_chest_in_its_own_area_only`,
-`test_two_puzzles_still_cannot_share_a_key`).
+`test_two_puzzles_still_cannot_share_a_key`,
+`test_a_puzzle_may_not_record_the_key_of_a_replay_activity`).
 
 If a stage's puzzle is unpublished, its chest asks its old question again, so staff can roll a
 stage back without touching anyone's progress.
