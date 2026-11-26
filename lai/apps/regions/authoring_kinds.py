@@ -8,7 +8,7 @@ from apps.catalog.authoring import Kind, register
 from apps.catalog.models import RewardRule
 
 from . import castle_events, platforming, puzzles
-from .models import AreaPuzzle, CastleEvent, TreasureChest, WorldRegion
+from .models import AreaPuzzle, CastleEvent, ChestPresentation, TreasureChest, WorldRegion
 
 # Parameters naming this puzzle's placements: lists of {id, ...} whose ids are placements, and
 # maps of option/item id -> placement id (CHOOSE_ANSWER, ORDER_SEQUENCE).
@@ -103,6 +103,11 @@ def _apply_puzzle(puzzle: AreaPuzzle, body: dict, problems: list[str]):
             .exists()
         ):
             problems.append(f"$.worldChangeKey: {key} is already recorded by something else")
+        # A replay activity (TR-20) never opens, so a puzzle could never open it.
+        elif TreasureChest.objects.filter(
+            world_change_key=key, presentation=ChestPresentation.REPLAY
+        ).exists():
+            problems.append(f"$.worldChangeKey: {key} belongs to a replay activity (never opens)")
         # Objects a child moves or turns are this puzzle's own placements (seed-authored).
         for band, params in body["ageBands"].items():
             for key in LIST_ENTITY_KEYS:

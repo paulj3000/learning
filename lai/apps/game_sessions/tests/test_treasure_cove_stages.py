@@ -24,6 +24,7 @@ from apps.regions.pips_treasure_seed import (
     KEY_ENTITY_ID,
     PIPS_QUEST_ID,
     QUEST_COMPLETE_KEY,
+    REPLAY_CHANGE_KEY,
     upgrade_pips_treasure,
 )
 from apps.regions.seeding import SeedContentInvalid, seed_puzzle
@@ -262,6 +263,19 @@ def test_two_puzzles_still_cannot_share_a_key(treasure):
             kind="COLLECT_OBJECT",
             entity_ids=["cove-map-piece-1"],
             body={**body, "puzzleId": "cove-map-piece-copy"},
+        )
+
+
+def test_a_puzzle_may_not_record_the_key_of_a_replay_activity(treasure):
+    # A replay (TR-20) never opens, so a puzzle "opening" it would leave it locked for good.
+    body = authoring.current_body(treasure.region.puzzles.get(puzzle_id="cove-map-piece-1"))
+    with pytest.raises(SeedContentInvalid, match="replay activity"):
+        seed_puzzle(
+            treasure.region,
+            puzzle_id="cove-spyglass-copy",
+            kind="COLLECT_OBJECT",
+            entity_ids=["cove-map-piece-1"],
+            body={**body, "puzzleId": "cove-spyglass-copy", "worldChangeKey": REPLAY_CHANGE_KEY},
         )
 
 

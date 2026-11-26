@@ -358,7 +358,11 @@ describe('many objects to find in one Area (#102, Treasure Cove map pieces and c
 });
 
 describe('the pick-up button names what the child touched (#102)', () => {
-  it('says "Pick up the torn map piece 1" for a labelled object', async () => {
+  it.each([
+    ['Torn map piece 1', 'Pick up the torn map piece 1'],
+    ['The Heart of Firepeak', 'Pick up the Heart of Firepeak'],
+    ["Santa's sleigh bell", "Pick up Santa's sleigh bell"],
+  ])('labels "%s" as "%s"', async (label, name) => {
     const data = bootstrap(['firepeak-telescope', 'firepeak-crossing', 'firepeak-steam']);
     const { scene } = fakeScene();
     const puzzle = data.puzzles.find((p) => p.puzzleId === 'firepeak-heart-crystal')!;
@@ -370,11 +374,9 @@ describe('the pick-up button names what the child touched (#102)', () => {
         solvePuzzle={vi.fn(async () => undefined)}
         showToast={vi.fn()}
         onClose={vi.fn()}
-        event={{ kind: 'puzzle', entityId: 'firepeak-crystal', label: 'Torn map piece 1', puzzle }}
+        event={{ kind: 'puzzle', entityId: 'firepeak-crystal', label, puzzle }}
       />,
     );
-    expect(
-      await screen.findByRole('button', { name: 'Pick up the torn map piece 1' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name })).toBeInTheDocument();
   });
 });
