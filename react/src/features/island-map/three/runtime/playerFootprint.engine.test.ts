@@ -76,36 +76,41 @@ describe('spawns and checkpoints stay clear of the body', () => {
 });
 
 describe('Storykeeper Castle walls and doors', () => {
-  it('a child walking into each wall of each room stops with the body outside it', async () => {
-    const { h, controller } = open();
-    await h.engine.ready;
-    for (const door of CASTLE_DOORS) {
-      for (const roomId of door.between) {
-        const start = arrivalIn(door, roomId)!;
-        for (const yaw of [
-          0,
-          Math.PI / 2,
-          Math.PI,
-          -Math.PI / 2,
-          Math.PI / 4,
-          (-3 * Math.PI) / 4,
-        ]) {
-          const c = controller();
-          expect(c.teleportTo(start.x, start.z, yaw), `${door.id}/${roomId}`).toBe(true);
-          h.setDrive((ctrl, delta) => ctrl.update(delta, { forward: 1, strafe: 0 }));
-          h.runFrames(180, FRAME_MS);
-          const solids = solidBoxes(c);
-          const nearest = Math.min(
-            ...solids.map((box) => footprintDistance(box, c.position.x, c.position.z)),
-          );
-          expect(nearest, `${door.id}/${roomId} yaw ${yaw.toFixed(2)}`).toBeGreaterThanOrEqual(
-            REACH - 1e-6,
-          );
-          h.setDrive(() => undefined);
+  // One case per door (GE-247 follow-up): the archways' jamb and lintel colliders made the single
+  // all-doors case CPU-bound past the 5 s default on this host. The assertions are unchanged.
+  it.each(CASTLE_DOORS.map((door) => [door.id, door] as const))(
+    'a child walking into each wall of each room stops with the body outside it (%s)',
+    async (_, door) => {
+      const { h, controller } = open();
+      await h.engine.ready;
+      {
+        for (const roomId of door.between) {
+          const start = arrivalIn(door, roomId)!;
+          for (const yaw of [
+            0,
+            Math.PI / 2,
+            Math.PI,
+            -Math.PI / 2,
+            Math.PI / 4,
+            (-3 * Math.PI) / 4,
+          ]) {
+            const c = controller();
+            expect(c.teleportTo(start.x, start.z, yaw), `${door.id}/${roomId}`).toBe(true);
+            h.setDrive((ctrl, delta) => ctrl.update(delta, { forward: 1, strafe: 0 }));
+            h.runFrames(180, FRAME_MS);
+            const solids = solidBoxes(c);
+            const nearest = Math.min(
+              ...solids.map((box) => footprintDistance(box, c.position.x, c.position.z)),
+            );
+            expect(nearest, `${door.id}/${roomId} yaw ${yaw.toFixed(2)}`).toBeGreaterThanOrEqual(
+              REACH - 1e-6,
+            );
+            h.setDrive(() => undefined);
+          }
         }
       }
-    }
-  });
+    },
+  );
 
   it('every open door can be walked through, from either side', async () => {
     const { h, controller } = open();

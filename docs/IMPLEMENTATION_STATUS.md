@@ -37,6 +37,33 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## GE-L17 archway passages keep their opening under any collision box (2026-11-25, `feature/GE-L17-archway-passages`, `main` `05b54d8a`); Development Complete, NOT merged
+
+Owner decision 2026-11-25: separate ticket and PR; do not merge. Agent 4 (Game Engine Core). Found by
+LAI 02.
+
+- A passage piece's opening is carved out of every box it gets: built-in, Automatic or a staff
+  Solid box (`PASSAGE_OPENINGS`, `carveOpening` in `derivedColliders.ts`).
+- The jambs block. The lintel is a raised Solid, so GE-L16 makes it a walk-under passage at 2.6 m,
+  and no jump goes over or onto it.
+- `archway` gets a built-in footprint.
+- A passage's centre is kept clear of other pieces. Overhead Solid parts (2.2 m and up) no longer
+  drop a piece over a checkpoint. A jamb profile is used as authored.
+- Details: `docs/engineering/game-engine/raised-solid-clearance.md` section 5.
+- **Realms:**
+  - Storykeeper Castle: routes unchanged. LAI 02's probe is now a regression test
+    (`storykeeperCastleArchways.engine.test.ts`).
+  - Treasure Cove: the ruins archway's jambs now block (they could be walked through).
+  - Firepeak: `firepeak-arch` never gets an Asset Library box; the gate colliders are its jambs and
+    opening.
+  - North Pole: no archway.
+- **Storykeeper walls test split per door** (`playerFootprint.engine.test.ts`): the archway
+  colliders pushed the single case past the 5 s default. Each door now runs in about 1 s, and the
+  assertions are unchanged.
+- The admin preview bundle is rebuilt (it includes `derivedColliders.ts`).
+- **Asset Library side (LAI 07, separate PR):** the admin warning and help text; warn, don't
+  refuse.
+
 ## LAI-07 Asset Library follow-ups: check classes, stable delivery URLs, docs reconciled (2026-11-25, `feature/asset-library-final-followups`, `main` `05b54d8a`)
 
 Owner-approved follow-ups after the W1 to W5 merges (Trello #244, #246, #247).
