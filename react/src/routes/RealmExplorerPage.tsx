@@ -112,11 +112,7 @@ function RealmExplorer({ childId }: { childId: string | undefined }) {
                             eager={index < 2}
                           />
                         ) : (
-                          <RealmCard
-                            realm={destination.realm}
-                            search={search}
-                            eager={index < 2}
-                          />
+                          <RealmCard realm={destination.realm} search={search} eager={index < 2} />
                         )}
                       </li>
                     ))}
@@ -179,7 +175,6 @@ function placeCopy(place: RealmPlace): { displayTitle?: string; displayTagline?:
         displayTagline: 'Explore stories and solve mysteries.',
       };
     case 'firepeak-volcano':
-    case 'firepeak-heart':
       return {
         displayTitle: 'Heart of Firepeak',
         displayTagline: 'Discover the secrets of the volcano.',
@@ -189,8 +184,22 @@ function placeCopy(place: RealmPlace): { displayTitle?: string; displayTagline?:
   }
 }
 
+// These are presentation priorities only; an absent destination never gets a fabricated card.
+const FEATURED_DESTINATIONS = [
+  'pirate-builder-bay',
+  'storykeeper-castle',
+  'firepeak-volcano',
+  'north-pole',
+];
+
+function destinationRank(destination: Destination): number {
+  const slug = destination.kind === 'place' ? destination.place.slug : destination.realm.slug;
+  const index = FEATURED_DESTINATIONS.indexOf(slug);
+  return index < 0 ? FEATURED_DESTINATIONS.length : index;
+}
+
 function explorerDestinations(realms: readonly Realm[]): Destination[] {
-  return realms.flatMap<Destination>((realm) => {
+  const destinations = realms.flatMap<Destination>((realm) => {
     if (realm.isHome && realm.state === 'AVAILABLE') {
       return realm.places.map((place) => ({
         key: `place:${realm.slug}:${place.slug}`,
@@ -215,6 +224,7 @@ function explorerDestinations(realms: readonly Realm[]): Destination[] {
       },
     ];
   });
+  return destinations.sort((a, b) => destinationRank(a) - destinationRank(b));
 }
 
 /** Calm placeholders the size of real cards, so nothing jumps when the catalog arrives. */
