@@ -44,7 +44,7 @@ cd .. && make runserver    # and `make web` in another terminal
 North Pole were never seeded or published in that database, run the matching seed and publish
 commands above; seeds never overwrite existing rows.
 
-**Dependency for N1 to N7:** LAI 07's region catalog fix (branch
+**Dependency for N1 to N7:** LAI 07's region catalog fix (PR #110, branch
 `feature/mvp-realm-asset-support`) adds the North Pole scenery models (`north-pole-snowy-pine`,
 `north-pole-lantern`, `north-pole-candy-cane`) to the catalog the 3D Area is served with. Without
 it the village may refuse to load with an unknown-asset error once Realms routes there. Run the
