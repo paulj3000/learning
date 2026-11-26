@@ -15,6 +15,8 @@ interface RealmFiltersProps {
   onChange: (filter: RealmFilter) => void;
   shown: number;
   total: number;
+  /** The explorer can show individual destinations as well as catalog Realms. */
+  countLabel?: 'Realm' | 'destination';
 }
 
 const CHIP =
@@ -34,6 +36,7 @@ export function RealmFilters({
   onChange,
   shown,
   total,
+  countLabel = 'Realm',
 }: RealmFiltersProps) {
   return (
     <section
@@ -91,8 +94,8 @@ export function RealmFilters({
       ) : null}
       <p className="m-0 text-ink-muted" role="status" aria-live="polite">
         {shown === total
-          ? `Showing all ${total} ${total === 1 ? 'Realm' : 'Realms'}`
-          : `Showing ${shown} of ${total} Realms`}
+          ? `Showing all ${total} ${total === 1 ? countLabel : `${countLabel}s`}`
+          : `Showing ${shown} of ${total} ${total === 1 ? countLabel : `${countLabel}s`}`}
       </p>
     </section>
   );
