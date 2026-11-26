@@ -174,7 +174,7 @@ def test_a_failing_provider_fails_closed_and_logs_ids_only(registry, caplog):
         with pytest.raises(AssetActionRefused) as refused:
             services.retire_asset(asset)
     assert refused.value.code == "dependency_check_failed"
-    assert refused.value.details == {"source": "audio"}
+    assert refused.value.details == {"source": "audio", "check_class": "unclassified"}
     asset.refresh_from_db()
     assert asset.status == AssetStatus.ACTIVE
     logged = " ".join(record.getMessage() for record in caplog.records)

@@ -444,7 +444,12 @@ class AssetVersionAdmin(
 
     @admin.action(description="Retire selected versions", permissions=["retire"])
     def retire_versions(self, request, queryset):
-        self._run(request, queryset, services.retire_version, "Retired")
+        from .dependencies import unverified_checks, unverified_message
+
+        with unverified_checks() as unverified:
+            self._run(request, queryset, services.retire_version, "Retired")
+        if unverified:
+            self.message_user(request, unverified_message(unverified), messages.WARNING)
 
     @admin.action(description="Verify the stored files (checksum and format)", permissions=["view"])
     def verify_versions(self, request, queryset):
@@ -1103,6 +1108,44 @@ def done_message(done: str, version) -> str:
 MODEL_KINDS = sorted(kind for kind, family in KIND_FAMILY.items() if family == MODEL)
 
 
+#: Shown at the top of the profile form. The engine's rules are canonical in
+#: `docs/engineering/game-engine/raised-solid-clearance.md` (sections 2 and 5); the numbers come
+#: from `collision`, which mirrors the engine's constants.
+_CLEAR = f"{collision.WALK_UNDER_CLEARANCE:g} m"
+PROFILE_HELP = (
+    "Collision boxes are model-space metres. The child's collision body is "
+    f"{_CLEAR} tall and about 0.74 m wide, and jumps {collision.JUMPABLE_MAX_HEIGHT:g} m by "
+    f"default. A Solid part {_CLEAR} or more above the "
+    "ground is something to walk under; lower, it is a wall down to the ground. Only Jumpable "
+    "parts can be jumped onto, and raising a part never makes it jumpable. For pieces with an "
+    "opening (archways, gateways), use one box per side and, if wanted, one box over the opening "
+    f"at {_CLEAR} or higher: a single box over the whole model closes the opening. The engine "
+    "always keeps an archway's opening clear."
+)
+
+
+def opening_note(obj, result) -> tuple[str, str]:
+    """(level, text) about a piece's opening for staff, or ("", ""). Warns; never refuses."""
+    version = obj.version if obj.version_id else obj.asset.default_version
+    check = collision.opening_check(obj.asset.asset_id, result, collision.version_bounds(version))
+    clear = f"{collision.WALK_UNDER_CLEARANCE:g} m"
+    if check == "carved":
+        opening = collision.PASSAGE_OPENINGS[obj.asset.asset_id]
+        return "info", (
+            f"The engine carves this piece's opening ({opening}, model space) out of these "
+            "boxes: the sides block, and the part above the opening is a lintel the child walks "
+            "under. Boxes already split into sides are used as given. Scaled so the opening is "
+            f"lower than {clear}, the piece is a wall."
+        )
+    if check == "sealed":
+        return "warning", (
+            "One Solid box covers this whole model. If it has an opening (a gateway or a door), "
+            "the child cannot pass through it. Use one box per side and, if wanted, one box over "
+            f"the opening at {clear} or higher. Saved: this is a warning, not a refusal."
+        )
+    return "", ""
+
+
 class CollisionProfileForm(forms.ModelForm):
     class Meta:
         model = CollisionProfile
@@ -1162,7 +1205,13 @@ class CollisionProfileAdmin(admin.ModelAdmin):
         "updated_at",
     )
     fieldsets = (
-        (None, {"fields": ("asset", "version", "shape", "behavior", "axis")}),
+        (
+            None,
+            {
+                "fields": ("asset", "version", "shape", "behavior", "axis"),
+                "description": PROFILE_HELP,
+            },
+        ),
         (
             "Size and offset (empty: from the model's measured bounds)",
             {
@@ -1200,6 +1249,11 @@ class CollisionProfileAdmin(admin.ModelAdmin):
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)
         logger.info("collision profile saved: %s", obj)
+        level, text = opening_note(obj, collision.runtime_collision(obj, self._version(obj)))
+        if level:
+            self.message_user(
+                request, text, messages.WARNING if level == "warning" else messages.INFO
+            )
 
     def _version(self, obj):
         if obj is None or obj.pk is None and not obj.asset_id:
@@ -1272,11 +1326,15 @@ class CollisionProfileAdmin(admin.ModelAdmin):
                 for part in raised
             ),
         )
+        level, passage = opening_note(obj, result)
         return format_html(
-            "<p>{} {} box(es), model space, metres:</p><pre>{}</pre>{}",
+            "<p>{} {} box(es), model space, metres:</p><pre>{}</pre>{}{}",
             result["behavior"].title(),
             len(result["boxes"]),
             json.dumps(result["boxes"], indent=1),
+            format_html("<p>{}{}</p>", "Warning: " if level == "warning" else "", passage)
+            if passage
+            else "",
             format_html(
                 "<p>Raised Solid parts (walk-under clearance {} m; a placement's elevation adds "
                 "to the gap):</p><ul>{}</ul>",

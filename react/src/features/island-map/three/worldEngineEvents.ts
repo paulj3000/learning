@@ -11,9 +11,6 @@
  * Three.js object UUID, mesh reference, or raw camera transform (ADR-008).
  */
 
-/** The one placeholder NPC the Phase 31 sandbox wires to a real domain action. */
-export const SANDBOX_NPC_ID = 'pirate-pip';
-
 export type RegionId = string;
 export type ZoneId = string;
 export type EntityId = string;

@@ -38,7 +38,7 @@ The "Asset Manager" is now called the Asset Library (ADR-045). The workflow, in 
 | 3. Preview | View permission | Version page (sandboxed 3D viewer, image thumbnail, native audio player) | Staff check scale, clips, look |
 | 4. Publish | `assets.publish_assetversion` | Actions | `PUBLISHED`; the first published version becomes the default |
 | 5. Make default or roll back | `assets.publish_assetversion` | Actions | Unpinned references get the new default |
-| 6. Retire | `assets.retire_assetversion` | Actions | Stops resolution; refused while a LIVE NPC release, an AVAILABLE player avatar, the LIVE sound release or a PUBLISHED 3D Area uses it (one refusal names every blocker). Shipped scenes, drafts, superseded releases and derived artifacts are listed only (`asset_usage`, "Used by"): [`ASSET_LIBRARY.md`](../ASSET_LIBRARY.md) section 25 |
+| 6. Retire | `assets.retire_assetversion` | Actions | Stops resolution; refused while a LIVE NPC release, an AVAILABLE player avatar, the LIVE sound release or a PUBLISHED 3D Area uses it (one refusal names every blocker). Shipped scenes, drafts, superseded releases and derived artifacts are listed only (`asset_usage`, "Used by"). A check that cannot run refuses, unless its source is classified informational (then staff are warned): [`ASSET_LIBRARY.md`](../ASSET_LIBRARY.md) sections 25, 25.9 |
 | 7. Reference | Content author | Content revision, NPC release, sound cue, region seed | Stable id or pin |
 
 Roles come from `manage.py ensure_asset_roles` (viewers, editors, publishers). Every transition is
@@ -125,7 +125,8 @@ Authoring conventions (canonical: [`THREE_WORLD_ASSET_CONVENTIONS.md`](../THREE_
 |---|---|
 | Implemented (main) | Collision is authored data, decoupled from the visual mesh. Authored zones become `Box3` colliders; a mesh's silhouette never silently changes where a child can walk. Built-in per-asset footprints live in the shared runtime |
 | Implemented (main) | **Collision profiles**: staff set per asset (or per version) a shape (`None`, `Box`, `Cylinder`, `Capsule`, `Compound boxes`) and a behaviour (`Automatic`, `Solid`, `Jumpable`, `Walkable`, `Decorative`) in Django Admin; the resolver returns them and the shared runtime applies them to every placement ([`ASSET_COLLISION_PROFILES.md`](../ASSET_COLLISION_PROFILES.md)) |
-| Owner-approved 2026-11-22, Pending merge (`feature/ge-raised-solid-clearance`, GE-L16) | **Raised Solid parts and walk-under clearance**, the rule below |
+| Implemented (main, PR #59, GE-L16) | **Raised Solid parts and walk-under clearance**, the rule below |
+| Owner-decided 2026-11-25, Pending merge (engine GE-L17; Asset Library help and warning, LAI 07) | **Passage pieces**: the engine carves `archway`'s opening out of every box; the profile admin explains openings and warns (never refuses) about one Solid box over a whole tall model |
 
 Behaviour rules (GE-L16, the shared engine's controller decides; no adventure code):
 
@@ -144,6 +145,12 @@ Behaviour rules (GE-L16, the shared engine's controller decides; no adventure co
   narrower than about 0.74 m stays blocked, whatever the headroom.
 - **Multi-part profiles** (`Compound boxes`) share one behaviour; each part is classified on its
   own. A building with a doorway: wall parts from 0, a lintel part from 2.0 m or higher.
+- **Pieces with an opening.** The engine keeps `archway`'s opening clear whatever its profile.
+  Any other model with an opening needs one box per side (and optionally a lintel box from the
+  walk-under clearance up); one box over the whole model closes it, and the admin warns
+  ([`ASSET_COLLISION_PROFILES.md`](../ASSET_COLLISION_PROFILES.md); the engine rules are in
+  [`raised-solid-clearance.md`](../engineering/game-engine/raised-solid-clearance.md) sections 2
+  and 5).
 - **Elevation never makes a part jumpable.** A surface the child should stand on is a `Jumpable`
   profile (or `Automatic` and no taller than 1.2 m); a deck marked `Solid` is not stood on.
 
@@ -225,6 +232,9 @@ not the Git repository"; ADR-035 and ADR-045 make that home the Asset Library. A
 - Delivery mode `django` (default and the production choice): a signed, self-authorizing URL
   re-checked on every fetch, so retirement takes effect at once. `s3` (presigned) mode exists but
   is not the chosen mode. Signed CloudFront delivery (AM-11) is deferred.
+- Caches key on the version's identity (`asset@versionId`). The same version gets the same URL
+  for a whole half-TTL window; a new version gets a new URL at once
+  ([`ASSET_LIBRARY.md`](../ASSET_LIBRARY.md) section 8.1).
 - Consistency rules (default changes, pins, retirement, expiry): [`ASSET_LIBRARY.md`](../ASSET_LIBRARY.md) section 9.
 
 ## 13. Storage: local development versus S3

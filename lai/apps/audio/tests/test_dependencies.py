@@ -134,7 +134,7 @@ def test_a_provider_failure_refuses_retirement(coin, monkeypatch, caplog):
     with pytest.raises(AssetActionRefused) as refused:
         asset_services.retire_asset(coin["asset"])
     assert refused.value.code == "dependency_check_failed"
-    assert refused.value.details == {"source": "audio"}
+    assert refused.value.details == {"source": "audio", "check_class": "authoritative"}
     assert "boom" not in caplog.text and "coin-clink" in caplog.text  # ids only, no detail
     assert "RuntimeError" in caplog.text
 
