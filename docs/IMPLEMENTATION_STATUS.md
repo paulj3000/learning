@@ -37,6 +37,37 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-06 #102 interactive learning scoring (2026-11-26, `feature/interactive-learning-scoring`, base `41ee7320`)
+
+Status: **Development Complete on its branch**, not merged, not owner-accepted (GitHub #102, Trello
+#258). Design and compatibility notes: [scoring/INTERACTIVE_LEARNING.md](scoring/INTERACTIVE_LEARNING.md).
+
+- Three new graded 3D Area puzzle kinds reuse the AreaPuzzle, PuzzleAttempt, SkillEvidence and
+  mastery pipeline: `NAVIGATE_ROUTE` (directions on a grid map, BFS-checked route), `SORT_ITEMS`
+  (each item into its group) and `SHARE_ITEMS` (an amount into each container). `ORDER_SEQUENCE`
+  gains a `MAP_PIECES` presentation for map assembly.
+- Movement puzzles (`PLACE_PLATFORMS`, `VALVE_SEQUENCE`) give skill evidence only when they name a
+  `skill`; jumping and course events never count as mastery.
+- Hints: an optional `hintsUsed` on the solve request is stored as `PuzzleAttempt.hints_used`
+  (nullable, so older rows and clients are unchanged), capped at the puzzle's hint count. It only
+  lowers the evidence support level. Rewards and world changes are the same with or without hints
+  and mistakes.
+- Solve responses add `skillPracticed`. Replay stays practice and records nothing.
+- Scoring: `CHOOSE_ANSWER` and `ORDER_SEQUENCE` are now graded kinds in the collectors. A published
+  puzzle that covers a chest in the same region (same world change key) is one star goal, not two.
+- Migrations: `regions 0010_interactive_learning_kinds` (kind constraint) and
+  `game_sessions 0008_puzzle_attempt_hints_used` (nullable field).
+- Evidence: the new Django tests pass (`regions/tests/test_interactive_puzzle_kinds.py`,
+  `scoring/tests/test_interactive_learning.py`); `makemigrations --check` reports no changes;
+  `npm run typecheck` exits 0; the client tests (`src/api/play`, `region-play`, `content-export`,
+  `parent-dashboard`) give 597 of 597 passing. Django regression on PostgreSQL across `regions`,
+  `game_sessions`, `education`, `scoring`, `quests`, `inventory` and `progression`: 1846 passed,
+  2 skipped, 0 failed.
+- Deferred to merge readiness: full lint and format, full suites, browser and Playwright checks.
+- Owner decisions open: a new `position-and-direction` objective (interim
+  `following-instructions`); LAI 04's optional `hintsUsed` gameplay-event field; 3D scenes for the
+  new kinds (a separate LAI 01 and LAI 04 ticket).
+
 ## LAI-01 Treasure Rush final release preparation (2026-11-25, `lai-01/treasure-rush-release-prep`, `main` `05b54d8a`)
 
 Status: release candidate on `main`, **not owner-accepted** (TR-21 stays open until the owner's

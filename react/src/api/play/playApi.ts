@@ -52,12 +52,17 @@ export interface PlayApi {
     signal?: AbortSignal,
   ): Promise<AnswerOutcome>;
   getProgress(signal?: AbortSignal): Promise<PlayerProgress>;
-  /** Submit one attempt at a 3D Area puzzle; the server grades it (LAI-0812). */
+  /**
+   * Submit one attempt at a 3D Area puzzle; the server grades it (LAI-0812). `hintsUsed`
+   * (issue #102) is how many hints the child opened first; omit it when not counted. It only
+   * marks the learning evidence as supported, never what the child earns.
+   */
   solvePuzzle(
     sessionId: string,
     puzzleId: string,
     submission: JsonObject,
     signal?: AbortSignal,
+    options?: { hintsUsed?: number },
   ): Promise<PuzzleOutcome>;
   /** Pick up a collectible (TR-14). `created` is false when it was already picked up. */
   collectPickup(
@@ -139,12 +144,13 @@ export function createPlayApi(client: ApiClient, childId: string): PlayApi {
       return result.value;
     },
     getProgress: async (signal) => get('progress/', parse.playerProgress, signal),
-    async solvePuzzle(sessionId, puzzleId, submission, signal) {
-      // Exactly the accepted field: the submission's shape is the puzzle kind's own.
+    async solvePuzzle(sessionId, puzzleId, submission, signal, options) {
+      // Exactly the accepted fields: the submission's shape is the puzzle kind's own.
+      const hintsUsed = options?.hintsUsed;
       const result = await post(
         `sessions/${segment(sessionId)}/puzzles/${segment(puzzleId)}/solve/`,
         parse.puzzleOutcome,
-        { submission },
+        hintsUsed === undefined ? { submission } : { submission, hintsUsed },
         signal,
       );
       return result.value;

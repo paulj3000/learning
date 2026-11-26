@@ -57,13 +57,13 @@ from .contracts import ScoringFact, SourceKind, Trust
 
 Collector = Callable[[object], Iterable[ScoringFact]]
 
-#: Puzzle kinds whose submission the server grades against authored parameters. The others
-#: accept the client's "I did it" for an authored puzzle, once (`puzzles._no_answer`).
-GRADED_PUZZLE_KINDS = {
-    PuzzleKind.OBSERVE_FEATURES,
-    PuzzleKind.PLACE_PLATFORMS,
-    PuzzleKind.VALVE_SEQUENCE,
-}
+#: Puzzle kinds that accept the client's "I did it" for an authored puzzle, once
+#: (`puzzles._no_answer`). Every other kind is graded against authored parameters, so a new kind
+#: is graded by default (CHOOSE_ANSWER and ORDER_SEQUENCE were missing from the old allow-list;
+#: issue #102 adds NAVIGATE_ROUTE, SORT_ITEMS and SHARE_ITEMS). Trust is not part of an
+#: idempotency key and no shipped rule requires SERVER_GRADED, so this changes no award.
+UNGRADED_PUZZLE_KINDS = {PuzzleKind.COLLECT_OBJECT, PuzzleKind.RETURN_TO_NPC}
+GRADED_PUZZLE_KINDS = set(PuzzleKind.values) - UNGRADED_PUZZLE_KINDS
 PICKUP_CHANGE_TYPE = "COLLECTIBLE_FOUND"
 MILESTONE_STATUSES = (SkillStatus.PROFICIENT, SkillStatus.MASTERED)
 DEFAULT_EXCLUDED_PREFIXES = ("playground", "dev-", "test-", "engine-playground")
@@ -403,17 +403,8 @@ def granted_rules(child) -> Iterator[ScoringFact]:
 # --- Stars (GE-106) -------------------------------------------------------------------------------
 
 
-def stars(child) -> Iterator[ScoringFact]:
-    """Exploration stars per 3D Area: authored goals done (puzzles solved, learning chests
-    opened, pickups collected) out of the goals the area has. One fact per star, so a star once
-    earned is in the ledger for good, even if an author later adds goals to the area."""
-    regions = {
-        s.region_id
-        for s in AdventureSession.objects.for_child(child).filter(kind=SessionKind.REGION)
-        if s.region_id
-    }
-    if not regions:
-        return
+def _achieved(child) -> tuple[set, set, set]:
+    """What the child has proven, for star goals: solved puzzles, opened chests, pickups."""
     solved = set(
         PuzzleAttempt.objects.for_child(child)
         .filter(correct=True)
@@ -430,28 +421,59 @@ def stars(child) -> Iterator[ScoringFact]:
         .filter(change_type=PICKUP_CHANGE_TYPE)
         .values_list("change_key", flat=True)
     )
+    return solved, opened, collected
+
+
+def _goals(region_id: str, solved: set, opened: set, collected: set) -> tuple[int, int]:
+    """(goals met, goals total) for one 3D Area."""
+    puzzle_changes = dict(
+        AreaPuzzle.objects.filter(
+            region__region_id=region_id, status=ContentStatus.PUBLISHED
+        ).values_list("puzzle_id", "world_change_key")
+    )
+    chests = dict(
+        TreasureChest.objects.filter(region__region_id=region_id)
+        .exclude(presentation=ChestPresentation.REPLAY)
+        .values_list("entity_id", "world_change_key")
+    )
+    # Issue #102: a puzzle that records a chest's world change key *opens* that chest, so the
+    # two are one goal. It is met by the puzzle solved (new play) or by the chest opened through
+    # its old challenge (a child who played before the puzzle replaced the gate).
+    opened_by_key = {chests[c] for (r, c) in opened if r == region_id and c in chests}
+    puzzle_keys = set(puzzle_changes.values())
+    chest_keys = [c for c, key in chests.items() if key not in puzzle_keys]
+    pickup_keys = [
+        p.pickup_change_key
+        for p in WorldObjectPlacement.objects.filter(region__region_id=region_id)
+        if p.is_pickup
+    ]
+    total = len(puzzle_changes) + len(chest_keys) + len(pickup_keys)
+    met = (
+        sum((region_id, k) in solved or key in opened_by_key for k, key in puzzle_changes.items())
+        + sum((region_id, k) in opened for k in chest_keys)
+        + sum(k in collected for k in pickup_keys)
+    )
+    return met, total
+
+
+def stars(child) -> Iterator[ScoringFact]:
+    """Exploration stars per 3D Area: authored goals done (puzzles solved, learning chests
+    opened, pickups collected) out of the goals the area has. A chest opened by a puzzle (the
+    puzzle records the chest's world change key, issue #102) is one goal, not two. One fact per
+    star, so a star once earned is in the ledger for good, even if an author later adds goals to
+    the area."""
+    regions = {
+        s.region_id
+        for s in AdventureSession.objects.for_child(child).filter(kind=SessionKind.REGION)
+        if s.region_id
+    }
+    if not regions:
+        return
+    achieved = _achieved(child)
     for region_id in sorted(regions):
         if is_excluded(region_id):
             continue
-        puzzle_keys = AreaPuzzle.objects.filter(
-            region__region_id=region_id, status=ContentStatus.PUBLISHED
-        ).values_list("puzzle_id", flat=True)
-        chest_keys = (
-            TreasureChest.objects.filter(region__region_id=region_id)
-            .exclude(presentation=ChestPresentation.REPLAY)
-            .values_list("entity_id", flat=True)
-        )
-        pickup_keys = [
-            p.pickup_change_key
-            for p in WorldObjectPlacement.objects.filter(region__region_id=region_id)
-            if p.is_pickup
-        ]
-        total = len(puzzle_keys) + len(chest_keys) + len(pickup_keys)
-        met = (
-            sum((region_id, k) in solved for k in puzzle_keys)
-            + sum((region_id, k) in opened for k in chest_keys)
-            + sum(k in collected for k in pickup_keys)
-        )
+        met, total = _goals(region_id, *achieved)
         for n in range(1, rules.stars_for(met, total) + 1):
             yield ScoringFact(
                 SourceKind.ADVENTURE_STAR,

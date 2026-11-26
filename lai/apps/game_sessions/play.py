@@ -53,7 +53,6 @@ from apps.regions import puzzles
 from apps.regions.models import (
     AreaPuzzle,
     ChestPresentation,
-    PuzzleKind,
     TreasureChest,
     WorldObjectPlacement,
     WorldRegion,
@@ -684,16 +683,24 @@ class PuzzleOutcome:
     quest_updates: tuple[QuestUpdate, ...] = ()
 
 
-PRACTICE_KINDS = frozenset({PuzzleKind.CHOOSE_ANSWER, PuzzleKind.ORDER_SEQUENCE})
+#: FPV-D6: kinds a solved puzzle can still be graded for practice (feedback only). Every quiz
+#: kind, the issue #102 route, sort and share kinds included, since their variants vary a replay.
+PRACTICE_KINDS = puzzles.SKILL_KINDS
 
 
-def solve_puzzle(child, session_id, puzzle_id: str, submission: object) -> PuzzleOutcome:
+def solve_puzzle(
+    child, session_id, puzzle_id: str, submission: object, *, hints_used: int | None = None
+) -> PuzzleOutcome:
     """Grade one submission and apply everything solving it earns, in one transaction.
 
     The server is the only judge: the submission is graded with `puzzles.grade` against the
     revision this session pinned. The stage order (`requiresChangeKeys`) is enforced here. A
     puzzle already solved records nothing new and grants nothing again (resume and retry safe).
     Rewards resolve against the reward rule's current published version at grant time.
+
+    `hints_used` (issue #102; None when the client did not count them) is capped at the band's
+    hint count and only marks the evidence as supported; correctness, the world change, rewards
+    and XP never depend on it.
     """
     with transaction.atomic():
         session = get_child_session(child, session_id, lock=True)
@@ -747,6 +754,11 @@ def solve_puzzle(child, session_id, puzzle_id: str, submission: object) -> Puzzl
             submission=submission,
             correct=correct,
             attempt_number=attempts_before + 1,
+            hints_used=(
+                None
+                if hints_used is None
+                else min(max(hints_used, 0), len(params.get("hints") or []))
+            ),
             submitted_at=at,
         )
         # FPV-D10: the learning evidence for this attempt, right or wrong (parent by-skill view).

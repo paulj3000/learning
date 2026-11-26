@@ -105,6 +105,16 @@ def _common(params: dict, problems: list[str], where: str, allowed: set[str]) ->
         problems.append(f"{where}: unknown settings {', '.join(sorted(unknown))}")
 
 
+def _optional_skill(params: dict, problems: list[str], where: str) -> None:
+    """Issue #102: a movement mechanic may name the concept its grader checks (matching a stone
+    to a gap is comparing lengths; routing steam is cause and effect). Absent means the puzzle is
+    an ordinary accomplishment and records no skill evidence."""
+    if "skill" in params and (
+        not isinstance(params["skill"], str) or not SLUG.match(params["skill"])
+    ):
+        problems.append(f"{where}.skill: must be a lowercase slug")
+
+
 def _list_of_ids(submission: dict, key: str) -> list[str]:
     value = submission.get(key)
     if not isinstance(value, list) or len(value) > 20 or not all(isinstance(v, str) for v in value):
@@ -139,7 +149,8 @@ def _observe_grade(params: dict, submission: object) -> bool:
 
 def _platform_problems(params: dict, where: str) -> list[str]:
     problems: list[str] = []
-    _common(params, problems, where, {"stones", "slots", "showOutlines"})
+    _common(params, problems, where, {"stones", "slots", "showOutlines", "skill"})
+    _optional_skill(params, problems, where)
     stones = _items(params, "stones", problems, where, 1, 6)
     slots = _items(params, "slots", problems, where, 1, 5)
     for index, stone in enumerate(stones):
@@ -176,7 +187,10 @@ def _platform_grade(params: dict, submission: object) -> bool:
 
 def _valve_problems(params: dict, where: str) -> list[str]:
     problems: list[str] = []
-    _common(params, problems, where, {"channels", "start", "goal", "valves", "showSteamPath"})
+    _common(
+        params, problems, where, {"channels", "start", "goal", "valves", "showSteamPath", "skill"}
+    )
+    _optional_skill(params, problems, where)
     channels = _items(params, "channels", problems, where, 2, 6)
     valves = _items(params, "valves", problems, where, 2, 5)
     channel_ids = {channel.get("id") for channel in channels}
@@ -255,7 +269,10 @@ def _no_answer(params: dict, submission: object) -> bool:
 
 PRESENTATIONS = {
     PuzzleKind.CHOOSE_ANSWER: {"PLATFORMS", "SAMPLES", "SHAPES", "PATHS", "CRYSTALS", "CARDS"},
-    PuzzleKind.ORDER_SEQUENCE: {"SWITCHES", "CRYSTALS", "STORY", "PATH"},
+    PuzzleKind.ORDER_SEQUENCE: {"SWITCHES", "CRYSTALS", "STORY", "PATH", "MAP_PIECES"},
+    PuzzleKind.NAVIGATE_ROUTE: {"MAP", "GRID", "TRAIL"},
+    PuzzleKind.SORT_ITEMS: {"BINS", "SHELVES", "NESTS"},
+    PuzzleKind.SHARE_ITEMS: {"CHESTS", "BASKETS", "BARRELS"},
 }
 SUBJECTS = {"MATHEMATICS", "EARTH_SCIENCE", "LIFE_SCIENCE", "LITERACY", "LOGIC"}
 SYMBOLS = {"circle", "square", "triangle", "star", "diamond", "hexagon", "heart", "moon"}
@@ -413,6 +430,218 @@ def _order_grade(params: dict, submission: object) -> bool:
     return order == variant["answer"]
 
 
+# --- NAVIGATE_ROUTE, SORT_ITEMS, SHARE_ITEMS: interactive learning mechanics (issue #102) --------
+#
+# Each is a quiz-style kind (presentation, subject, skill, variants) so replay variation and
+# per-variant skills work as for CHOOSE_ANSWER. The child's action *is* the answer: walking a
+# route, dropping items into bins, sharing coins into chests. A movement alone never grades
+# true; the grader checks the concept (a reached goal, a correct bin, an equal share).
+
+MOVES = {"N": (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}
+MAX_GRID, MAX_MOVES, MAX_SHARE_TOTAL = 6, 12, 20
+
+
+def _cell(value, columns: int, rows: int) -> tuple[int, int] | None:
+    if (
+        isinstance(value, list)
+        and len(value) == 2
+        and all(isinstance(v, int) and not isinstance(v, bool) for v in value)
+        and 0 <= value[0] < columns
+        and 0 <= value[1] < rows
+    ):
+        return value[0], value[1]
+    return None
+
+
+def shortest_route(variant: dict) -> int | None:
+    """The fewest moves from start to goal around blocked cells, or None when unreachable."""
+    columns, rows = variant["columns"], variant["rows"]
+    start, goal = tuple(variant["start"]), tuple(variant["goal"])
+    blocked = {tuple(cell) for cell in variant.get("blocked", [])}
+    frontier, seen = [(start, 0)], {start}
+    while frontier:
+        (x, y), steps = frontier.pop(0)
+        if (x, y) == goal:
+            return steps
+        for dx, dy in MOVES.values():
+            nxt = (x + dx, y + dy)
+            if 0 <= nxt[0] < columns and 0 <= nxt[1] < rows and nxt not in blocked | seen:
+                seen.add(nxt)
+                frontier.append((nxt, steps + 1))
+    return None
+
+
+def walk_route(variant: dict, moves: list[str]) -> tuple[int, int] | None:
+    """Where the moves end, or None if one leaves the map or enters a blocked cell."""
+    columns, rows = variant["columns"], variant["rows"]
+    blocked = {tuple(cell) for cell in variant.get("blocked", [])}
+    x, y = variant["start"]
+    for move in moves:
+        dx, dy = MOVES[move]
+        x, y = x + dx, y + dy
+        if not (0 <= x < columns and 0 <= y < rows) or (x, y) in blocked:
+            return None
+    return x, y
+
+
+def _route_problems(params: dict, where: str) -> list[str]:
+    problems: list[str] = []
+    variants = _quiz_common(PuzzleKind.NAVIGATE_ROUTE, params, problems, where, set())
+    for index, variant in enumerate(variants):
+        at = f"{where}.variants[{index}]"
+        _bounded(variant, "prompt", MAX_PROMPT, problems, at)
+        if "explanation" in variant:
+            _bounded(variant, "explanation", MAX_EXPLANATION, problems, at)
+        _int(variant, "columns", 2, MAX_GRID, problems, at)
+        _int(variant, "rows", 2, MAX_GRID, problems, at)
+        _int(variant, "maxMoves", 1, MAX_MOVES, problems, at)
+        _variant_skill(variant, problems, at)
+        extra = set(variant) - {
+            "id",
+            "prompt",
+            "explanation",
+            "columns",
+            "rows",
+            "start",
+            "goal",
+            "blocked",
+            "maxMoves",
+            "skill",
+        }
+        if extra:
+            problems.append(f"{at}: unknown settings {', '.join(sorted(extra))}")
+        if any(p.startswith(at) for p in problems):
+            continue
+        columns, rows = variant["columns"], variant["rows"]
+        start, goal = (
+            _cell(variant.get("start"), columns, rows),
+            _cell(variant.get("goal"), columns, rows),
+        )
+        if start is None or goal is None:
+            problems.append(f"{at}: start and goal must be [column, row] cells on the map")
+            continue
+        blocked = variant.get("blocked", [])
+        if not isinstance(blocked, list) or any(_cell(c, columns, rows) is None for c in blocked):
+            problems.append(f"{at}.blocked: must be a list of [column, row] cells on the map")
+            continue
+        if {start, goal} & {tuple(c) for c in blocked}:
+            problems.append(f"{at}.blocked: the start and goal cannot be blocked")
+            continue
+        if start == goal:
+            problems.append(f"{at}: the goal must be somewhere other than the start")
+            continue
+        steps = shortest_route(variant)
+        if steps is None or steps > variant["maxMoves"]:
+            problems.append(
+                f"{at}: no route reaches the goal within maxMoves, so it cannot be solved"
+            )
+    return problems
+
+
+def _route_grade(params: dict, submission: object) -> bool:
+    data = _closed(submission, {"variantId", "moves"})
+    variant = _variant(params, data)
+    moves = data.get("moves")
+    if (
+        not isinstance(moves, list)
+        or len(moves) > 2 * MAX_MOVES
+        or not all(isinstance(m, str) and m in MOVES for m in moves)
+    ):
+        raise InvalidSubmission
+    if len(moves) > variant["maxMoves"]:
+        return False
+    return walk_route(variant, moves) == tuple(variant["goal"])
+
+
+def _sort_problems(params: dict, where: str) -> list[str]:
+    problems: list[str] = []
+    variants = _quiz_common(
+        PuzzleKind.SORT_ITEMS, params, problems, where, {"itemEntities", "binEntities"}
+    )
+    item_map = _entity_map(params, "itemEntities", problems, where)
+    bin_map = _entity_map(params, "binEntities", problems, where)
+    for index, variant in enumerate(variants):
+        at = f"{where}.variants[{index}]"
+        _bounded(variant, "prompt", MAX_PROMPT, problems, at)
+        if "explanation" in variant:
+            _bounded(variant, "explanation", MAX_EXPLANATION, problems, at)
+        bins = _items(variant, "bins", problems, at, 2, 4)
+        items = _items(variant, "items", problems, at, 2, 8)
+        _symbols(bins, problems, f"{at}.bins")
+        _symbols(items, problems, f"{at}.items")
+        _check_entities(bin_map, bins, problems, f"{at}.bins")
+        _check_entities(item_map, items, problems, f"{at}.items")
+        bin_ids = {b.get("id") for b in bins}
+        for item_index, item in enumerate(items):
+            if item.get("bin") not in bin_ids:
+                problems.append(f"{at}.items[{item_index}].bin: must be one of the bins")
+        if items and bins and {i.get("bin") for i in items} != bin_ids:
+            problems.append(f"{at}.bins: every bin needs at least one item")
+        _variant_skill(variant, problems, at)
+        extra = set(variant) - {"id", "prompt", "explanation", "bins", "items", "skill"}
+        if extra:
+            problems.append(f"{at}: unknown settings {', '.join(sorted(extra))}")
+    return problems
+
+
+def _sort_grade(params: dict, submission: object) -> bool:
+    data = _closed(submission, {"variantId", "placements"})
+    variant = _variant(params, data)
+    placements = data.get("placements")
+    bins = {b["id"] for b in variant["bins"]}
+    items = {i["id"]: i["bin"] for i in variant["items"]}
+    if (
+        not isinstance(placements, dict)
+        or not all(isinstance(k, str) and isinstance(v, str) for k, v in placements.items())
+        or set(placements) - set(items)
+        or set(placements.values()) - bins
+    ):
+        raise InvalidSubmission
+    return placements == items
+
+
+def _share_problems(params: dict, where: str) -> list[str]:
+    problems: list[str] = []
+    variants = _quiz_common(PuzzleKind.SHARE_ITEMS, params, problems, where, {"containerEntities"})
+    mapping = _entity_map(params, "containerEntities", problems, where)
+    for index, variant in enumerate(variants):
+        at = f"{where}.variants[{index}]"
+        _bounded(variant, "prompt", MAX_PROMPT, problems, at)
+        if "explanation" in variant:
+            _bounded(variant, "explanation", MAX_EXPLANATION, problems, at)
+        _int(variant, "total", 2, MAX_SHARE_TOTAL, problems, at)
+        containers = _items(variant, "containers", problems, at, 2, 5)
+        _symbols(containers, problems, f"{at}.containers")
+        _check_entities(mapping, containers, problems, f"{at}.containers")
+        for c_index, container in enumerate(containers):
+            _int(container, "target", 0, MAX_SHARE_TOTAL, problems, f"{at}.containers[{c_index}]")
+        _variant_skill(variant, problems, at)
+        extra = set(variant) - {"id", "prompt", "explanation", "total", "containers", "skill"}
+        if extra:
+            problems.append(f"{at}: unknown settings {', '.join(sorted(extra))}")
+        if not any(p.startswith(at) for p in problems):
+            if sum(c["target"] for c in containers) != variant["total"]:
+                problems.append(f"{at}: the container targets must add up to the total")
+    return problems
+
+
+def _share_grade(params: dict, submission: object) -> bool:
+    data = _closed(submission, {"variantId", "counts"})
+    variant = _variant(params, data)
+    counts = data.get("counts")
+    targets = {c["id"]: c["target"] for c in variant["containers"]}
+    if (
+        not isinstance(counts, dict)
+        or set(counts) - set(targets)
+        or not all(
+            isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= variant["total"]
+            for v in counts.values()
+        )
+    ):
+        raise InvalidSubmission
+    return all(counts.get(cid, 0) == target for cid, target in targets.items())
+
+
 @dataclass(frozen=True)
 class PuzzleRules:
     band_problems: Callable[[dict, str], list[str]]
@@ -427,6 +656,9 @@ RULES: dict[str, PuzzleRules] = {
     PuzzleKind.RETURN_TO_NPC: PuzzleRules(_return_problems, _no_answer),
     PuzzleKind.CHOOSE_ANSWER: PuzzleRules(_choose_problems, _choose_grade),
     PuzzleKind.ORDER_SEQUENCE: PuzzleRules(_order_problems, _order_grade),
+    PuzzleKind.NAVIGATE_ROUTE: PuzzleRules(_route_problems, _route_grade),
+    PuzzleKind.SORT_ITEMS: PuzzleRules(_sort_problems, _sort_grade),
+    PuzzleKind.SHARE_ITEMS: PuzzleRules(_share_problems, _share_grade),
 }
 BODY_KEYS = {
     "puzzleId",
@@ -481,18 +713,35 @@ def grade(kind: str, params: dict, submission: object) -> bool:
     return RULES[kind].grade(params, submission)
 
 
-#: Kinds that teach a curriculum skill and carry `skill` in their parameters (FPV-D10).
-SKILL_KINDS = frozenset({PuzzleKind.CHOOSE_ANSWER, PuzzleKind.ORDER_SEQUENCE})
+#: Quiz-style kinds: a required band `skill`, variants (replay variation), and an optional
+#: per-variant `skill` (FPV-D10). Every graded submission is an educational decision.
+SKILL_KINDS = frozenset(
+    {
+        PuzzleKind.CHOOSE_ANSWER,
+        PuzzleKind.ORDER_SEQUENCE,
+        PuzzleKind.NAVIGATE_ROUTE,
+        PuzzleKind.SORT_ITEMS,
+        PuzzleKind.SHARE_ITEMS,
+    }
+)
+#: Movement kinds whose grader checks a concept, so they *may* name a `skill` (issue #102):
+#: matching a stone to its gap is comparing lengths, routing steam is cause and effect.
+OPTIONAL_SKILL_KINDS = frozenset({PuzzleKind.PLACE_PLATFORMS, PuzzleKind.VALVE_SEQUENCE})
+#: Every kind that can record skill evidence. OBSERVE_FEATURES, COLLECT_OBJECT and RETURN_TO_NPC
+#: never do: looking, picking up, jumping to or walking back are accomplishments, not evidence.
+EVIDENCE_KINDS = SKILL_KINDS | OPTIONAL_SKILL_KINDS
 
 
 def skill_for(kind: str, params: dict, submission: object) -> str | None:
     """The skill a graded submission practised: its variant's `skill`, else the band's.
 
-    None for a kind that teaches no curriculum skill. Call it after `grade`, which has already
-    refused a malformed submission or an unknown variant.
+    None for a kind that teaches no curriculum skill, or a movement kind that names none. Call it
+    after `grade`, which has already refused a malformed submission or an unknown variant.
     """
-    if kind not in SKILL_KINDS:
+    if kind not in EVIDENCE_KINDS:
         return None
-    variant = _variant(params, submission) if isinstance(submission, dict) else {}
+    variant = (
+        _variant(params, submission) if kind in SKILL_KINDS and isinstance(submission, dict) else {}
+    )
     skill = variant.get("skill") or params.get("skill")
     return skill if isinstance(skill, str) and skill else None
