@@ -37,6 +37,29 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI 02 #99: Storykeeper Castle can be entered from the child UI (2026-11-26, `feature/storykeeper-playability-fixes` from `main` `41ee7320`, Trello #255); Development Complete, NOT merged, NOT owner accepted
+
+- **Root cause:** no crash and no server refusal. The castle has no Django 3D Area, so the Realms
+  pages offer only "Visit". On the Place page the 3D castle was a link labelled "early 3D
+  preview", below the card tale and the Phaser view. Sprouts and Explorers were also told "not
+  available for your age yet", because the page took the location's first template (the
+  Pathfinder tale). The Writing Room had the same template bug for Pathfinders and Explorers.
+- **Fix** (`react/src/routes/IslandLocationPage.tsx`):
+  - "Enter the castle" is the first action for Pathfinders and Explorers.
+  - Sprouts keep the card route first (C-10, ADR-008) and get "Walk inside the castle" as well.
+  - The Phaser view stays as a secondary link (retiring it is SC-R10-03).
+  - Each band is offered its own template (`resolveAdventureForAgeBand`).
+  - Explorers are told that their castle adventure starts inside, at the Great Library's secret
+    door.
+- **Evidence:**
+  - API probe on PostgreSQL 18 with `load_content` only: every castle API the 3D castle calls
+    answers 200 for all three bands.
+  - Regression tests in `IslandLocationPage.test.tsx`.
+- **Unverified:** no browser test. The owner's navigation checklist and the per-area status are
+  in `docs/regions/storykeeper_castle_entry_99.md`.
+- **Follow-up for LAI 05 and the owner:** a direct castle entry button on the Realms card, which
+  would mean the catalog knowing about bundled regions.
+
 ## LAI-01 Treasure Rush final release preparation (2026-11-25, `lai-01/treasure-rush-release-prep`, `main` `05b54d8a`)
 
 Status: release candidate on `main`, **not owner-accepted** (TR-21 stays open until the owner's
