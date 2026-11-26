@@ -139,3 +139,52 @@ The classification is cached per box and recomputed when the box moves, so a ter
 Solid part whose bottom is above 0 in model space, with the gap, and whether the new rule makes it
 an overhead passage or a column. A placement's elevation adds to the gap; the command reports model
 space and says so.
+
+## 5. Passage pieces: archways (GE-L17, 2026-11-25)
+
+Owner decision 2026-11-25 (GE-L17; follows GE-L16 #245, with #244 and #247). Found by LAI 02: profiles reach
+shipped regions with no release, and one Solid or Automatic box over `archway`'s whole bounds
+sealed 7 of Storykeeper Castle's 9 archways.
+
+### The rule
+
+A passage piece declares its opening in model space (`PASSAGE_OPENINGS` in
+`react/src/features/island-map/three/runtime/derivedColliders.ts`). Today only `archway` has one:
+the gap between x = -1 and x = 1, from the ground to 2.6 m, through the whole depth. It is measured
+from `archway()` in `scripts/generate-world-assets.ts`, like the built-in footprints.
+
+- **The opening is carved out of every box** the piece gets: its built-in footprint (`archway` now
+  has one, its whole bounds), an Automatic profile, or a staff Solid box. What is left is two jambs,
+  which are ground Solid columns, and the part above the opening, which is the lintel.
+- **The lintel is a raised Solid.** Section 2's rule then applies unchanged. With 2.6 m of
+  clearance the lintel is overhead for the 1.7 m collider: the child walks under it, a rising head
+  stops at its underside, and no jump carries the child onto or over it. An archway scaled down
+  below the clearance has a lintel that is a column, and it is a wall.
+- **Jumpable is decided before carving**, on the whole part. So an Automatic 3 m archway stays
+  Solid, and its 0.4 m lintel is not "short enough to jump".
+- **Precedence is unchanged.** A staff profile replaces the built-in footprint. A profile that is
+  already in parts (jambs, with or without a lintel) loses nothing outside the opening, so an
+  authored jamb profile is used exactly as written. A profile that never blocks (`NONE`, no boxes)
+  or a `WALKABLE` one still adds nothing. The opening wins over the profile only inside the
+  opening, the same way checkpoints already win (section "keep clear" in `derivedColliders.ts`).
+- **Keep clear.** A passage's centre joins the kept-clear points, so no other piece's box can sit
+  across a doorway. It binds only the other pieces: its own parts are carved already, and an
+  archway too low to walk through must stay a wall. A Solid part raised at least
+  `OVERHEAD_KEEP_CLEAR_HEIGHT` above its piece's base (1.7 m collider plus the largest permitted
+  margin, 2.2 m) walls nothing in, so it never drops a piece over a checkpoint.
+
+### Realms
+
+| Realm | Effect |
+|---|---|
+| Storykeeper Castle | Archways now also get jamb and lintel boxes from the built-in footprint. The room walls already stopped the child at the jambs, so routes are unchanged. Every room and archway the castle opens without profiles stays open under a Solid, Automatic or jamb `archway` profile (`storykeeperCastleArchways.engine.test.ts`). |
+| Firepeak (Heart) | `firepeak-arch` (fh-arch-N) is drawn by the region-play extension as a stand-in, or as its published model. The placement is a prop with no asset id, so it gets no Asset Library box at all. Each gate's authored walls are the jambs, and its gated collider is the opening. `firepeakHeartRegion.test.ts` pins this, including a published model with a whole-bounds Solid or Automatic profile. |
+| Treasure Rush (Treasure Cove) | `cove-ruins-archway` (scaled 1.55 x 1.25) used to have no collision, so the child could walk through its stone jambs. It now has jambs at x = +-1.55 to 2.02 and a lintel 3.25 m up (overhead). The 3.1 m opening into the ruins is unchanged. `treasureCoveThirdPerson.engine.test.ts` walks 480 frames instead of 400, because a child swinging the view slides along a jamb on the way through; its -20 m and camera-never-in-a-wall assertions are unchanged. |
+| North Pole | Places no `archway`; no change. |
+
+### Not covered
+
+A new model with an opening, such as a published `firepeak-arch` placed as a plain `MODEL` outside a
+gate, needs its own `PASSAGE_OPENINGS` entry, measured from that model. Until then a single box
+over its whole bounds would block. The Asset Library help text should tell staff to use one box per
+jamb for such pieces (LAI 07).

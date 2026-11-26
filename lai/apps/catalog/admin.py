@@ -533,19 +533,30 @@ class ContentAssetAdmin(CatalogModelAdmin):
 
     @admin.action(description="Retire selected assets", permissions=["retire"])
     def retire_assets(self, request, queryset):
+        from apps.assets.dependencies import unverified_checks, unverified_message
         from apps.assets.services import AssetActionRefused, retire_asset
 
         count = 0
         for asset in queryset:
             # Shipped scenes never block retirement (GE-247); they are listed so staff see it.
-            scenes = [usage for usage in scene_usage.shipped_scene_usages(asset) if usage.current]
             try:
-                retire_asset(asset)
+                scenes = [u for u in scene_usage.shipped_scene_usages(asset) if u.current]
+            except Exception:
+                # Not swallowed: the same failure reaches the registry below, which logs it
+                # (ids only) and reports it through unverified_checks, so staff get one warning.
+                scenes = []
+            try:
+                with unverified_checks() as unverified:
+                    retire_asset(asset)
             except AssetActionRefused as refused:  # a retirement guard objected (LAI-NPC-036)
                 self.message_user(request, f"{asset.asset_id}: {refused.message}", messages.ERROR)
                 continue
             self.log_change(request, asset, "Retired the asset.")
             count += 1
+            if unverified:
+                self.message_user(
+                    request, f"{asset.asset_id}: {unverified_message(unverified)}", messages.WARNING
+                )
             if scenes:
                 self.message_user(
                     request,

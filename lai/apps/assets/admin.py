@@ -444,7 +444,12 @@ class AssetVersionAdmin(
 
     @admin.action(description="Retire selected versions", permissions=["retire"])
     def retire_versions(self, request, queryset):
-        self._run(request, queryset, services.retire_version, "Retired")
+        from .dependencies import unverified_checks, unverified_message
+
+        with unverified_checks() as unverified:
+            self._run(request, queryset, services.retire_version, "Retired")
+        if unverified:
+            self.message_user(request, unverified_message(unverified), messages.WARNING)
 
     @admin.action(description="Verify the stored files (checksum and format)", permissions=["view"])
     def verify_versions(self, request, queryset):

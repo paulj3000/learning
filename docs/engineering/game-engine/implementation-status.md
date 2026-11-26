@@ -27,7 +27,7 @@ worktree, not yet merged), **Planned**. No item is Owner Accepted or Complete.
 | GE-060 to GE-063 | GameHost, dev-only Playground at `/dev/game-engine`, debug overlay, event log, collision visualization, renderer stats | Built | `297bc29b`, `b475c41c` | GameHost: mount, tick, pause on hidden and blur, dispose, StrictMode, error and retry, invalid claims dropped |
 | GE-064 | Standard engine assembly: `createStandardCapabilityRegistry`, `createStandardEngine`, `wireStandardGameplay`, host contract (`engine/host.ts`); Playground runs the real engine | Built | `12c1750f`, `57b3c32f` | 13 assembly tests: wall stop without penetration, jump only with `movement.jump`, ice stops within 1.05 m, accessible route claim, one `PlayerRecovered` with `hazardId`, platform carry, input reset, clean dispose. Avatar and animation wired in `a4d1ebf0` (7 tests: root on the transform, idle outweighs walk at a wall, root motion stripped, clean dispose) |
 | GE-065 | Location engine bridge: a `WorldExtension` that runs engine gameplay and environment components inside the live `createLocationEngine`; `FirstPersonController.setEnvironment` | Built | `abd19792`, `8cd84bfe` | 9 bridge tests (degraded mount on today's host, hazard recovery with one `PlayerRecovered` carrying `hazardId`, claim sink, ice reaching `setEnvironment`, collider ids, clean dispose); 3 controller tests. Host-side members land in GE-070 |
-| GE-070 | Treasure Rush reference migration | Development Complete on its realm branch | `cd0cbf01` (`feature/GE-070-treasure-rush-engine-migration`) | Reported by the Treasure Rush session: Vitest 3,058 (3 load timeouts, each passing alone), game 578, pytest 1,094, typecheck and docs-check clean. Not merged; owner QA pending |
+| GE-070 | Treasure Rush reference migration | Development Complete; on `main` (Engine 1.0, GE-090) | `cd0cbf01` (`feature/GE-070-treasure-rush-engine-migration`) | Reported by the Treasure Rush session: Vitest 3,058 (3 load timeouts, each passing alone), game 578, pytest 1,094, typecheck and docs-check clean. Owner gameplay acceptance pending (Trello) |
 | GE-075 | Six locations as validated engine data: Welcome Harbor, Pirate Builder Bay, Clockwork Harbor, Dragon's Sanctuary (from manifests), Explorer Cove (test-only, defined in its test), Sandbox (declared; no manifest) | Built (definitions); runtime swap is GE-076 | `7a549f0a`, `5d22c7d7`, `abe0d429`, `4341bcf0`, `16acf30b`, `dab68c00` | 26 parity tests: nothing lost from each manifest; resolved jump, locomotion, camera and avatar equal today's |
 | GE-065 (hooks) | Companion bridge hooks merged from Firepeak's split branch | Built | merge of `70cd5781` | Region-play suites green; ungated checkpoints never resume targets |
 | GE-066 part 1 | Forwarded HazardTelegraph, PlatformPhaseChanged, SurfaceFootstep; `inactiveWhenSignalId`; host PlayerFootstep relayed into the engine | Built | `b1478a85`, `8b7fd7fb` | Engine 588; parity test holds; relay test (no loop) |
@@ -44,8 +44,8 @@ worktree, not yet merged), **Planned**. No item is Owner Accepted or Complete.
 | GE-100 to GE-110 | Scoring and progression integrated into core (economy off by default; nothing activated) | Integrated | merge `ab91d191` (core/ge-scoring @ `49790ce6`) | pytest 1132 passed, 4 skipped on PostgreSQL 16; engine 610; scoring and affected Vitest 297 + 45 |
 | Phase 5 (part 1) | Stabilization: disposal, fixed timestep | Built | `ce4974b5` | 22 passed, 1 expected fail (GE-L10) |
 | Phase 5 (part 2) | Stabilization: scene transitions, camera/avatar sync, checkpoint restoration, accessibility, event delivery, duplicate claims, import boundaries | Built (tests only) | merge of `4ead4dd2` | Engine 644 (+1 expected fail); game-engine React 98 (+1 expected fail, GE-S1) through the gate; typecheck clean. No new correctness defect; GE-S1, GE-L12, GE-L13, GE-T1 recorded |
-| GE-070 to GE-076 | Realm migrations, legacy retirement | GE-073, GE-074 in development on realm branches (owner approved 2026-11-19, as reported by the realm leads); others planned | | Realm branches |
-| GE-090 | Integration and merge readiness | Planned | | Owner-authorized gates only |
+| GE-070 to GE-076 | Realm migrations, legacy retirement | GE-070, GE-071, GE-075: Development Complete. GE-072, GE-073, GE-074: Complete. All on `main`. GE-076: In Development (section 3) | | Trello |
+| GE-090 | Integration and merge readiness | Complete; owner-accepted 2026-11-22 (Engine 1.0 on `60ab15a4`) | | EC2 run 45022991853; CI 45022996622 |
 
 ## 2. Checks run (development cadence)
 
@@ -64,3 +64,54 @@ worktree, not yet merged), **Planned**. No item is Owner Accepted or Complete.
 | `make docs-check` equivalent (`python3 scripts/check_engineering_docs.py`) | Run after each docs change |
 
 Deferred to merge readiness (GE-090): full suites, lint, format, build, Playwright, owner QA.
+
+## 3. Final engine audit (2026-11-25, `main` `05b54d8a`)
+
+Every open Game Engine Core card was checked against `main` (Trello search "Game Engine Core",
+"Agent 4" and `GE-`; ancestry and `git log --grep` per ticket). This audit separates **development
+completion** (code on `main`, unit and regression tests pass) from **manual gameplay acceptance**
+(the owner playing on desktop, touch and tablet, which no agent records).
+
+### 3.1 Development status
+
+| Group | Cards | Development | Manual / owner acceptance |
+|---|---|---|---|
+| Engine 1.0 | GE-090 (and D1, D2, D4, D6) | Complete, on `main` | Accepted 2026-11-22 |
+| Realm migrations | GE-072 Storykeeper, GE-073 Firepeak, GE-074 North Pole | Complete, on `main` | Accepted (cards Complete) |
+| Foundation and systems | GE-002 to GE-007, GE-020 to GE-028, GE-030 to GE-035, GE-040 to GE-046, GE-050 to GE-056, GE-060 to GE-063 | Development Complete, on `main` | Pending. GE-006 owner decisions are still open (`decisions.md` section 3) |
+| Bridge and parity | GE-065 to GE-069, GE-073F, GE-L14 | Development Complete, on `main` | Pending |
+| Realm migrations | GE-070 Treasure Rush, GE-071 Pirate's Leap, GE-075 remaining locations | Development Complete, on `main` | Pending (owner playthroughs) |
+| Collision | GE-L16 raised Solid clearance (#59) | Development Complete, on `main` | Pending |
+| Asset Library engine side | GE-247 (#70, #75, #77, #78); follow-ups PR #92 (tests and docs, merge authorized) | Development Complete | Pending |
+| Archways | GE-L17 (PR #94) | Development Complete; owner: do not merge | Pending merge decision, then acceptance |
+| Browser defects | GE-090-D7 (#63), GE-090-D8 (#67) | Development Complete, on `main` | Pending: confirm the Treasure Rush camera button; no browser rerun since #67 |
+| Scoring | GE-100 to GE-110 (LAI 06) | Development Complete, on `main`; economy off | Pending (LAI 06's cards) |
+| Parent | GE-001 | In Development until GE-076 closes | n/a |
+
+### 3.2 Remaining engine work
+
+| Item | State | Blocked by |
+|---|---|---|
+| GE-076 items 3 to 7 (live platforms onto `gameplay.platforms`, castle checkpoints, platform types into contracts, atmosphere retirement, runtime swap) | Open | The realm leads' migrations (items 3, 4), then engine follow-through (5 to 7) |
+| GE-076 item 8 / GE-D8 | `SANDBOX_NPC_ID` moved (PR #95); `ASSET_FOOTPRINTS` kept by design | `ADVENTURE_COMPLETE_CHANGE_KEYS`: the NPC Manager owner |
+| GE-076 item 9 (live `groundHeightAt` for terrain Areas) | Open enhancement | Not a defect; no Area needs it today |
+| GE-D5 | Open (Low) | One shared typed fake engine for 10 view tests (LAI 02 and Treasure Rush own some of them) |
+| GE-D1, GE-D9 (flaky tests) | Open (Low) | Host timer latency (GE-T2); D9's region-play hint test belongs to Treasure Rush |
+| 5 s timeouts under load (React panels, parity tests) | Environmental, reproduces on `main` | Infrastructure (`test_gate` admission); the walls test is split per door in GE-L17 |
+| Engine-side Asset Library help text | LAI 07, `docs/asset-library-archway-help` (owner-confirmed) | Review by Agent 4 |
+
+**No engine defect blocks development close-out.** Every remaining item is blocked by another
+owner, is an enhancement, or is a flaky test caused by the environment.
+
+### 3.3 Readiness for final acceptance
+
+- Ready for the owner's final acceptance at the development level, once PR #92 merges.
+- GE-L17 (PR #94) is a separate merge decision; until it merges, a whole-bounds Solid or Automatic
+  `archway` profile can seal the castle's doorways. No such profile exists today.
+- Manual gameplay acceptance is still required and is not something an agent can record:
+  - owner playthroughs: Treasure Rush and Pirate's Leap, Storykeeper Castle (SC-R12 P-1 to P-16,
+    Q-1 to Q-18), Heart of Firepeak (FPV-24), North Pole (SEA-04);
+  - desktop, touch, tablet and gamepad;
+  - a browser acceptance rerun after #67;
+  - the first DEV deployment's `collision_clearance_audit`.
+

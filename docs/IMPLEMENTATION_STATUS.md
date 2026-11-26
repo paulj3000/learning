@@ -55,6 +55,74 @@ merged.
 - Tests: `test_collision_profiles.py` (help text, check classes, warning on save and on the change
   page, archway note). PG18 slot 9; no browser tests. No migration.
 
+## GE-L17 archway passages keep their opening under any collision box (2026-11-25, `feature/GE-L17-archway-passages`, `main` `05b54d8a`); Development Complete, NOT merged
+
+Owner decision 2026-11-25: separate ticket and PR; do not merge. Agent 4 (Game Engine Core). Found by
+LAI 02.
+
+- A passage piece's opening is carved out of every box it gets: built-in, Automatic or a staff
+  Solid box (`PASSAGE_OPENINGS`, `carveOpening` in `derivedColliders.ts`).
+- The jambs block. The lintel is a raised Solid, so GE-L16 makes it a walk-under passage at 2.6 m,
+  and no jump goes over or onto it.
+- `archway` gets a built-in footprint.
+- A passage's centre is kept clear of other pieces. Overhead Solid parts (2.2 m and up) no longer
+  drop a piece over a checkpoint. A jamb profile is used as authored.
+- Details: `docs/engineering/game-engine/raised-solid-clearance.md` section 5.
+- **Realms:**
+  - Storykeeper Castle: routes unchanged. LAI 02's probe is now a regression test
+    (`storykeeperCastleArchways.engine.test.ts`).
+  - Treasure Cove: the ruins archway's jambs now block (they could be walked through).
+  - Firepeak: `firepeak-arch` never gets an Asset Library box; the gate colliders are its jambs and
+    opening.
+  - North Pole: no archway.
+- **Storykeeper walls test split per door** (`playerFootprint.engine.test.ts`): the archway
+  colliders pushed the single case past the 5 s default. Each door now runs in about 1 s, and the
+  assertions are unchanged.
+- The admin preview bundle is rebuilt (it includes `derivedColliders.ts`).
+- **Asset Library side (LAI 07, separate PR):** the admin warning and help text; warn, don't
+  refuse.
+
+## LAI-07 Asset Library follow-ups: check classes, stable delivery URLs, docs reconciled (2026-11-25, `feature/asset-library-final-followups`, `main` `05b54d8a`)
+
+Owner-approved follow-ups after the W1 to W5 merges (Trello #244, #246, #247).
+- **Retirement-check classes** (`apps/assets/dependencies.py`, `CheckClass`): `regions`,
+  `audio`, `npcs` and `avatars` are AUTHORITATIVE; `artifacts` and `catalog` (Agent 4's decision)
+  are INFORMATIONAL. AUTHORITATIVE and UNCLASSIFIED failures refuse
+  (`dependency_check_failed`, now with `check_class` in `details`). An INFORMATIONAL failure is
+  logged as a warning, and the two retire admin actions warn staff (`unverified_checks()`);
+  retirement goes ahead. A blocking usage always blocks.
+- `usages_for` and `usages_by_source` return no usages for an unsaved asset or version, without
+  asking any provider (LAI 01's finding).
+- `Usage.historical`, `admin_url` and `details` are keyword-only (`KW_ONLY`); no caller passed
+  them by position.
+- **Stable delivery URLs** (`apps/assets/delivery.py`): the `django` token is a plain `Signer`
+  (salt `lai.assets.delivery.v2`) over `{versionId, expiry}`, so the same version in the same
+  half-TTL window always gets the same URL. Legacy v1 tokens are read until they expire.
+  Expiry, publication and retirement checks are unchanged. No engine or client change.
+- Docs: `ASSET_LIBRARY.md` 8.1 and 25 (status header and merge commits reconciled against
+  `main` `05b54d8a`; new 25.9), `asset-standard.md`, `bundled-asset-references.md`.
+- Tests: `apps/assets/tests/test_check_classes.py` (new), `test_delivery_identity.py` (new),
+  `test_resolver_api.py` (the flake test now requires equal URLs), and `check_class` added to
+  the refusal-details assertions in four existing tests. The catalog failure test now checks that
+  retirement goes ahead with a warning and that a blocker still blocks.
+- No migration. Rollback: revert the PR. Old-format URLs keep working either way.
+
+## GE-247 engine follow-ups: asset-resolution contract and LOD pin (2026-11-25, `feature/GE-247-engine-followups`, `main` `05b54d8a`, Trello #247, #244); Development Complete
+
+Owner-authorized 2026-11-25. Agent 4 (Game Engine Core). The archway passage fix is split out to
+GE-L17 (`feature/GE-L17-archway-passages`, owner decision 2026-11-25).
+
+- **Asset-resolution contract** (`react/src/api/assets/assetResolutionContract.test.ts`):
+  - retired, unpublished and unknown ids;
+  - a retired LOD twin (both levels kept, bundled twin);
+  - the default ground (a shipped file);
+  - one model load per visit however the signed URL rotates;
+  - one asset-id shape in every realm, checked against `formats.ASSET_ID`.
+- **LOD pin:** `regionLayout.test.ts` refuses `LOD_PLACEMENTS`, so the regions provider follows no
+  low-detail twin (`docs/ASSET_LIBRARY.md` 25.3).
+- **Delivery identity:** no engine change. Models are keyed by asset id per visit; textures and
+  audio by `asset@versionId`. Nothing is keyed on the signed URL.
+
 ## LAI-07 Asset Library W5: documentation close-out (2026-11-25, `docs/asset-library-w5-reconcile`, `main` `8f3a7b3c`)
 
 - `docs/ASSET_LIBRARY.md` 25.5 to 25.8: the final test map and owner acceptance checks, the W2
