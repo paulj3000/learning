@@ -38,7 +38,8 @@
   stage brings its own exits instead ("Leave island" stacked above "Exit full screen", bottom
   left, WorldStage.module.css: 0.75rem + 3.5rem + a 3rem button), so dialogue panels sit above
   them (`--child-stage-exits-inset`). The exits sit on the stage's bottom edge, which is not
-  always the viewport's: settings shown below the stage (camera view, sprint) shorten it.
+  always the viewport's: anything left in flow below the stage in full screen shortens it
+  (since GE-101 nothing by default: settings and lists are stage menus).
   WorldStage measures that gap and sets `--child-stage-bottom-gap` on the full-screen element
   (GE-090-D8), so the panels clear the exits on a phone too; with nothing below, it is 0.
   The top bar is hidden, but the HUD's top row ("Go back to the harbor", WorldHud.module.css:

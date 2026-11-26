@@ -72,6 +72,7 @@ import { getInventory } from '../../../../rewards/api';
 import { listQuestStates } from '../../../../quests/api';
 import { getCompanionProfile } from '../../../../island/api';
 import { listSkillProgress } from '../../../../mastery/api';
+import { openThingsToDo } from '../../../../../test/gameplayMenus';
 
 function renderHarbor(ageBand: AgeBandValue = 'PATHFINDER') {
   return render(
@@ -144,6 +145,7 @@ describe('Clockwork Harbor on the generic view', () => {
 
   it('offers both NPCs and the machine in the non-graphical list, with the gear note', async () => {
     await renderAndWait();
+    await openThingsToDo();
     expect(screen.getByText('Talk to the Harbor Master')).toBeInTheDocument();
     expect(screen.getByText('Talk to Professor Ticktock')).toBeInTheDocument();
     expect(screen.getByText('Look at the machine inside the lighthouse')).toBeInTheDocument();
