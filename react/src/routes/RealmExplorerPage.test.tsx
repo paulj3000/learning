@@ -2,7 +2,12 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { testCatalog, testIsland, testPlace } from '../features/realms/testCatalog';
+import {
+  firepeakTestPlaces,
+  northPoleTestIsland,
+  testCatalog,
+  testIsland,
+} from '../features/realms/testCatalog';
 import { ApiError } from '../api/errors';
 
 /** AP-03: the Realm Explorer and a Realm's preview, with the Django API. */
@@ -141,7 +146,8 @@ describe('RealmExplorerPage (AP-03)', () => {
       testIsland('north-pole', {
         title: 'North Pole',
         tagline: 'Find the missing Christmas star.',
-        places: [testPlace('north-pole-village')],
+        // North Pole Village's 3D Area, as Django serves it (#98).
+        places: northPoleTestIsland().places,
         seasonal: { slug: 'christmas', theme: 'CHRISTMAS', featured: true, inWindow: true },
       }),
     );
@@ -403,5 +409,70 @@ describe('RealmDetailPage (AP-03)', () => {
     renderAt('/island/child-1/realms/learning-adventure-island');
     await screen.findByRole('heading', { level: 1, name: 'Learning Adventure Island' });
     await waitFor(() => expect(mocks.getIslandsFor).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('entering North Pole and Firepeak from Realms (#98, #100)', () => {
+  function catalogWith(options: { resume?: boolean; northPoleAvailable?: boolean } = {}) {
+    const view = testCatalog();
+    const home = view.islands.find((island) => island.isHome);
+    if (!home) throw new Error('no home Realm');
+    home.places = [...home.places, ...firepeakTestPlaces().slice(1)];
+    view.islands.push(
+      northPoleTestIsland({ resume: options.resume, available: options.northPoleAvailable }),
+    );
+    return view;
+  }
+
+  it('Start Exploring on North Pole opens North Pole Village, not "could not find"', async () => {
+    mocks.getIslandsFor.mockResolvedValue(catalogWith());
+    renderAt('/island/child-1/realms/north-pole');
+    await userEvent.click(await screen.findByRole('link', { name: 'Start Exploring' }));
+    expect(screen.getByTestId('where')).toHaveTextContent(
+      '/island/child-1/explore/north-pole-village',
+    );
+    expect(screen.queryByText(/could not find/i)).not.toBeInTheDocument();
+  });
+
+  it('reaches North Pole from the Realm Explorer card, then its preview', async () => {
+    mocks.getIslandsFor.mockResolvedValue(catalogWith());
+    renderAt('/island/child-1/realms');
+    const northPole = await screen.findByRole('article', { name: 'North Pole' });
+    await userEvent.click(within(northPole).getAllByRole('link')[0]);
+    await userEvent.click(await screen.findByRole('link', { name: 'Start Exploring' }));
+    expect(screen.getByTestId('where')).toHaveTextContent(
+      '/island/child-1/explore/north-pole-village',
+    );
+  });
+
+  it('offers Continue Adventure into North Pole Village after leaving mid-quest', async () => {
+    mocks.getIslandsFor.mockResolvedValue(catalogWith({ resume: true }));
+    renderAt('/island/child-1/realms/north-pole', { leftIsland: true });
+    await userEvent.click(await screen.findByRole('link', { name: 'Continue Adventure' }));
+    expect(screen.getByTestId('where')).toHaveTextContent(
+      '/island/child-1/explore/north-pole-village',
+    );
+  });
+
+  it('shows no way into North Pole when nothing there is open for this child', async () => {
+    mocks.getIslandsFor.mockResolvedValue(catalogWith({ northPoleAvailable: false }));
+    renderAt('/island/child-1/realms/north-pole');
+    expect(
+      await screen.findByText('New places are on their way. Come back soon.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Start Exploring' })).not.toBeInTheDocument();
+  });
+
+  it('enters the Heart of Firepeak from the home Realm preview', async () => {
+    mocks.getIslandsFor.mockResolvedValue(catalogWith());
+    renderAt('/island/child-1/realms/learning-adventure-island');
+    const places = await screen.findByRole('region', {
+      name: 'Places in Learning Adventure Island',
+    });
+    const heart = within(places).getByRole('article', { name: 'Heart of Firepeak' });
+    await userEvent.click(
+      within(heart).getByRole('link', { name: 'Explore Heart of Firepeak in 3D' }),
+    );
+    expect(screen.getByTestId('where')).toHaveTextContent('/island/child-1/explore/firepeak-heart');
   });
 });

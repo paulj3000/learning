@@ -18,6 +18,7 @@ because it exists). Draft and retired content is indistinguishable from absent c
 from dataclasses import dataclass
 
 from apps.assets.models import VersionStatus
+from apps.catalog import authoring
 from apps.catalog.models import (
     ART_ASSET_KINDS,
     Adventure,
@@ -88,13 +89,27 @@ def visible_regions(child) -> list[WorldRegion]:
 class RegionEntry:
     region: WorldRegion
     status: str  # NOT_STARTED, IN_PROGRESS (an open session), VISITED
-    playable: bool  # at least one chest has a published challenge for the child's age band
+    # At least one chest has a published challenge for the child's age band, or (#100) one
+    # published puzzle has parameters for it: Firepeak and its Heart have puzzles, no chests.
+    playable: bool
     chests_total: int
     chests_opened: int
     open_session: AdventureSession | None
     last_session: AdventureSession | None
     # AP-03: the learning objectives its chests teach this child (published specs, its band).
     objective_codes: tuple[str, ...] = ()
+
+
+def has_puzzle_for_band(region: WorldRegion, age_band: str) -> bool:
+    """Whether a PUBLISHED puzzle in this 3D Area has published parameters for `age_band` (#100).
+
+    The same rule `play.solve_puzzle` applies: a puzzle without parameters for the band cannot
+    be played by that child, so it does not make the Area available.
+    """
+    return any(
+        age_band in (authoring.current_body(puzzle).get("ageBands") or {})
+        for puzzle in region.puzzles.filter(status=ContentStatus.PUBLISHED)
+    )
 
 
 def region_entries(child, regions) -> list[RegionEntry]:
@@ -124,7 +139,7 @@ def region_entries(child, regions) -> list[RegionEntry]:
             if (spec := chest.challenge_for(child.age_band)) is not None
             and spec.status == ContentStatus.PUBLISHED
         ]
-        playable = bool(specs)
+        playable = bool(specs) or has_puzzle_for_band(region, child.age_band)
         opened = sum((region.location.slug, chest.world_change_key) in changes for chest in chests)
         open_session = open_by_region.get(region.region_id)
         last = latest.get(region.region_id)

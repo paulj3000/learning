@@ -9,6 +9,7 @@ import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
 import { isLocationUnlocked, listLocationsInWorld } from '../features/island/locations';
 import { getWorld } from '../features/worlds/worlds';
 import { recordArrival } from '../features/worlds/api';
+import { realmExplorerPath } from '../features/portal/exit/adventureRoutes';
 import type { ChildProfile } from '../features/child-profile/api';
 import type { IslandLocation } from '../features/island/locations';
 
@@ -94,9 +95,9 @@ export function WorldHubPage() {
   if (!world || loadState === 'not-found') {
     return (
       <IslandLayout childId={childId}>
-        <p role="alert">We could not find that island.</p>
-        <Link className={styles.backLink} to={`/island/${childId}/travel`}>
-          Back to the sailing dock
+        <p role="alert">We could not find that Realm.</p>
+        <Link className={styles.backLink} to={realmExplorerPath(childId)}>
+          Back to Realms
         </Link>
       </IslandLayout>
     );
@@ -114,10 +115,10 @@ export function WorldHubPage() {
     return (
       <IslandLayout childId={childId}>
         <p className={styles.arrival}>
-          {world.travelRequirement?.lockedHint ?? 'That island is not ready for visitors yet.'}
+          {world.travelRequirement?.lockedHint ?? 'That Realm is not ready for visitors yet.'}
         </p>
-        <Link className={styles.backLink} to={`/island/${childId}/travel`}>
-          Back to the sailing dock
+        <Link className={styles.backLink} to={realmExplorerPath(childId)}>
+          Back to Realms
         </Link>
       </IslandLayout>
     );
@@ -127,8 +128,8 @@ export function WorldHubPage() {
     return (
       <IslandLayout childId={childId}>
         <p role="alert">Something went wrong on the way there.</p>
-        <Link className={styles.backLink} to={`/island/${childId}/travel`}>
-          Back to the sailing dock
+        <Link className={styles.backLink} to={realmExplorerPath(childId)}>
+          Back to Realms
         </Link>
       </IslandLayout>
     );
@@ -156,8 +157,8 @@ export function WorldHubPage() {
         ))}
       </div>
 
-      <Link className={styles.backLink} to={`/island/${childId}/travel`}>
-        Back to the sailing dock
+      <Link className={styles.backLink} to={realmExplorerPath(childId)}>
+        Back to Realms
       </Link>
     </IslandLayout>
   );
