@@ -37,7 +37,7 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
-## LAI-01 Treasure Rush gameplay redesign (#102, Trello #258; 2026-11-26, `feature/treasure-rush-gameplay-redesign`, `main` `41ee7320`)
+## LAI-01 Treasure Rush gameplay redesign (#102, Trello #258; 2026-11-26, `feature/treasure-rush-gameplay-redesign`, `main` `41ee7320`, merged `d812ad71` 2026-11-27)
 
 Status: Development Complete when the PR's checks pass; **not owner-accepted** (the owner plays
 the redesigned adventure first, checklist section F). Design:
@@ -54,14 +54,16 @@ the redesigned adventure first, checklist section F). Design:
 - Progress-compatible: each chest stage records the chest's existing world change key and grants
   its existing reward rule, so quests, rewards, the bridge and every child's history are
   unchanged; a chest a published puzzle opens issues no challenge (`LockReason.PUZZLE`).
-- Shared rule change for review: `regions/authoring_kinds.py` lets a puzzle record the key of a
-  chest in its own 3D Area (still refused for another Area's chest or another puzzle).
+- Shared rule change, owner-approved 2026-11-27: `regions/authoring_kinds.py` lets a puzzle record
+  the key of a chest in its own 3D Area (still refused for another Area's chest, another puzzle or
+  a replay activity).
 - Seed: `ADVENTURE_VERSION` 2 (stand-ins, clues), `LAYOUT_VERSION` 10 (the creek; the decorative
   waymarkers became the map stage's signs); `publish_treasure_rush` validates and publishes the
   puzzles. No migration.
 - Client: `ChestLockReason` gains `PUZZLE`; `AreaPuzzleLayer` supports many `COLLECT_OBJECT`
   puzzles in one Area and labels the pick-up button with the object.
-- Deferred: jumping onto the creek's stones (LAI 04 engine-bridge ticket), map assembly and
+- Deferred: jumping onto the creek's stones (a separate LAI 04 ticket after PR #109 merges,
+  owner-approved 2026-11-27), map assembly and
   LAI 06's proposed kinds (need scenes), Pip's spoken stage intros (NPC release), a cave interior.
 
 ## LAI-07 MVP realm asset support: realm thumbnails, Treasure Rush audit, region catalog fix (2026-11-26, `feature/mvp-realm-asset-support`, `main` `41ee7320`)

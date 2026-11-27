@@ -106,7 +106,10 @@ existing reward rule**. So:
 - History is never deleted or rewritten: chest attempts, scores, quest progress and skill evidence
   all remain.
 
-### The one shared rule this needs (for review)
+### The one shared rule this needs (owner-approved 2026-11-27)
+
+**Owner decision (2026-11-27):** approved. A stage puzzle may record the unlock of its own
+3D Area's chest; another Area's chest, a duplicate key and a replay chest stay refused.
 
 `lai/apps/regions/authoring_kinds.py`: a 3D Area puzzle may now record the world change key of a
 **treasure chest in its own 3D Area**. Before, any chest with that key was refused. The sharing has
@@ -147,7 +150,7 @@ required cove sounds are still missing and tracked separately
 
 | Element | Why not now | Next |
 |---|---|---|
-| Jumping onto the creek's stones, with a gentle water recovery | Standable stones need the shared engine's platforming bridge (LAI 04). Today the creek is shallow decoration: no hazard, and the child walks stone to stone. | A separate ticket for LAI 04 (owner go-ahead needed) |
+| Jumping onto the creek's stones, with a gentle water recovery | Standable stones need the shared engine's platforming bridge (LAI 04). Today the creek is shallow decoration: no hazard, and the child walks stone to stone. | A separate ticket for LAI 04, after PR #109 merges (owner-approved 2026-11-27) |
 | Assembling the map pieces by dragging | No "assemble" scene exists; LAI 06's proposed `MAP_PIECES` presentation needs a client scene | Follow-up after LAI 06's kinds and a scene |
 | A route-drawing map, sorting into bins, sharing by counts | LAI 06's proposed `NAVIGATE_ROUTE`, `SORT_ITEMS` and `SHARE_ITEMS` kinds need client scenes (LAI 04 and LAI 01) | Swap the dock and map stages to them when they exist |
 | Pip speaking each stage's intro | Puzzle lines are NPC dialogue (an NPC release); the puzzle title is the safe fallback intro | Add `puzzleLine` nodes to Pip's NPC release |
