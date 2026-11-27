@@ -146,17 +146,24 @@ def test_a_puzzle_that_opens_a_chest_is_one_star_goal_either_way(treasure, scori
         entity_ids=[],
         body=puzzle_body("cove-route", PuzzleKind.SORT_ITEMS, "COVE_ROUTE_WALKED", SORT),
     )
-    # Authoring refuses a puzzle key a chest already records (`authoring_kinds._apply_puzzle`);
-    # LAI 01's seed upgrade owns relaxing that for a puzzle that opens its chest. Set the
-    # published column directly so the collector sees the covering puzzle either way.
-    AreaPuzzle.objects.filter(puzzle_id="cove-route").update(
-        status=ContentStatus.PUBLISHED, world_change_key=chest.world_change_key
-    )
     AreaPuzzle.objects.update(status=ContentStatus.PUBLISHED)
+    # The seed may already carry the real covering puzzle (#109's stage seed); two puzzles never
+    # share a key, so set it aside and let `cove-route` stand in for it, with a known answer.
+    for other in AreaPuzzle.objects.filter(world_change_key=chest.world_change_key):
+        AreaPuzzle.objects.filter(pk=other.pk).update(
+            status=ContentStatus.DRAFT, world_change_key=f"TEST_SET_ASIDE_{other.pk}"
+        )
     region_id = treasure.region.region_id
     before, new = treasure.families.a1, treasure.families.a2
 
+    # A child who opened the chest through its old challenge, before any puzzle covered it
+    # (once a puzzle covers it, `chest_lock` says PUZZLE and the challenge no longer runs).
     assert answer_chest(treasure, before).correct
+    # Then the puzzle takes the chest's key. Set the column directly: this test is about the
+    # collector, not authoring.
+    AreaPuzzle.objects.filter(puzzle_id="cove-route").update(
+        world_change_key=chest.world_change_key
+    )
     session, _ = play.start_or_resume_region_session(new, treasure.region)
     assert play.solve_puzzle(new, session.pk, "cove-route", RIGHT_SORT).solved_now
 
