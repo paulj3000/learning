@@ -436,6 +436,74 @@
           "pickupKey": null
         }
       }
+    },
+    {
+      "name": "learning.answer.submitted with hintsUsed 0",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "learning.answer.submitted",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000200",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "learningRef": {
+            "kind": "AREA_PUZZLE",
+            "puzzleId": "rune-stones",
+            "challengeAttemptId": "a1b2c3d4-0000-4000-8000-000000000001"
+          },
+          "choiceId": null,
+          "hintsUsed": 0
+        }
+      }
+    },
+    {
+      "name": "learning.answer.submitted with hintsUsed 2",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "learning.answer.submitted",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000201",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "learningRef": {
+            "kind": "AREA_PUZZLE",
+            "puzzleId": "rune-stones",
+            "challengeAttemptId": "a1b2c3d4-0000-4000-8000-000000000001"
+          },
+          "choiceId": null,
+          "hintsUsed": 2
+        }
+      }
+    },
+    {
+      "name": "learning.answer.submitted without hintsUsed (unknown)",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "learning.answer.submitted",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000202",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "learningRef": {
+            "kind": "AREA_PUZZLE",
+            "puzzleId": "rune-stones",
+            "challengeAttemptId": "a1b2c3d4-0000-4000-8000-000000000001"
+          },
+          "choiceId": null
+        }
+      }
     }
   ],
   "invalid": [
@@ -800,6 +868,102 @@
         }
       },
       "issuePath": "payload.pickupKey"
+    },
+    {
+      "name": "hintsUsed negative",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "learning.answer.submitted",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000203",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "learningRef": {
+            "kind": "AREA_PUZZLE",
+            "puzzleId": "rune-stones",
+            "challengeAttemptId": "a1b2c3d4-0000-4000-8000-000000000001"
+          },
+          "choiceId": null,
+          "hintsUsed": -1
+        }
+      },
+      "issuePath": "payload.hintsUsed"
+    },
+    {
+      "name": "hintsUsed a fraction",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "learning.answer.submitted",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000204",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "learningRef": {
+            "kind": "AREA_PUZZLE",
+            "puzzleId": "rune-stones",
+            "challengeAttemptId": "a1b2c3d4-0000-4000-8000-000000000001"
+          },
+          "choiceId": null,
+          "hintsUsed": 1.5
+        }
+      },
+      "issuePath": "payload.hintsUsed"
+    },
+    {
+      "name": "hintsUsed a string",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "learning.answer.submitted",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000205",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "learningRef": {
+            "kind": "AREA_PUZZLE",
+            "puzzleId": "rune-stones",
+            "challengeAttemptId": "a1b2c3d4-0000-4000-8000-000000000001"
+          },
+          "choiceId": null,
+          "hintsUsed": "2"
+        }
+      },
+      "issuePath": "payload.hintsUsed"
+    },
+    {
+      "name": "hintsUsed null",
+      "event": {
+        "schema": "lai.gameplay-event",
+        "version": 1,
+        "type": "learning.answer.submitted",
+        "eventId": "0f8e2c1a-5b7d-4e2f-9a31-000000000206",
+        "occurredAt": "2026-11-18T20:00:00.000Z",
+        "sessionRef": "3b9f6a2e-1c4d-4f8a-b7e2-9d0c5a6f1e23",
+        "realmId": "treasure-rush",
+        "adventureId": "treasure-cove",
+        "areaId": "treasure-cove-beach",
+        "payload": {
+          "learningRef": {
+            "kind": "AREA_PUZZLE",
+            "puzzleId": "rune-stones",
+            "challengeAttemptId": "a1b2c3d4-0000-4000-8000-000000000001"
+          },
+          "choiceId": null,
+          "hintsUsed": null
+        }
+      },
+      "issuePath": "payload.hintsUsed"
     }
   ]
 }

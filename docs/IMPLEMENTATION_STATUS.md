@@ -55,6 +55,18 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   `test_region_catalog_completeness.py` (North Pole per band through the API, Firepeak volcano and
   heart). PG18 slot 9; no browser tests.
 
+## LAI 04 optional `hintsUsed` on `learning.answer.submitted` (2026-11-27, `feature/GE-hints-used-event-field`, `main` `41ee7320`)
+
+- Owner-approved additive v1 field for LAI 06's interactive learning evidence (issue #102, PR #111):
+  `learning.answer.submitted.hintsUsed?: number`, a non-negative integer; absent means unknown.
+  Evidence only; it never changes what is earned. No emitter sets it yet.
+- Engine validator (`game/src/contracts/gameplayEvents.ts`), golden vectors (valid: 0, 2, absent;
+  invalid: -1, 1.5, "2", null) and `tests/contracts/gameplay-events-v1.json` regenerated; Django's
+  `apps/scoring/engine_events.py` mirrors the optional rule in lockstep (without it the two new
+  valid vectors fail Django's parity test, checked).
+- Tests: game contracts and components 124 passed; `engine:vectors:check` up to date; game tsc
+  clean; Django `scoring/tests/test_engine_events.py` 72 passed. Not owner accepted.
+
 ## LAI-01 Treasure Rush final release preparation (2026-11-25, `lai-01/treasure-rush-release-prep`, `main` `05b54d8a`)
 
 Status: release candidate on `main`, **not owner-accepted** (TR-21 stays open until the owner's

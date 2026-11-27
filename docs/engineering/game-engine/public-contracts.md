@@ -44,7 +44,7 @@ interface GameplayEvent<T> {
 | Family | Type | Payload |
 |---|---|---|
 | Learning questions | `learning.question.presented` | `learningRef` |
-| | `learning.answer.submitted` | `learningRef`, `choiceId` (authored option id or null) |
+| | `learning.answer.submitted` | `learningRef`, `choiceId` (authored option id or null), optional `hintsUsed` (non-negative integer: hints opened before answering; absent means unknown, never zero; evidence only, capped by the server at the band's hint count, never changes what is earned; additive v1, owner-approved 2026-11-27 with LAI 06, issue #102) |
 | Exploration | `exploration.area.entered` | `areaId` |
 | | `exploration.discovery.found` | `discoveryId` |
 | Collectibles | `collectible.collected` | `collectibleId`, `setId` or null, optional `pickupKey` (server pickup change key) or null |

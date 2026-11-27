@@ -36,7 +36,7 @@ UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 EVENT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{7,63}$")
 ISO_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$")
 
-ID, ID_OR_NULL, LEARNING_REF = "id", "idOrNull", "learningRef"
+ID, ID_OR_NULL, LEARNING_REF, COUNT = "id", "idOrNull", "learningRef", "count"
 
 PAYLOAD_RULES: dict[str, dict[str, str]] = {
     "learning.question.presented": {"learningRef": LEARNING_REF},
@@ -61,6 +61,9 @@ PAYLOAD_RULES: dict[str, dict[str, str]] = {
 OPTIONAL_PAYLOAD_RULES: dict[str, dict[str, str]] = {
     # The placement's pickup change key, so a pending pickup matches its server record exactly.
     "collectible.collected": {"pickupKey": ID_OR_NULL},
+    # Hints opened before answering (issue #102); absent means unknown. Evidence only: the solve
+    # route caps it at the band's hint count and it never changes what is earned.
+    "learning.answer.submitted": {"hintsUsed": COUNT},
 }
 LEARNING_REF_FIELDS = {
     "ADVENTURE_STEP": ("stepId",),
@@ -99,6 +102,12 @@ def _check_id(value, path: str, issues: list[Issue], nullable: bool = False) -> 
         issues.append(
             Issue(path, "must be a semantic id or null" if nullable else "must be a semantic id")
         )
+
+
+def _check_count(value, path: str, issues: list[Issue]) -> None:
+    # bool is an int in Python; JSON true is not a count.
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        issues.append(Issue(path, "must be a non-negative integer"))
 
 
 def _check_strict(value: dict, allowed, path: str, issues: list[Issue]) -> None:
@@ -168,7 +177,11 @@ def validate(event) -> list[Issue]:
         optional = OPTIONAL_PAYLOAD_RULES.get(kind, {})
         _check_strict(payload, {**rules, **optional}, "payload", issues)
         for name, rule in optional.items():
-            if name in payload:
+            if name not in payload:
+                continue
+            if rule == COUNT:
+                _check_count(payload[name], f"payload.{name}", issues)
+            else:
                 _check_id(payload[name], f"payload.{name}", issues, nullable=rule == ID_OR_NULL)
         for name, rule in rules.items():
             path = f"payload.{name}"
