@@ -87,9 +87,15 @@ def validate_image(stream: IO[bytes], *, size: int, file_format: str) -> Validat
         _size_ok(result, size, max_image_bytes(), "image")
         result.format = file_format
         checker = {"png": _check_png, "jpeg": _check_jpeg, "webp": _check_webp}[file_format]
-        width, height = checker(result, stream, size)
+        width, height, facts = checker(result, stream, size)
         _check_dimensions(result, width, height)
-        result.metadata = {"width": width, "height": height}
+        # LAI-ENV-02: transparency and colour model, read from headers only (no pixels).
+        result.metadata = {"width": width, "height": height, **facts}
+        if facts.get("colourModel") == "cmyk":
+            result.warn(
+                "image_cmyk",
+                "The JPEG is CMYK. Browsers and game engines expect RGB; export it as RGB.",
+            )
         _warn_embedded_metadata(result, stream, size)
     except _Stop:
         if not result.errors:  # pragma: no cover - every stop records why
@@ -151,6 +157,7 @@ def _check_png(result, stream, size):
         result.error("bad_signature", "This is not a PNG file.")
         raise _Stop
     offset, width, height, seen_idat, chunks = 8, 0, 0, False, 0
+    colour_type, has_trns = 2, False
     while True:
         chunks += 1
         header = _read(stream, offset, 8)
@@ -171,6 +178,9 @@ def _check_png(result, stream, size):
             raise _Stop
         if kind == b"IHDR":
             width, height = struct.unpack(">II", data[:8])
+            colour_type = data[9]
+        elif kind == b"tRNS":
+            has_trns = True
         elif kind == b"IDAT":
             seen_idat = True
         offset += 12 + length
@@ -182,7 +192,18 @@ def _check_png(result, stream, size):
     if offset != size:
         result.error("trailing_data", "The file has extra bytes after the end of the PNG.")
         raise _Stop
-    return width, height
+    return width, height, _png_facts(colour_type, has_trns)
+
+
+# PNG colour types (IHDR byte 9): 0 grey, 2 RGB, 3 palette, 4 grey + alpha, 6 RGB + alpha.
+_PNG_MODELS = {0: "grey", 2: "rgb", 3: "palette", 4: "grey", 6: "rgb"}
+
+
+def _png_facts(colour_type: int, has_trns: bool) -> dict:
+    return {
+        "hasAlpha": colour_type in (4, 6) or (has_trns and colour_type in (0, 2, 3)),
+        "colourModel": _PNG_MODELS.get(colour_type, "rgb"),
+    }
 
 
 SOF_MARKERS = frozenset({0xC0, 0xC1, 0xC2})  # baseline, extended, progressive (Huffman)
@@ -192,7 +213,7 @@ def _check_jpeg(result, stream, size):
     if _read(stream, 0, 2) != b"\xff\xd8":
         result.error("bad_signature", "This is not a JPEG file.")
         raise _Stop
-    offset, width, height, segments = 2, 0, 0, 0
+    offset, width, height, segments, components = 2, 0, 0, 0, 3
     while True:
         segments += 1
         head = _read(stream, offset, 4)
@@ -211,11 +232,12 @@ def _check_jpeg(result, stream, size):
             result.error("jpeg_segment", "The JPEG has a corrupted segment.")
             raise _Stop
         if marker in SOF_MARKERS:
-            body = _read(stream, offset + 4, 5)
+            body = _read(stream, offset + 4, 6)
             if len(body) < 5:
                 result.error("jpeg_truncated", "The JPEG ends inside its frame header.")
                 raise _Stop
             height, width = struct.unpack(">HH", body[1:5])
+            components = body[5] if len(body) > 5 else 3
         elif 0xC3 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
             result.error(
                 "jpeg_unsupported", "Arithmetic-coded and lossless JPEGs are not supported."
@@ -238,7 +260,8 @@ def _check_jpeg(result, stream, size):
             "appended.",
         )
         raise _Stop
-    return width, height
+    model = {1: "grey", 4: "cmyk"}.get(components, "rgb")
+    return width, height, {"hasAlpha": False, "colourModel": model}
 
 
 def _check_webp(result, stream, size):
@@ -253,7 +276,9 @@ def _check_webp(result, stream, size):
         )
         raise _Stop
     kind = head[12:16]
+    has_alpha = False
     if kind == b"VP8X" and len(head) >= 30:
+        has_alpha = bool(head[20] & 0x10)
         width = 1 + int.from_bytes(head[24:27], "little")
         height = 1 + int.from_bytes(head[27:30], "little")
         if head[20] & 0x02:
@@ -263,13 +288,14 @@ def _check_webp(result, stream, size):
     elif kind == b"VP8L" and len(head) >= 25 and head[20] == 0x2F:
         bits = int.from_bytes(head[21:25], "little")
         width, height = 1 + (bits & 0x3FFF), 1 + ((bits >> 14) & 0x3FFF)
+        has_alpha = bool((bits >> 28) & 1)  # alpha_is_used hint
     elif kind == b"VP8 " and len(head) >= 30 and head[23:26] == b"\x9d\x01\x2a":
         width = struct.unpack("<H", head[26:28])[0] & 0x3FFF
         height = struct.unpack("<H", head[28:30])[0] & 0x3FFF
     else:
         result.error("webp_header", "The WebP has an unrecognised or corrupted header.")
         raise _Stop
-    return width, height
+    return width, height, {"hasAlpha": has_alpha, "colourModel": "rgb"}
 
 
 # --- audio -------------------------------------------------------------------------------------

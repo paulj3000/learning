@@ -61,6 +61,10 @@ KIND_FAMILY = {
     "audio": AUDIO,
 }
 
+# Kinds whose definitions hold no file at all: a material is authored content over textures
+# (LAI-ENV-02). An upload to one is refused (`no_files_for_kind`).
+FILELESS_KINDS = frozenset({"material"})
+
 # Extensions an administrator may recognise a file by. Only used for a friendly hint: the
 # format itself always comes from the bytes.
 EXTENSIONS = {

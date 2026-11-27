@@ -15,3 +15,8 @@ class AssetsConfig(AppConfig):
         # One guard asks every registered usage provider (LAI-07 W2, ASSET_LIBRARY.md s. 25).
         register_retirement_guard(retirement_guard)
         artifact_usage.register()  # derived artifacts, informational only (W2-5)
+        # LAI-ENV-02: materials are ADR-047 authorable content; textures they use are tracked.
+        from . import material_usage, materials
+
+        materials.register_kind()
+        material_usage.register()

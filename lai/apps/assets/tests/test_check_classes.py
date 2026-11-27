@@ -177,6 +177,8 @@ def test_every_real_source_has_the_class_the_policy_gives_it():
         "avatars": CheckClass.AUTHORITATIVE,
         "artifacts": CheckClass.INFORMATIONAL,
         "catalog": CheckClass.INFORMATIONAL,
+        # LAI-ENV-02: a failed check could hide a published material that draws the texture.
+        "materials": CheckClass.AUTHORITATIVE,
     }
     assert {s: dependencies.check_class(s) for s in dependencies.registered_sources()} == expected
 

@@ -17,6 +17,8 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils.timezone import now
 
+from apps.catalog.models import Authorable
+
 from . import formats
 
 
@@ -683,3 +685,238 @@ class DerivedArtifact(models.Model):
 
     def __str__(self) -> str:
         return f"{self.role}:{self.logical_id} ({self.state})"
+
+
+# --- Image profiles and materials (LAI-ENV-02; docs/ENVIRONMENT_ASSETS.md) ---------------------
+
+
+class ImageRole(models.TextChoices):
+    SURFACE = "SURFACE", "Surface texture (tiling colour)"
+    MATERIAL_MAP = "MATERIAL_MAP", "Material map (data: normal, roughness, ORM...)"
+    SPRITE = "SPRITE", "Sprite (shell, starfish, plant, flower)"
+    DECAL = "DECAL", "Decal (footprint, treasure X, rune, marking)"
+    PARTICLE = "PARTICLE", "Particle image (fire, smoke, snow, magic)"
+    BACKDROP = "BACKDROP", "Backdrop (distant island, mountains, clouds)"
+    SKY = "SKY", "Sky (panorama or cube map)"
+    PICTURE = "PICTURE", "Picture (flat art)"
+
+
+class ColourSpace(models.TextChoices):
+    SRGB = "SRGB", "sRGB (colour)"
+    LINEAR = "LINEAR", "Linear (data, never colour-managed)"
+
+
+class DataChannel(models.TextChoices):
+    NORMAL = "NORMAL", "Normal map"
+    ROUGHNESS = "ROUGHNESS", "Roughness"
+    METALNESS = "METALNESS", "Metalness"
+    OCCLUSION = "OCCLUSION", "Ambient occlusion"
+    ORM = "ORM", "Packed ORM (R occlusion, G roughness, B metalness)"
+    OPACITY = "OPACITY", "Opacity"
+    HEIGHT = "HEIGHT", "Height"
+
+
+class AlphaMode(models.TextChoices):
+    OPAQUE = "OPAQUE", "Opaque"
+    MASK = "MASK", "Cut-out (alpha below the cutoff is invisible)"
+    BLEND = "BLEND", "Blended transparency"
+
+
+class TextureWrap(models.TextChoices):
+    REPEAT = "REPEAT", "Repeat"
+    MIRROR = "MIRROR", "Mirrored repeat"
+    CLAMP = "CLAMP", "Clamp to edge"
+
+
+class SpritePlacement(models.TextChoices):
+    GROUND = "GROUND", "Flat on the ground"
+    UPRIGHT = "UPRIGHT", "Upright card, fixed direction"
+    BILLBOARD = "BILLBOARD", "Always faces the camera"
+    BILLBOARD_Y = "BILLBOARD_Y", "Turns about the vertical to face the camera"
+
+
+class ParticleBlending(models.TextChoices):
+    NORMAL = "NORMAL", "Normal"
+    ADDITIVE = "ADDITIVE", "Additive (glows: fire, magic)"
+
+
+class SkyLayout(models.TextChoices):
+    EQUIRECTANGULAR = "EQUIRECTANGULAR", "Equirectangular panorama (2:1)"
+    CUBE_STRIP = "CUBE_STRIP", "Cube map strip (6:1; +X, -X, +Y, -Y, +Z, -Z)"
+    CUBE_GRID = "CUBE_GRID", "Cube map grid (3:2; +X, -X, +Y on top, -Y, +Z, -Z below)"
+
+
+def _optional_float(help_text: str):
+    return models.FloatField(null=True, blank=True, help_text=help_text)
+
+
+class ImageProfile(models.Model):
+    """How an image asset is drawn wherever a scene uses it (staff-authored, Django Admin).
+
+    One row per asset is its default (`version` empty); a row naming a version overrides it for
+    that version only, like `CollisionProfile`. Rules: `apps.assets.image_profiles`. The runtime
+    block the resolver sends is contract `env-assets/1`. Never a source of collision.
+    """
+
+    asset = models.ForeignKey(
+        "catalog.ContentAsset", on_delete=models.CASCADE, related_name="image_profiles"
+    )
+    version = models.ForeignKey(
+        AssetVersion,
+        on_delete=models.CASCADE,
+        related_name="image_profiles",
+        null=True,
+        blank=True,
+        help_text="Empty: the asset's default for every version. Set: this version only.",
+    )
+    role = models.CharField(max_length=16, choices=ImageRole.choices)
+    colour_space = models.CharField(
+        max_length=8,
+        choices=ColourSpace.choices,
+        default=ColourSpace.SRGB,
+        help_text="Material maps are linear; every other role is sRGB.",
+    )
+    data_channel = models.CharField(
+        max_length=12, choices=DataChannel.choices, blank=True, help_text="Material maps only."
+    )
+    alpha_mode = models.CharField(max_length=8, choices=AlphaMode.choices, default=AlphaMode.OPAQUE)
+    alpha_cutoff = _optional_float("Cut-out only: 0 to 1 (default 0.5).")
+    seamless = models.BooleanField(
+        default=False, help_text="Surfaces and maps: the image tiles without visible seams."
+    )
+    wrap = models.CharField(
+        max_length=8, choices=TextureWrap.choices, default=TextureWrap.REPEAT, blank=True
+    )
+    metres_per_repeat = _optional_float(
+        "Surfaces and maps: the size of one tile in the world, metres. Empty: use the repeats."
+    )
+    repeat_u = _optional_float("Default repeats across (empty: 1).")
+    repeat_v = _optional_float("Default repeats down (empty: 1).")
+    rotation_degrees = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Texture orientation, 0 to 359 degrees."
+    )
+    world_width_m = _optional_float("Default width in the world, metres.")
+    world_height_m = _optional_float(
+        "Default height in the world, metres. Empty: from the width and the image proportions."
+    )
+    anchor_x = _optional_float("Pivot across the image, 0 (left) to 1 (right). Default 0.5.")
+    anchor_y = _optional_float("Pivot up the image, 0 (bottom) to 1 (top). Default 0.")
+    placement = models.CharField(max_length=12, choices=SpritePlacement.choices, blank=True)
+    decal_depth_m = _optional_float("Decals: how deep the projection reaches, metres (0.25).")
+    opacity = _optional_float("Decals, particles, backdrops: 0 to 1 (default 1).")
+    blending = models.CharField(max_length=8, choices=ParticleBlending.choices, blank=True)
+    sheet_columns = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Sprite sheet: frames across (empty or 1: no sheet)."
+    )
+    sheet_rows = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Sprite sheet: frames down."
+    )
+    frame_count = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Frames used, left to right then top to bottom."
+    )
+    frames_per_second = _optional_float("Animation speed (sheets), above 0 and at most 60.")
+    loop = models.BooleanField(default=True, help_text="Sheets: play the frames in a loop.")
+    sky_layout = models.CharField(max_length=16, choices=SkyLayout.choices, blank=True)
+    recommended_usage = models.CharField(
+        max_length=300, blank=True, help_text="Staff guidance, never shown to children."
+    )
+    notes = models.CharField(max_length=500, blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        null=True,
+        blank=True,
+        editable=False,
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["asset__asset_id", "version__number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["asset"],
+                condition=models.Q(version__isnull=True),
+                name="assets_imageprofile_one_default_per_asset",
+            ),
+            models.UniqueConstraint(
+                fields=["version"],
+                condition=models.Q(version__isnull=False),
+                name="assets_imageprofile_one_per_version",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(role__in=ImageRole.values), name="assets_imageprofile_role"
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(role=ImageRole.MATERIAL_MAP)
+                | models.Q(colour_space=ColourSpace.LINEAR),
+                name="assets_imageprofile_maps_are_linear",
+            ),
+            *[
+                models.CheckConstraint(
+                    condition=models.Q(**{f"{name}__isnull": True})
+                    | models.Q(**{f"{name}__gt": 0}),
+                    name=f"assets_imageprofile_{name}_positive",
+                )
+                for name in (
+                    "metres_per_repeat",
+                    "world_width_m",
+                    "world_height_m",
+                    "decal_depth_m",
+                )
+            ],
+        ]
+
+    def clean(self):
+        from . import image_profiles
+
+        super().clean()
+        image_profiles.clean_profile(self)
+
+    def __str__(self) -> str:
+        scope = f"v{self.version.number}" if self.version_id else "default"
+        return f"{self.asset.asset_id} image profile ({scope})"
+
+
+class MaterialDefinition(Authorable):
+    """A reusable material: maps over published textures plus factors (ADR-047 authorable).
+
+    Identity, name, status and retirement are the `ContentAsset` (kind `material`). The content
+    is versioned as `ContentRevision`s of kind `material`; publishing copies the body into
+    `definition` and the named textures into `texture_asset_ids` (`apps.assets.materials`).
+    Never deleted; retire the asset instead.
+    """
+
+    asset = models.OneToOneField(
+        "catalog.ContentAsset",
+        on_delete=models.PROTECT,
+        related_name="material_definition",
+        limit_choices_to={"kind": "material"},
+    )
+    definition = models.JSONField(default=dict, blank=True, editable=False)
+    texture_asset_ids = ArrayField(
+        models.SlugField(max_length=100), default=list, blank=True, editable=False
+    )
+    created_at = models.DateTimeField(default=now, editable=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["asset__asset_id"]
+        verbose_name = "material definition"
+
+    @property
+    def material_id(self) -> str:
+        return self.asset.asset_id
+
+    def clean(self):
+        super().clean()
+        if self.asset_id and self.asset.kind != "material":
+            from django.core.exceptions import ValidationError
+
+            raise ValidationError({"asset": "Choose a content asset of kind material."})
+
+    def delete(self, *args, **kwargs):
+        raise ImmutableVersion("Material definitions are kept; retire the material asset.")
+
+    def __str__(self) -> str:
+        return f"{self.asset.asset_id} material"

@@ -1280,6 +1280,7 @@ Rules:
 | `avatars` (avatars owner) | AVAILABLE avatars served the model asset or version (unchanged, from `avatars_using`) | Draft and disabled avatars; an AVAILABLE avatar's **thumbnail** | Should the thumbnail block? **Recommendation: list only**, because the served description already drops a missing thumbnail. |
 | `regions` (semantics coordinator: Agent 4, Game Engine Core, named by the owner 2026-11-23) | Asset-level only: a PUBLISHED `WorldRegion` names the asset in a placement, a chest, or its `scene` JSON (`assetId` and `groundAssetId` at any depth: backdrop, ground, layout props, vegetation, procedural, scenery, jump-platform specs). Code `region_placement_dependency`. | DRAFT and RETIRED areas. A version query reports the area only when the version is the default. | **Decided** (owner, 2026-11-22). Children would see the bundled model or a placeholder, and the Asset Manager's collision profile would no longer apply. NPC placements drawn through their NPC definition are the `npcs` provider's job. |
 | `catalog` (catalog owner; built by GE-247) | None | Shipped scenes: `LocationAsset` rows (stale ones marked) and the Welcome Harbor hub from the latest release report | None. Built by GE-247 (Trello #247, Agent 4, 2026-11-24): `apps/catalog/dependencies.py`, listed only, never blocking, asset-level only |
+| `materials` (LAI 07, LAI-ENV-02, section 29; branch `feature/environmental-image-assets`, not merged) | Asset-level only: an ACTIVE material's published content names the texture in a map slot. Code `material_dependency`. The label and `details["usedBy"]` follow the material to its own usages (3D Areas, shipped scenes) | Draft and submitted material versions; retired materials (historical). A version query reports materials only when the version is the default | Proposed with the contract (`docs/ENVIRONMENT_ASSETS.md`); owner and LAI 04 review pending |
 | `assets` derived artifacts (Lambda owner) | None (retirement keeps the files) | Live `DerivedArtifact` rows for the version (`source_version`, `promoted_version`) | Not built yet: the model is on `main` since #71; a provider comes with or after W2-5 |
 
 Low-detail twins (`regions`; owner decision 2026-11-25, semantics agreed with LAI 04 on `main`
@@ -1454,7 +1455,7 @@ Each usage source registers a `CheckClass` (`apps/assets/dependencies.py`):
 
 | Class | When its check fails | Sources |
 |---|---|---|
-| `AUTHORITATIVE` | Refused: `dependency_check_failed`, `details={"source", "check_class"}` | `regions`, `audio`, `npcs`, `avatars` |
+| `AUTHORITATIVE` | Refused: `dependency_check_failed`, `details={"source", "check_class"}` | `regions`, `audio`, `npcs`, `avatars`, `materials` (LAI-ENV-02, section 29) |
 | `INFORMATIONAL` | Logged as a warning (ids only); staff warned; retirement goes ahead | `artifacts`, `catalog` |
 | `UNCLASSIFIED` (default) | Refused, exactly like `AUTHORITATIVE` | none today; any new source until it is classified |
 
@@ -1618,3 +1619,39 @@ Django applies. Module: `apps/assets/image_conversion.py` (rules, submission, di
   (`stale_source`); a delivery repeated by the queue creates nothing more; a result from an older
   processor than this build expects is `processor_outdated`; a newer run supersedes older outputs
   of the same source and profile.
+
+## 29. Environmental image assets and materials (LAI-ENV-02, LAI 07, 2026-11-27)
+
+Branch `feature/environmental-image-assets`, not merged. The design, the audit, the delivery
+contract `env-assets/1`, the open LAI 04 and owner decisions, the staff guide and the Treasure
+Rush pilot list are in [ENVIRONMENT_ASSETS.md](ENVIRONMENT_ASSETS.md). This section is only what
+changed in the library.
+
+- **Image profiles** (`ImageProfile`, `image_profiles.py`, Admin > Assets > Image profiles).
+  - They follow the collision profile pattern: one default per image asset plus an optional
+    per-version override.
+  - Roles: surface, material map, sprite, decal, particle, backdrop, sky and picture. They carry
+    colour space, alpha, tiling, size and anchor, placement, sprite sheet and sky layout.
+  - Images never get collision.
+- **Materials** (`material` kind, `MaterialDefinition`, `materials.py`).
+  - The asset holds the identity and accepts no file (`no_files_for_kind`).
+  - Content is an ADR-047 authorable kind `material`: draft, publish and roll back through
+    content versions. The content-role groups (`ensure_content_roles`) are needed to edit it.
+- **Upload.**
+  - New image versions record `hasAlpha` and `colourModel`, from headers only. A CMYK JPEG warns
+    (`image_cmyk`).
+  - The Admin upload form records optional provenance in `metadata.provenance`. An image with no
+    confirmed licence shows the warning `licence_unknown`.
+- **Resolver.**
+  - Image entries gain `media.hasAlpha` and `media.colourModel` (null for older versions), and a
+    `render` block when a profile exists.
+  - Material entries (`family: "material"`) inline each map's image entry. Section 21.7 is
+    otherwise unchanged.
+- **Dependencies.** The new `materials` provider (section 25.3), AUTHORITATIVE (section 25.9).
+- **Conversion.** Convert and Resize default to the `data` purpose (lossless) for a material map.
+- **Groups.**
+  - Asset editors view image profiles and may add material rows.
+  - Asset publishers add, change and delete image profiles and change material rows.
+- **Migration** `assets.0006_image_profiles_and_materials`: two new tables, no change to an
+  existing table, nothing destructive.
+- **Tests:** `apps/assets/tests/test_environment_assets.py`.

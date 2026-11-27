@@ -193,7 +193,16 @@ def validate_upload(stream: IO[bytes], *, size: int, definition=None) -> Validat
         family = formats.MODEL  # a glb or gltf, or an unreadable file: the model checks decide
     else:
         family = formats.family_of(detected)
-    expected = formats.family_for_kind(getattr(definition, "kind", "")) if definition else None
+    kind = getattr(definition, "kind", "") if definition else ""
+    if kind in formats.FILELESS_KINDS:
+        result = ValidationResult()
+        result.error(
+            "no_files_for_kind",
+            f"A {kind} holds no file. Upload the images as texture assets and choose them in the "
+            "material's content.",
+        )
+        return result
+    expected = formats.family_for_kind(kind) if definition else None
     if expected is not None and family != expected:
         result = ValidationResult()
         result.error(
