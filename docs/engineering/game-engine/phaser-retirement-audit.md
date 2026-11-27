@@ -13,7 +13,7 @@ changes are marked **[MVP]**. Method: static reading of routes, views, scenes, m
 interaction tables and tests, with every claim below checked against code; no browser, device or
 Playwright run. Guarded by `react/src/test/phaserRetirement.test.ts` (section 8).
 
-## 1. Migration completion: 27% (13 of 48 gates)
+## 1. Migration completion: 35% (17 of 48 gates; 27% at the first audit)
 
 **Method.** Each of the eight historical Phaser worlds must pass six gates before its Phaser code
 may go. A gate counts only when the repository shows it (code or a passing test), never by
@@ -30,17 +30,19 @@ intent. The percentage is gates met over 48.
 
 | # | World | G1 | G2 | G3 | G4 | G5 | G6 | Met |
 |---|---|---|---|---|---|---|---|---|
-| 1 | Welcome Harbor | yes | **no (0 of 12 ids)** | no | no | no | no | 1 |
-| 2 | Pirate Builder Bay | yes | yes | no | no | no | no | 2 |
-| 3 | Wonderwild Forest | yes | yes | no | no (Sprouts: Phaser only) | no | no | 2 |
+| 1 | Welcome Harbor | yes | **no (0 of 12 ids)** | yes (`phaserParity`, gaps listed) | no | no | no | 2 |
+| 2 | Pirate Builder Bay | yes | yes | yes (`phaserParity`) | no | no | no | 3 |
+| 3 | Wonderwild Forest | yes | yes | yes (`phaserParity`) | no (Sprouts: Phaser only) | no | no | 3 |
 | 4 | Storykeeper Castle | yes | yes | yes (`castleRebootContracts` C-1) | no **[MVP: yes except Sprouts]** | no | no | 3 |
-| 5 | Dragon's Sanctuary | yes | **no (egg, exit, unlock guard)** | no | yes (route redirects) | no | no | 2 |
+| 5 | Dragon's Sanctuary | yes | **no (egg, exit, unlock guard)** | yes (`phaserParity`, gaps listed) | yes (route redirects) | no | no | 3 |
 | 6 | Fossil Ridge Camp | **no** | no | no | no | no | no | 0 |
 | 7 | Castle Writing Room | yes | yes (3D adds 2) | yes (`castleWritingRoomParity`) | no (test pins Phaser default) | no | no | 3 |
 | 8 | Bolt's Workshop | **no** | no | no | no | no | no | 0 |
-| | **Total** | 6 | 4 | 2 | 1 | 0 | 0 | **13 / 48** |
+| | **Total** | 6 | 4 | 6 | 1 | 0 | 0 | **17 / 48** |
 
-Two cruder figures, for comparison: Phaser routes retired 1 of 8 (12.5%, Dragon's Sanctuary);
+G3 rose from 2 to 6 when `react/src/test/phaserParity.test.ts` (LAI-2301R) landed: it checks
+all six converted worlds against their Phaser tables and world changes, with the remaining gaps
+listed by ticket. Two cruder figures, for comparison: Phaser routes retired 1 of 8 (12.5%, Dragon's Sanctuary);
 Phaser code removed 0 of about 3,770 lines (0%). G5 and G6 are owner and human gates, so no
 engineering work alone passes 75%.
 
@@ -155,35 +157,44 @@ age-band accommodation (assist, pads versus markers) exists only in the castle
 | #128 LAI-JMP-01b | Yes, at each conversion | Fossil Ridge and Bolt's still Phaser-only |
 | #217 GE-030 to 035 | Sprouts guided profile not built | Becomes LAI-2104S (new) |
 
-`tasks/TASK_TRACKER.md` is stale for Track B: LAI-2101 to 2103 are listed open although `game/`
-(`@lai/game-engine`) exists and Engine 1.0 was accepted (GE-090, 2026-11-22); the work landed
-under GE-002 to GE-075 ids. They are not marked done by this audit (the owner reconciles ids);
-the tracker gets a pointer here.
+`tasks/TASK_TRACKER.md` reconciled 2026-11-27 (owner instruction): LAI-2101 done as GE-002;
+LAI-2102 done as GE-020 to GE-034 and GE-S1 (the live location runtime is GE-076, not a pure
+module); LAI-2103 in progress (GE-003, GE-050 to GE-056 and GE-075 built; the runtime swap is
+not done). Each entry names its commits.
 
 ## 6. New tasks, owners and handoffs
 
 | Id | Task | Agent | Priority | Depends on | Acceptance and tests |
 |---|---|---|---|---|---|
-| LAI-2301R | Phaser-table parity ratchet for every world (extend `phaserRetirement.test.ts`: each Phaser interaction id in the 3D manifest or a recorded exemption) | LAI 04 | P1 | none | Fails on a dropped id; Vitest by path |
-| LAI-2201 | Welcome Harbor 3D hub parity: the 12 harbor interactions, `BRIDGE_REPAIRED` state, both Phaser-only discoveries | LAI 04 (no realm owner; owner confirms) | P0 for retirement | MVP merged | All 12 ids in 3D; discoveries claimable in 3D; parity test vs `WELCOME_HARBOR_INTERACTIONS` |
-| GE-077 | 3D exits stay in Three.js: `NAVIGATE 'world'` and the Writing Room exit target the 3D hub/castle behind a flag | LAI 04 (shared runtime); LAI 02 reviews castle | P0 for retirement | LAI-2201 | Exit hrefs; parity tests updated; Phaser routes unchanged |
-| LAI-2205 | Dragon's Sanctuary gaps: egg interaction, exit, `entryRequirements` unlock guard | LAI 04 (caretaker) | P1 | none (but touches manifests: after MVP) | Direct URL refused before unlock; ids present |
-| LAI-2206 | Fossil Ridge Camp Three.js region (3 interactions, unlock) | unassigned realm; LAI 07 assets | P2 | LAI-2201 hub link | Manifest, parity test, jumping decision (LAI-JMP-01b) |
-| LAI-2208 | Bolt's Workshop Three.js region with Bolt (`metBolt`, quest stage) | unassigned realm; LAI 07 assets; NPC Manager owner | P1 (quest) | LAI-2201 | Bolt talk sets `metBolt` in 3D; quest stage 1 reachable |
-| LAI-2104S | Sprouts guided profile in the engine: tap-to-move, assisted camera, no free look, large targets | LAI 04 | P0 for retirement | owner profile decision (O6) | Controller tests; profile applied by age band; no realm edits |
+| LAI-2301R | Phaser-table parity for every world: id, action, requirements and world changes, gaps listed by ticket | LAI 04 | P1 | none | **Built** (`phaserParity.test.ts`, 20 tests) |
+| LAI-2202 | Pirate Builder Bay: 3D as the default route, Pip, jumping decision, Sprouts route | **LAI 01** (owner, 2026-11-27) | P1 | MVP merged, GE-077 | Default route switch; `phaserParity` stays green |
+| LAI-2203 | Wonderwild Forest: Sprouts 3D route (WF-10), 3D default for every band | **LAI 03** (owner, 2026-11-27) | P1 | MVP merged, LAI-2104S, LAI-2303 | Sprouts reach the 3D forest; `phaserParity` stays green |
+| LAI-2201 | Welcome Harbor 3D hub parity: the 12 harbor interactions, `BRIDGE_REPAIRED` state, both Phaser-only discoveries | **LAI 04** (owner, 2026-11-27) | P0 for retirement | MVP merged | All 12 ids in 3D; discoveries claimable in 3D; parity test vs `WELCOME_HARBOR_INTERACTIONS` |
+| GE-077 | 3D exits stay in Three.js: `NAVIGATE 'world'` and the Writing Room exit target the 3D hub/castle | **LAI 04** (owner, 2026-11-27); LAI 02 reviews castle | P0 for retirement | LAI-2201 | Exit hrefs; parity tests updated; Phaser routes unchanged |
+| LAI-2205 | Dragon's Sanctuary gaps: egg interaction, exit, `entryRequirements` unlock guard | **LAI 04** (owner, 2026-11-27) | P1 | none (but touches manifests: after MVP) | Direct URL refused before unlock; ids present |
+| LAI-2206 | Fossil Ridge Camp Three.js region (3 interactions, unlock) | **LAI 03** (owner, 2026-11-27); LAI 07 assets | P2 | LAI-2201 hub link | Manifest, parity test, jumping decision (LAI-JMP-01b) |
+| LAI-2208 | Bolt's Workshop Three.js region with Bolt (`metBolt`, quest stage) | **No owner yet**; stays in Backlog until MVP acceptance (owner, 2026-11-27); LAI 07 assets; NPC Manager owner | P1 (quest) | LAI-2201, MVP acceptance | Bolt talk sets `metBolt` in 3D; quest stage 1 reachable |
+| LAI-2104S | Sprouts guided profile in the engine: tap-to-move, assisted camera, no free look, large targets | LAI 04 | P0 for retirement | owner decision O6 (options in section 10). **Not started**; groundwork `movementSpecForProfile` built | Controller tests; profile applied by age band; no realm edits |
 | LAI-2303 | Sprouts playtest (human, APPROVAL) | Owner | P0 | LAI-2104S, 2201, 2202 | Owner record |
 | R7 | Rename `IslandWorldView.module.css` to a neutral name | LAI 04 | P2 | MVP merged (it edits that file) | Imports updated; ratchet list emptied |
 | LAI-2304 | Remove Phaser (APPROVAL) | LAI 04, LAI 05 integrates | after all | every world G1 to G5 | Ratchet inventory empty; package gone |
 
 Handoffs:
 
-- **LAI 01 (Treasure Rush):** none for Phaser. Confirm whether you own Pip in Pirate Builder Bay
-  and Welcome Harbor (LAI-2201 touches Pip's harbor placement).
+- **LAI 01 (Treasure Rush, Pirate Builder Bay owner):** LAI-2202. After the MVP round: make the
+  3D bay the default route for every band (Phaser kept as a secondary link until LAI-2304), keep
+  `phaserParity` green (the bay already matches its Phaser table), record the jumping decision
+  (LAI-JMP-01b), and give Sprouts a route (after LAI-2104S). Pip's harbor placement in LAI-2201 is
+  reviewed by you.
 - **LAI 02 (Storykeeper):** castle gate C2 to C5; the 3D Writing Room exit to the Phaser castle
   (GE-077 changes it; review); `p0-navigation.spec.ts:199` breaks with #106's Sprouts-only link
   (update the spec in #106 or a follow-up).
-- **LAI 03 (Firepeak, North Pole):** none for Phaser. Engine: GE-L13 changes recovery only for
-  out-of-order marks (no Firepeak content does this); the bridge result is unchanged.
+- **LAI 03 (Firepeak, North Pole; Wonderwild Forest and Fossil Ridge Camp owner):** LAI-2203
+  (forest: Sprouts 3D route per WF-10, then 3D default for every band; it matches its Phaser
+  table today) and LAI-2206 (Fossil Ridge Camp region: 3 interactions, unlock guard, exit to the
+  3D hub; LAI 07 assets). Both wait for the MVP round; LAI-2206 also waits for LAI-2201. Engine:
+  GE-L13 changes recovery only for out-of-order marks; the bridge result is unchanged. #114 moves
+  `engineApi` in the Heart and North Pole definitions to `>=0.1.0 <1.0.0` (one line each).
 - **LAI 05 (Integration):** the e2e break above at merge readiness; this branch touches no MVP
   file; integrate after the MVP cycle.
 - **LAI 06 (Scoring):** none of this changes grading. Note that the two harbor discoveries and
@@ -193,9 +204,10 @@ Handoffs:
 
 ## 7. Now versus after MVP acceptance
 
-**Safe now** (touch no file the MVP candidate changes): this audit and its ratchet test; engine
-defects in `game/src` (GE-L12, GE-L13 done); LAI-2104S engine profile (pure `game/src` plus
-tests); the Phaser-table parity ratchet (new test file); Trello and docs.
+**Safe now** (touch no file the MVP candidate changes; owner, 2026-11-27): this audit and its
+ratchet tests; engine defects in `game/src` (GE-L12, GE-L13 done); LAI-2301R (done); Sprouts
+groundwork that does not depend on O6 (`movementSpecForProfile`, done); Trello and docs.
+LAI-2104S itself waits for the owner's O6 choice.
 
 **Wait for MVP acceptance:** anything in `IslandLocationPage.tsx`, `ThreeLocationWorldView.tsx`,
 `WorldStage`, `GameplayMenus`, `IslandWorldView.module.css`, the `*Parity.test.tsx` files or
@@ -209,6 +221,9 @@ default switches.
 | Phaser retirement ratchet | `react/src/test/phaserRetirement.test.ts` | 8 tests pass; removing one inventory entry fails 2 (mutation check) |
 | GE-L12: dispose during setup rejects | `game/src/engine/standardEngine.ts`, `stabilization/resourceDisposal.test.ts` | Test fails without the fix, passes with it |
 | GE-L13: recovery never moves backwards within a course | `game/src/components/checkpoints.ts`, `stabilization/checkpointState.test.ts` (3 tests) | game 707 passed; React `features/game-engine` (bridge) 134 passed; typecheck clean |
+| LAI-2301R: Phaser-table parity | `react/src/test/phaserParity.test.ts` | 20 tests pass; listing a covered interaction as a gap fails (shrink-only check) |
+| Sprouts groundwork: `movementSpecForProfile` | `game/src/sdk/profiles.ts`, `sdk/profiles.test.ts` (7 tests) | game 714 passed; game tsc clean. Not wired to any location |
+| Tracker reconciliation | `tasks/TASK_TRACKER.md` LAI-2101 to 2103 | Section 5 |
 
 ## 9. Recommended sequence
 
@@ -222,3 +237,28 @@ default switches.
 7. LAI-2304 per-world removal behind the ratchet, owner authorization per world; the package
    last; LAI-2305 verification and doc corrections (including `THREEJS_ENGINE_CONVERSION.md`
    sections 2.3 and 3, which predate the generic runtime).
+
+## 10. O6: Sprouts guided tap-to-move, options for the owner
+
+Status: **awaiting the owner's choice**. LAI-2104S does not start until one is picked. Common to
+all three: no free look; an assisted third-person camera that turns behind the child; large
+interaction targets with a confirm button (no aiming); reduced motion honoured; the existing
+joystick and keyboard stay available. Sprouts difficulty is unchanged (`sdk/profiles.ts`:
+jump routes optional only, one jump at most in a row, no moving or vanishing platforms, a
+checkpoint after every jump). Estimates are engine engineering only, rough, and exclude playtest.
+
+| | A. Tap to walk straight | B. Tap to walk with a path (recommended) | C. Tap the next stepping stone |
+|---|---|---|---|
+| How the child moves | Taps the ground or an object. The avatar walks in a straight line toward it and stops at the first wall. An object tap walks to approach range and offers its action | Taps the ground or an object. The engine finds a walkable path around walls and props and the avatar follows it. A tap on an unreachable spot goes to the nearest reachable one | Glowing markers placed by the realm author. The child taps the next one (or a big "next" arrow) and the avatar walks the authored segment |
+| Hazards | The walk stops before a hazard area or a drop (edge probe); a fall still uses today's recovery | Hazard areas and drops are never on a path; a fall still uses today's recovery | Authors place markers away from hazards; the validator rejects a marker segment that crosses one |
+| Jumps | Never jumps on its own. The Jump button still hops in place | Never jumps on its own; paths use walking links only. The Jump button still hops in place | An optional "jump stone" plays a short assisted hop along a link the author marked safe (owner choice: on or off) |
+| Non-jump route rule | Not guaranteed by the controller: if the accessible route bends, the child must tap several times. The validator still proves the route exists | **Met by construction**: the path search only uses walkable links, so any goal reachable without jumping is one tap away | Met if the authored graph includes the non-jump route; a validator check proves every required objective is reachable on walking segments |
+| Cost | Small: about 1 week. Steering, edge and hazard probe, tap snapping (a port of the runtime's `nearestStandableSpot` into `game/src`), camera | Medium-large: about 3 weeks. A walkable grid built from the Area's colliders, platforms and hazard areas, path search, smoothing, the same camera. Engine-only, unit-testable; no realm authoring | Engine small (about 1 week), content large: markers authored in every Area by every realm owner (8 or more Areas), plus validator rules |
+| Risk | Frustration where routes bend (the harbor, the castle) | Grid build time on large Areas (bounded by cell size); terrain heights need `groundHeightAt` (GE-L14) | Predictable but least free; authoring drift as Areas change |
+
+**Recommendation: B.** It is the closest to what Sprouts have in Phaser today (tap anywhere to
+walk there), it meets the non-jump route rule by construction rather than by authoring, and it
+stays inside the engine with no per-realm work. Build it in two steps: B1 static colliders and
+hazard areas (enough for the harbor, bay, forest and castle), then B2 terrain height once a host
+provides `groundHeightAt`. A is a reasonable fallback if time matters more than the bent-route
+cases; C suits the castle's room-to-room flow but costs every realm owner authoring time.

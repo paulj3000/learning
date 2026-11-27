@@ -12,7 +12,11 @@
 
 import type { ValidationIssue } from '../core/errors';
 import { isRecord } from './validation';
-import { JUMP_LIMITS as CONTROLLER_JUMP_LIMITS } from '../movement/jumpConfiguration';
+import {
+  JUMP_LIMITS as CONTROLLER_JUMP_LIMITS,
+  type MovementSpec,
+} from '../movement/jumpConfiguration';
+import { DEFAULT_LOCOMOTION } from '../movement/locomotionConfiguration';
 
 export const AGE_BANDS = ['SPROUT', 'PATHFINDER', 'EXPLORER'] as const;
 export type AgeBand = (typeof AGE_BANDS)[number];
@@ -431,4 +435,24 @@ export function resolveProfile(band: AgeBand, overrides: ProfileOverrides = {}):
     }
   }
   return { band, movement, difficulty, issues };
+}
+
+/**
+ * The controller `MovementSpec` for a band profile (LAI-2104S groundwork). It carries the band's
+ * jump tuning and walk speed. Run and sprint keep the controller defaults, but never drop below
+ * the walk speed, so a raised walk speed cannot make running slower than walking. The result
+ * passes `validateMovementSpec`.
+ *
+ * Not wired to any live location: locations still author `movement` in their manifests. How a
+ * guided band moves (`guidedSteering`: tap-to-move, assisted camera) is not part of a
+ * `MovementSpec` and waits on owner decision O6.
+ */
+export function movementSpecForProfile(profile: Pick<ResolvedProfile, 'movement'>): MovementSpec {
+  const { walkSpeed, jump } = profile.movement;
+  const runSpeed = Math.max(DEFAULT_LOCOMOTION.runSpeed, walkSpeed);
+  const sprintSpeed = Math.max(DEFAULT_LOCOMOTION.sprintSpeed, runSpeed);
+  return {
+    jump: { ...jump },
+    locomotion: { walkSpeed, runSpeed, sprintSpeed },
+  };
 }
