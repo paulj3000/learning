@@ -59,6 +59,11 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   in `docs/regions/storykeeper_castle_entry_99.md`.
 - **Follow-up for LAI 05 and the owner:** a direct castle entry button on the Realms card, which
   would mean the catalog knowing about bundled regions.
+- **Acceptance spec (LAI 04 finding):** `react/e2e/acceptance/p0-navigation.spec.ts` no longer
+  clicks "Try exploring the castle (new!)" as a Pathfinder. A Pathfinder now goes Realms, Visit
+  Storykeeper Castle, Enter the castle (`/explore/storykeeper-castle`); a new Sprout test checks
+  that "Start: Quill's Picture Story" comes before "Walk inside the castle". No other `react/e2e`
+  spec used the old link. Playwright not run (deferred to merge readiness).
 
 ## LAI-07 MVP realm asset support: realm thumbnails, Treasure Rush audit, region catalog fix (2026-11-26, `feature/mvp-realm-asset-support`, `main` `41ee7320`)
 
