@@ -28,7 +28,8 @@ export function PlaceCard({
   const theme = themeFor(place.slug);
   const adventureTotal = place.adventureCount + place.questCount;
   const titleId = `place-card-${place.slug}`;
-  const areaTitle = displayTitle === place.title ? (place.area?.title ?? displayTitle) : displayTitle;
+  const areaTitle =
+    displayTitle === place.title ? (place.area?.title ?? displayTitle) : displayTitle;
   return (
     <article
       aria-labelledby={titleId}

@@ -234,10 +234,7 @@ function LoadingGrid() {
       <p className="m-0 text-ink" role="status">
         Finding your Realms...
       </p>
-      <ul
-        aria-hidden="true"
-        className="m-0 grid list-none gap-6 p-0 min-[48rem]:grid-cols-2"
-      >
+      <ul aria-hidden="true" className="m-0 grid list-none gap-6 p-0 min-[48rem]:grid-cols-2">
         {[0, 1, 2, 3].map((slot) => (
           <li key={slot} className="flex flex-col overflow-hidden rounded-3xl bg-paper shadow-sm">
             <span className="aspect-[16/10] w-full bg-ocean-100" />

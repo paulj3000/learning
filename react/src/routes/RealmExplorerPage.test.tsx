@@ -80,7 +80,9 @@ beforeEach(() => {
 describe('RealmExplorerPage (AP-03)', () => {
   it('shows the hero, the child, and cards for the published destinations', async () => {
     renderAt('/island/child-1/realms');
-    expect(screen.getByRole('heading', { level: 1, name: 'Explore the Realms' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Explore the Realms' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         'Choose your next adventure. Discover hidden treasures, solve mysteries and explore magical worlds.',
@@ -93,10 +95,9 @@ describe('RealmExplorerPage (AP-03)', () => {
     expect(
       screen.queryByRole('article', { name: 'Learning Adventure Island' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'See all places on Adventure Island' })).toHaveAttribute(
-      'href',
-      '/island/child-1/realms/learning-adventure-island',
-    );
+    expect(
+      screen.getByRole('link', { name: 'See all places on Adventure Island' }),
+    ).toHaveAttribute('href', '/island/child-1/realms/learning-adventure-island');
     expect(within(screen.getByRole('banner')).getByText('Robin')).toBeInTheDocument();
     // Child-scoped: the catalog of the child in the URL, and no one else's.
     expect(mocks.getIslandsFor).toHaveBeenCalledWith('child-1');
@@ -115,21 +116,21 @@ describe('RealmExplorerPage (AP-03)', () => {
     const treasure = await screen.findByRole('article', { name: 'Treasure Rush' });
     expect(
       within(treasure).getByRole('link', { name: 'Explore Treasure Rush in 3D' }),
-    ).toHaveAttribute(
-      'href',
-      '/island/child-1/explore/treasure-rush-cove',
-    );
-    expect(within(treasure).getByRole('link', { name: 'Visit Pirate Builder Bay' })).toHaveAttribute(
-      'href',
-      '/island/child-1/locations/pirate-builder-bay',
-    );
+    ).toHaveAttribute('href', '/island/child-1/explore/treasure-rush-cove');
+    expect(
+      within(treasure).getByRole('link', { name: 'Visit Pirate Builder Bay' }),
+    ).toHaveAttribute('href', '/island/child-1/locations/pirate-builder-bay');
     expect(within(treasure).getByText('Explored')).toBeInTheDocument();
     expect(within(treasure).getByRole('list', { name: 'Learn: Math' })).toBeInTheDocument();
     expect(
-      within(card("Storykeeper's Castle")).getByRole('link', { name: "Visit Storykeeper's Castle" }),
+      within(card("Storykeeper's Castle")).getByRole('link', {
+        name: "Visit Storykeeper's Castle",
+      }),
     ).toHaveAttribute('href', '/island/child-1/locations/storykeeper-castle');
     expect(
-      within(card('Heart of Firepeak')).getByRole('link', { name: 'Explore Heart of Firepeak in 3D' }),
+      within(card('Heart of Firepeak')).getByRole('link', {
+        name: 'Explore Heart of Firepeak in 3D',
+      }),
     ).toHaveAttribute('href', '/island/child-1/explore/firepeak-volcano');
     expect(screen.queryByRole('article', { name: 'django-only-meadow' })).not.toBeInTheDocument();
   });
@@ -155,7 +156,9 @@ describe('RealmExplorerPage (AP-03)', () => {
     expect(within(north).getByText('Featured')).toBeInTheDocument();
     expect(screen.getByText('Showing all 5 destinations')).toBeInTheDocument();
     expect(
-      screen.getAllByRole('article').map((article) => within(article).getByRole('heading').textContent),
+      screen
+        .getAllByRole('article')
+        .map((article) => within(article).getByRole('heading').textContent),
     ).toEqual([
       'Treasure Rush',
       "Storykeeper's Castle",
@@ -197,9 +200,10 @@ describe('RealmExplorerPage (AP-03)', () => {
     mocks.getIslandsFor.mockResolvedValue(testCatalog({ resume: true }));
     renderAt('/island/child-1/realms');
     const home = await screen.findByRole('article', { name: 'Treasure Rush' });
-    expect(
-      within(home).getByRole('link', { name: 'Continue in Treasure Rush' }),
-    ).toHaveAttribute('href', '/island/child-1/explore/treasure-rush-cove');
+    expect(within(home).getByRole('link', { name: 'Continue in Treasure Rush' })).toHaveAttribute(
+      'href',
+      '/island/child-1/explore/treasure-rush-cove',
+    );
   });
 
   it('filters without leaving the page, and the URL keeps the choice', async () => {
@@ -238,9 +242,7 @@ describe('RealmExplorerPage (AP-03)', () => {
       islands: testCatalog().islands.filter((island) => island.isHome),
     });
     renderAt('/island/child-1/realms?subject=SCIENCE&age=SPROUT');
-    expect(
-      await screen.findByRole('article', { name: 'Heart of Firepeak' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('article', { name: 'Heart of Firepeak' })).toBeInTheDocument();
     renderAt('/island/child-1/realms?subject=MATH&age=UNKNOWN');
     expect((await screen.findAllByText('Showing 1 of 3 destinations')).length).toBeGreaterThan(0);
   });
@@ -264,9 +266,7 @@ describe('RealmExplorerPage (AP-03)', () => {
       'We could not load the Realms right now.',
     );
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(
-      await screen.findByRole('article', { name: 'Treasure Rush' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('article', { name: 'Treasure Rush' })).toBeInTheDocument();
     expect(mocks.getIslandsFor).toHaveBeenCalledTimes(2);
   });
 
@@ -300,9 +300,7 @@ describe('RealmExplorerPage (AP-03)', () => {
     expect(alert).toHaveTextContent('The island is taking too long to answer.');
     expect(screen.queryByText('Finding your Realms...')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(
-      await screen.findByRole('article', { name: 'Treasure Rush' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('article', { name: 'Treasure Rush' })).toBeInTheDocument();
   });
 
   it('asks for a grown-up to sign in again when the session has expired', async () => {
