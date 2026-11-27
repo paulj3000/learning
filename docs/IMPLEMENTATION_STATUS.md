@@ -37,6 +37,31 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 environmental image assets and materials, LAI-ENV-01 to 03 (2026-11-27, `feature/environmental-image-assets`, `main` `d812ad71`); Development Complete for the Django side, NOT merged
+
+- Design, audit and capability matrix, contract `env-assets/1` (draft), LAI 04 decisions E-1 to
+  E-10, owner decisions D-1 to D-4, staff guide and the Treasure Rush pilot list:
+  [ENVIRONMENT_ASSETS.md](ENVIRONMENT_ASSETS.md). Library changes: `ASSET_LIBRARY.md` section 29.
+- Built:
+  - `ImageProfile`: roles, colour space, alpha, tiling, sprite and decal sizing, sheets and sky
+    layouts.
+  - The `material` kind and `MaterialDefinition`, an ADR-047 authorable kind.
+  - `hasAlpha` and `colourModel` recorded at upload.
+  - Provenance fields on the admin upload.
+  - Resolver `render` blocks and material entries.
+  - The `materials` dependency provider (AUTHORITATIVE, indirect usages followed).
+  - The data purpose as the default for material-map conversion.
+  - Admin pages and role groups.
+- Migration: `assets.0006`, two new tables, nothing destructive.
+- No `react/` or `game/` change. Rendering is LAI 04's (#276 to #278); the pilot is LAI 01's
+  (#279).
+- Not done:
+  - KTX2 for standalone images (ADR-070 gates).
+  - A local runner for image conversion (D-2).
+  - Licence as a publish gate (D-3).
+- Tests: `apps/assets/tests/test_environment_assets.py`, plus 5 existing assertions updated for
+  the two new metadata fields. Results are in the PR.
+
 ## LAI-07 MVP realm asset support: realm thumbnails, Treasure Rush audit, region catalog fix (2026-11-26, `feature/mvp-realm-asset-support`, `main` `41ee7320`)
 
 - Report: `docs/qa/MVP_REALM_ASSET_SUPPORT_2026-11-26.md` (realm thumbnail matrix, Treasure Rush

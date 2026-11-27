@@ -324,6 +324,7 @@ KTX2 stays off:
 | E-7 | How scenes reference these (field names in `ThreeLocationManifest` and Django `scene`) | Use `...AssetId` names (`materialAssetId`, `skyAssetId`, `spriteAssetIds`), so the regions dependency provider tracks them with no change |
 | E-8 | `mediaAssets.ts` always sets sRGB | It must use `render.colourSpace`, and set wrap and repeat from `sampling` |
 | E-9 | Bundled image fallbacks in TS manifests (#247) | Not in v1. The scene asset index would need image ids first |
+| E-10 | The region catalog (`game_sessions/play_state.py` `region_catalog`) already lists every `...AssetId` a scene names, with `deliverable` true only for a default version or a bundled file. A material has neither, so it would be reported as not deliverable | When the first scene names a material, `deliverable` for kind `material` should mean "has a published revision". It is a one-line change in a shared app, left for the scene-field work (E-7) so that it lands with a test that uses it |
 
 ## 9. Owner decisions
 
