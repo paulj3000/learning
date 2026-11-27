@@ -37,6 +37,25 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-AUTH-01 family and child authentication: proposed ADR, additive schema, domain rules (2026-11-27, `feature/family-child-authentication` from `main` `d812ad71`, Trello #98, parent #97); awaiting owner decisions, NOT merged
+
+- Design, audit, gap analysis, pool comparison, plan and owner decisions OD-1 to OD-13:
+  `docs/platform/FAMILY_CHILD_AUTHENTICATION.md`. Decision record: ADR-NNN (Proposed) at the end
+  of `docs/DECISIONS.md`; number 074 requested, not reserved on `main`.
+- Code, inert (no route, authenticator or React flow uses it): `FamilyDevice`, `ChildPin`,
+  `ChildCredential`, `ChildPlaySession` in `apps/users/models.py`; create-only migration
+  `users/0009`; `apps/users/family_auth.py`; bounded settings in `config/settings/base.py`.
+  `ParentAccount`, `ChildProfile` and every progress table are unchanged.
+- Not done and gated: child login stays prohibited by `security-policy.md` section 5 and
+  `architecture-rules.md` section 6.1 until ADR-NNN is accepted (conflict reported, OD-11).
+  Mode B is also blocked by gate G9 (consent check fails closed) and by approval to create the
+  child pool (G7). No Cognito or AWS resource was touched.
+- Tests (PostgreSQL 18.x, local container on 5468): `apps/users` + `test_game_launch.py` +
+  `test_api_conventions.py`, 503 passed (81 new in `test_family_auth.py`); baseline before the
+  change 388 passed. `makemigrations --check` clean; ruff check and format clean on changed
+  files; `npm run adr:check` and `make docs-check` passed. Not run: Vitest (no TypeScript
+  changed), full lint and format gates, browser tests (merge readiness).
+
 ## LAI-07 MVP realm asset support: realm thumbnails, Treasure Rush audit, region catalog fix (2026-11-26, `feature/mvp-realm-asset-support`, `main` `41ee7320`)
 
 - Report: `docs/qa/MVP_REALM_ASSET_SUPPORT_2026-11-26.md` (realm thumbnail matrix, Treasure Rush

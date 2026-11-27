@@ -509,6 +509,37 @@ if any(not origin.startswith("https://") for origin in LAI_GAME_ALLOWED_ORIGINS)
     raise ImproperlyConfigured("LAI_GAME_ALLOWED_ORIGINS must list https origins only.")
 
 
+# --- Family accounts and child sessions (LAI-AUTH-01, ADR-NNN) ---------------------------------
+# docs/platform/FAMILY_CHILD_AUTHENTICATION.md. Read by `apps.users.family_auth` only; no route
+# or authenticator uses these yet. Session expiry is a security control, never a play-time limit
+# (ADR-053): a family device reopens an expired child session without interrupting play.
+def _bounded_seconds(name: str, default: int, low: int, high: int) -> int:
+    value = int(os.environ.get(name, str(default)))
+    if not low <= value <= high:
+        raise ImproperlyConfigured(f"{name} must be between {low} and {high}.")
+    return value
+
+
+LAI_FAMILY_DEVICE_REMEMBER_SECONDS = _bounded_seconds(
+    "LAI_FAMILY_DEVICE_REMEMBER_SECONDS", 30 * 86400, 86400, 90 * 86400
+)
+LAI_FAMILY_DEVICE_SESSION_SECONDS = _bounded_seconds(
+    "LAI_FAMILY_DEVICE_SESSION_SECONDS", 12 * 3600, 3600, 86400
+)
+LAI_CHILD_SESSION_IDLE_SECONDS = _bounded_seconds(
+    "LAI_CHILD_SESSION_IDLE_SECONDS", 2 * 3600, 900, 4 * 3600
+)
+LAI_CHILD_SESSION_MAX_SECONDS = _bounded_seconds(
+    "LAI_CHILD_SESSION_MAX_SECONDS", 12 * 3600, 3600, 86400
+)
+LAI_CHILD_PIN_MAX_ATTEMPTS = _bounded_seconds("LAI_CHILD_PIN_MAX_ATTEMPTS", 5, 3, 10)
+LAI_CHILD_PIN_LOCKOUT_SECONDS = _bounded_seconds("LAI_CHILD_PIN_LOCKOUT_SECONDS", 900, 60, 3600)
+if LAI_CHILD_SESSION_IDLE_SECONDS > LAI_CHILD_SESSION_MAX_SECONDS:
+    raise ImproperlyConfigured(
+        "LAI_CHILD_SESSION_IDLE_SECONDS must not exceed LAI_CHILD_SESSION_MAX_SECONDS."
+    )
+
+
 # --- AI Question Studio (Phase 28, ADR-046, docs/AI_QUESTION_STUDIO.md) -----------------------
 # Staff authoring reuses the ADR-044 model client and Guardrail. `LAI_STUDIO_RUN_MODE`: `thread`
 # runs a queued batch on a background thread, `manual` leaves it for `manage.py studio_run_batch`,
