@@ -449,7 +449,9 @@ def region_entry(entry) -> dict:
         "description": location.tagline,
         "world": {"slug": world.slug, "title": world.title},
         "location": {"slug": location.slug, "title": location.title},
-        "ageBands": list(world.supported_age_bands),
+        # The bands this 3D Area serves: its own `age_bands` (empty means all) within the
+        # World's, not the World's alone (Firepeak is Pathfinder and Explorer only).
+        "ageBands": [band for band in world.supported_age_bands if region.supports_band(band)],
         "available": entry.playable,
         "lockedReason": None if entry.playable else "NO_CHALLENGE_FOR_AGE_BAND",
         "status": entry.status,

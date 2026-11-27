@@ -103,3 +103,47 @@ export function testCatalog(
     ],
   };
 }
+
+/**
+ * #98: North Pole as Django serves it. A seasonal Realm the client registers no hub for
+ * (`WORLD_DEFINITIONS` has none), with North Pole Village's 3D Area. `available: false` is what
+ * Django sends when nothing in the Area is published for the child's age band.
+ */
+export function northPoleTestIsland(
+  options: { available?: boolean; resume?: boolean } = {},
+): IslandSummary {
+  const area = testArea('north-pole-village', 'North Pole Village', options.resume ? 's-np' : null);
+  return testIsland('north-pole', {
+    title: 'North Pole',
+    description: 'A snowy village where the Christmas Star has gone out.',
+    subjectAreas: ['MATH', 'SCIENCE'],
+    progress: { placesExplored: 0, placesTotal: 1 },
+    places: [
+      testPlace('north-pole-village', {
+        title: 'North Pole Village',
+        adventureCount: 0,
+        questCount: 9,
+        area: { ...area, available: options.available ?? true },
+      }),
+    ],
+  });
+}
+
+/** #100: the home Realm's Firepeak Places as Django serves them once their puzzles count. */
+export function firepeakTestPlaces(): PlaceSummary[] {
+  return [
+    testPlace('firepeak-volcano', {
+      title: 'Firepeak Volcano',
+      subjectAreas: ['SCIENCE'],
+      adventureCount: 0,
+      area: testArea('firepeak-volcano', 'Firepeak Volcano'),
+    }),
+    testPlace('firepeak-heart', {
+      title: 'Heart of Firepeak',
+      subjectAreas: ['MATH', 'SCIENCE'],
+      adventureCount: 0,
+      questCount: 1,
+      area: testArea('firepeak-heart', 'Heart of Firepeak'),
+    }),
+  ];
+}
