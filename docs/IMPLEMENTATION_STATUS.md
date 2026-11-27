@@ -37,6 +37,24 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 asset intake checklist: one sourcing list for missing audio and models (2026-11-27, `docs/asset-intake-checklist`, `main` `d812ad71`)
+
+Docs only; no code, seed or asset changed. Trello #244, #246, #247.
+
+- New `docs/ASSET_INTAKE_CHECKLIST.md`: 92 audio files (Treasure Rush 30, Storykeeper Castle 18,
+  Firepeak 19, North Pole 25) and 84 model or image definitions (Firepeak 38, North Pole 46),
+  none present in any environment. Each row gives the asset id, type, format and limits, realm,
+  required or optional, licence rules and the upload, seed and publish recipe. Ids were checked
+  against `CueSpec.asset_id` and the seed tables, not only the realm docs.
+- There is no command-line upload for a single new file; Django Admin is the upload path, and the
+  realm's seed command then wires it in (section 2).
+- Reported, not resolved: the realms disagree on audio format (MP3 or Ogg) and loudness targets
+  (section 1.3); `docs/ASSET_LICENCES.md` has no audio section yet; `FIREPEAK_AUDIO_INVENTORY.md`
+  still says `puzzleComplete` and `restoration` are never raised, but on `main` they are
+  (`puzzleSolveCues`); `north_pole_cues.py` marks `fragment` and `star_restored` `wired=False`
+  although the client raises both, and `crystalCollect` fires on every North Pole pickup.
+- Checks: `make docs-check`. No tests apply (no code).
+
 ## LAI-07 MVP realm asset support: realm thumbnails, Treasure Rush audit, region catalog fix (2026-11-26, `feature/mvp-realm-asset-support`, `main` `41ee7320`)
 
 - Report: `docs/qa/MVP_REALM_ASSET_SUPPORT_2026-11-26.md` (realm thumbnail matrix, Treasure Rush
