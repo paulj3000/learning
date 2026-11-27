@@ -74,7 +74,7 @@ export const FIREPEAK_HEART_ADVENTURE: Readonly<AdventureDefinition> = defineAdv
   id: HEART_QUEST_ID,
   realmId: HOME_REALM_ID,
   version: '1.0.0',
-  engineApi: '^0.1.0',
+  engineApi: '>=0.1.0 <1.0.0',
   // FP-D2: Pathfinders and Explorers only.
   ageBands: ['PATHFINDER', 'EXPLORER'],
   // Catalog objectives (FPV-D10): every band `skill` and variant `skill` the puzzles name.

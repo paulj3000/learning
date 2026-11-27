@@ -52,7 +52,7 @@ export function validAdventure(overrides: Partial<AdventureDefinition> = {}): Ad
     id: 'demo-adventure',
     realmId: 'demo-realm',
     version: '1.0.0',
-    engineApi: '^0.1.0',
+    engineApi: '>=0.1.0 <1.0.0',
     ageBands: ['SPROUT', 'PATHFINDER', 'EXPLORER'],
     learningObjectiveIds: ['counting.to.ten'],
     areas: ['demo-cove', 'demo-hill'],

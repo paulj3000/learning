@@ -7,7 +7,7 @@ const codes = (input: unknown, kind?: 'AREA_SCENE' | 'ADVENTURE') =>
   checkContentCompatibility(input, registry, { kind }).issues.map((i) => i.code);
 
 const goodScene = {
-  engineApi: '^0.1.0',
+  engineApi: '>=0.1.0 <1.0.0',
   capabilities: [{ id: 'movement.jump', config: { jumpHeight: 1.2 } }],
   movement: { jump: { enabled: true, jumpHeight: 1.2, gravity: 22 } },
   platforming: {

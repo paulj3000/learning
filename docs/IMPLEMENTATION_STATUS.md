@@ -64,8 +64,15 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   invalid: -1, 1.5, "2", null) and `tests/contracts/gameplay-events-v1.json` regenerated; Django's
   `apps/scoring/engine_events.py` mirrors the optional rule in lockstep (without it the two new
   valid vectors fail Django's parity test, checked).
-- Tests: game contracts and components 124 passed; `engine:vectors:check` up to date; game tsc
-  clean; Django `scoring/tests/test_engine_events.py` 72 passed. Not owner accepted.
+- `ENGINE_API_VERSION` 0.1.0 to 0.2.0 (owner decision 2026-11-27: follow the additive-minor
+  policy), with `game/package.json`, the exact `react` dependency and the lockfile. Because a caret
+  range on 0.x locks the minor, the nine shipped `engineApi` declarations (six locations, Firepeak
+  Heart, North Pole, Treasure Cove) became `>=0.1.0 <1.0.0`; the scaffold emits `>=0.2.0 <1.0.0`;
+  rule recorded in `public-contracts.md` section 1.
+- Tests: game 712 passed; `engine:vectors:check` up to date; `npm run typecheck` clean; React
+  locations, region-play definitions, scoring and game-engine 332 passed; Django
+  `scoring/tests/test_engine_events.py` 77 passed (LAI 06 reviewed and approved the validator,
+  which stays in this PR). Not owner accepted.
 
 ## LAI-01 Treasure Rush final release preparation (2026-11-25, `lai-01/treasure-rush-release-prep`, `main` `05b54d8a`)
 

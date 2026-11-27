@@ -13,7 +13,7 @@
 |---|---|---|---|
 | `@lai/game-engine` (`game/`) | `three` `^0.185.1` | peer | The only runtime dependency. No new dependency was added |
 | `@lai/game-engine` tests | `vitest`, `typescript`, Node built-ins, `jsdom` (opt-in per file) | dev (hoisted from the root) | Already in the root `devDependencies` |
-| `learning-adventure-island-react` (`react/`) | `@lai/game-engine` `0.1.0` | workspace | The app depends on the engine, never the reverse |
+| `learning-adventure-island-react` (`react/`) | `@lai/game-engine` `0.2.0` | workspace | The app depends on the engine, never the reverse |
 
 Lockfile change: the workspace link entries only.
 

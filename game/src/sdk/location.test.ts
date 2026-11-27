@@ -13,7 +13,7 @@ function location(overrides: Partial<LocationDefinition> = {}): LocationDefiniti
   return {
     id: 'welcome-harbor',
     version: '1.0.0',
-    engineApi: '^0.1.0',
+    engineApi: '>=0.1.0 <1.0.0',
     contentSource: 'MANIFEST',
     capabilities: requests,
     requiredServices: [],

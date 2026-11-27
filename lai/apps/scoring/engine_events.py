@@ -105,8 +105,9 @@ def _check_id(value, path: str, issues: list[Issue], nullable: bool = False) -> 
 
 
 def _check_count(value, path: str, issues: list[Issue]) -> None:
-    # bool is an int in Python; JSON true is not a count.
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+    # bool is an int in Python; JSON true is not a count. The upper bound matches the engine's
+    # Number.isSafeInteger, for exact parity with the TypeScript validator.
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 2**53 - 1:
         issues.append(Issue(path, "must be a non-negative integer"))
 
 

@@ -18,7 +18,7 @@ export const SANDBOX_LOCATION = defineLocation(
   {
     id: SANDBOX_REGION_ID,
     version: '1.0.0',
-    engineApi: '^0.1.0',
+    engineApi: '>=0.1.0 <1.0.0',
     contentSource: 'MANIFEST',
     capabilities: [
       { id: 'movement.locomotion', config: {} },

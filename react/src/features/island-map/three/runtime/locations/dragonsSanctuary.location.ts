@@ -30,7 +30,7 @@ export const DRAGONS_SANCTUARY_LOCATION = defineLocation(
   {
     id: DRAGONS_SANCTUARY_MANIFEST.regionId,
     version: '1.0.0',
-    engineApi: '^0.1.0',
+    engineApi: '>=0.1.0 <1.0.0',
     contentSource: 'MANIFEST',
     capabilities: adapted.requests,
     requiredServices: [ASSET_MANAGER.id, NPC_MANAGER.id],
