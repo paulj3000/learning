@@ -71,7 +71,12 @@ export interface CheckpointTarget {
 }
 
 export interface CheckpointsApi {
-  /** The most recently reached checkpoint, or null before any. */
+  /**
+   * Where recovery goes, or null before any checkpoint is reached: in the course of the most
+   * recently reached checkpoint, the reached checkpoint furthest along that course's authored
+   * order. Reaching or re-marking an earlier checkpoint never moves recovery backwards within a
+   * course (GE-L13); moving on to another course moves recovery there.
+   */
   latest(): CheckpointTarget | null;
   reachedIds(): readonly string[];
   /**
@@ -174,8 +179,29 @@ export const checkpointsCapability: CapabilityDefinition<CheckpointsConfig, Game
         ? { id, position: state.spec.position, yaw: state.spec.yaw, label: state.spec.label }
         : null;
     };
+    const authoredIndex = new Map(config.checkpoints.map((spec, index) => [spec.id, index]));
+    const latestId = (): string | null => {
+      const last = order[order.length - 1];
+      if (last === undefined) {
+        return null;
+      }
+      const courseId = stateOf(last)?.spec.courseId;
+      let furthest = last;
+      for (const id of order) {
+        if (
+          stateOf(id)?.spec.courseId === courseId &&
+          (authoredIndex.get(id) ?? -1) > (authoredIndex.get(furthest) ?? -1)
+        ) {
+          furthest = id;
+        }
+      }
+      return furthest;
+    };
     const api: CheckpointsApi = {
-      latest: () => (order.length > 0 ? target(order[order.length - 1]!) : null),
+      latest: () => {
+        const id = latestId();
+        return id === null ? null : target(id);
+      },
       reachedIds: () => [...order],
       resolveRecovery(fallback) {
         return api.latest() ?? (fallback ? target(fallback) : null);

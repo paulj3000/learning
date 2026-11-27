@@ -37,6 +37,23 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI 04 Phaser retirement audit, Phase 2 (2026-11-27, `feature/threejs-phaser-retirement`, `main` `41ee7320`)
+
+- Audit and plan: `docs/engineering/game-engine/phaser-retirement-audit.md`. Migration measured at
+  27% (13 of 48 per-world gates). Seven Phaser routes still mount; 10 files import `phaser`.
+  Welcome Harbor's 3D region has none of the 12 Phaser harbor interactions; two discoveries
+  (`harbor-tide-pool`, `harbor-keepers-door`) and Bolt's `metBolt` quest flag are granted only in
+  Phaser; every 3D exit to "the harbor" lands in the Phaser harbor. Fossil Ridge Camp and Bolt's
+  Workshop have no Three.js region. Nothing was removed.
+- Ratchet: `react/src/test/phaserRetirement.test.ts` pins the Phaser importers, the
+  Phaser-mounting routes and each world's replacement, and keeps Phaser-only modules out of
+  Three.js code.
+- Engine fixes: GE-L12 (`createStandardEngine` rejects when disposed during setup) and GE-L13
+  (checkpoint recovery never moves backwards within a course).
+- Tests: `phaserRetirement.test.ts` 8 passed; `game/` 707 passed; React `features/game-engine`
+  134 passed; `npm run typecheck` clean. Deferred: full suites, lint, format, browser, Playwright.
+- Not owner accepted. No Phaser removal is authorized; LAI-2303 and LAI-2304 stay owner gates.
+
 ## LAI-01 Treasure Rush final release preparation (2026-11-25, `lai-01/treasure-rush-release-prep`, `main` `05b54d8a`)
 
 Status: release candidate on `main`, **not owner-accepted** (TR-21 stays open until the owner's

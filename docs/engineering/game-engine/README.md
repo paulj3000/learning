@@ -33,6 +33,7 @@ standard wins and this set is corrected.
 | [bundled-asset-references.md](bundled-asset-references.md) | GE-247: shipped-scene asset ids in Asset Library dependency reporting |
 | [raised-solid-clearance.md](raised-solid-clearance.md) | GE-L16: raised Solid collision and walk-under clearance (audit, root cause, rule, tests) |
 | [legacy-retirement-plan.md](legacy-retirement-plan.md) | GE-076: shims, duplicated live code, leaked content, and the gates for removing each |
+| [phaser-retirement-audit.md](phaser-retirement-audit.md) | Phaser retirement: completion measure, runtime dependencies, eight-world parity matrix, engine gaps, Phase 2 tasks and sequence |
 | [engine-1.0-acceptance.md](engine-1.0-acceptance.md) | GE-090: entry criteria, merge-readiness gates and the owner QA checklist for Engine 1.0 |
 | [acceptance-requirements.md](acceptance-requirements.md) | Acceptance criteria per work package and the merge gates |
 

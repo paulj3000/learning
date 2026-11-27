@@ -193,6 +193,11 @@ Deferred and excluded (not reactivated by this plan):
 
 ## Phase 20 — Engine discovery and architecture (docs only)
 
+> Reconciled 2026-11-27 (LAI 04): Track B status, the 27% completion measure, the eight-world
+> parity matrix and the Phase 2 task list are in
+> `docs/engineering/game-engine/phaser-retirement-audit.md`. LAI-2101 to 2103 landed as GE-002 to
+> GE-075 (`game/`, Engine 1.0 accepted 2026-11-22); their boxes are left for the owner to reconcile.
+
 - [ ] **LAI-2001** Phaser experience inventory (verify and complete the 8-world inventory) (depends: none)
 - [ ] **LAI-2002** Existing Three.js capability assessment (depends: none)
 - [ ] **LAI-2003** Shared engine architecture (APPROVAL) (depends: 2001, 2002)

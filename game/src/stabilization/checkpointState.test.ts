@@ -131,17 +131,58 @@ describe('CheckpointsService state', () => {
     h.dispose();
   });
 
-  // Behaviour pin, not a defect: re-marking an OLDER checkpoint makes it the latest again, so a
-  // host that calls markReached out of authored order moves recovery backwards. The bridge sorts
-  // ids into authored order before marking, which is why this is safe today.
-  it('marking an earlier checkpoint after a later one makes the earlier one the latest (callers must pass authored order)', async () => {
+  // GE-L13 (fixed): re-marking or newly reaching an OLDER checkpoint of the same course never
+  // moves recovery backwards. reachedIds stays the order things happened in.
+  it('marking an earlier checkpoint after a later one keeps the later one as the latest (GE-L13)', async () => {
     const h = harness();
     await h.start([{ id: 'gameplay.checkpoints', config: cps }]);
     const api = h.runtime.services.require(CheckpointsService);
     api.markReached('cp.2');
     api.markReached('cp.1');
-    expect(api.latest()?.id).toBe('cp.1');
+    expect(api.latest()?.id).toBe('cp.2');
+    expect(api.resolveRecovery('cp.1')?.id).toBe('cp.2');
     expect(api.reachedIds()).toEqual(['cp.2', 'cp.1']);
+    h.dispose();
+  });
+
+  it('reaching a skipped earlier checkpoint by walking back keeps recovery at the furthest one (GE-L13)', async () => {
+    const h = harness();
+    await h.start([{ id: 'gameplay.checkpoints', config: cps }]);
+    const api = h.runtime.services.require(CheckpointsService);
+    h.setPlayer({ x: 10, y: 0, z: 0 });
+    h.advance(0.3);
+    h.setPlayer({ x: 0, y: 0, z: 0 });
+    h.advance(0.3);
+    expect(api.reachedIds()).toEqual(['cp.2', 'cp.1']);
+    expect(h.claimsOfType('course.checkpoint.reached')).toHaveLength(2);
+    expect(api.latest()?.id).toBe('cp.2');
+    h.dispose();
+  });
+
+  it('moving on to another course moves recovery to that course, even to its first checkpoint', async () => {
+    const twoCourses = {
+      ...cps,
+      checkpoints: [
+        ...cps.checkpoints,
+        {
+          id: 'cp.b1',
+          courseId: 'course.b',
+          position: { x: 0, y: 0, z: 30 },
+          yaw: 0,
+          label: 'the cave',
+        },
+      ],
+    };
+    const h = harness();
+    await h.start([{ id: 'gameplay.checkpoints', config: twoCourses }]);
+    const api = h.runtime.services.require(CheckpointsService);
+    api.markReached('cp.b1');
+    api.markReached('cp.2');
+    expect(api.latest()?.id).toBe('cp.2');
+    api.markReached('cp.1');
+    expect(api.latest()?.id).toBe('cp.2'); // same course: never backwards
+    api.markReached('cp.b1');
+    expect(api.latest()?.id).toBe('cp.b1'); // the child is on course b now
     h.dispose();
   });
 
