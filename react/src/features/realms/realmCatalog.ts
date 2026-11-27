@@ -19,6 +19,7 @@ import type {
 import { ISLAND_LOCATIONS } from '../island/locations';
 import { locationWorldPath } from '../island-map/three/runtime/locationWorldPath';
 import { portalPath } from '../portal/exit/adventureRoutes';
+import { getWorld } from '../worlds/worlds';
 
 /**
  * - `AVAILABLE`: open to this child, with at least one Place to visit.
@@ -83,9 +84,21 @@ export function realmDetailPath(childId: string, realmSlug: string): string {
 }
 
 /**
- * A Place's card. On the home Realm it links to the Place page and its 3D Area. In any other
- * Realm it has no links of its own: that Realm is entered through its hub, which records the
- * arrival (Phase 29), so its Places are shown for discovery and reached from there.
+ * Whether a Realm is entered through a client hub (`WorldHubPage`, Phase 29). Only a world the
+ * client registers (`WORLD_DEFINITIONS`) has one: its locations, arrival text and travel rule
+ * are source-controlled. A Realm Django alone serves, such as North Pole, has no hub (#98), so
+ * it is entered like the home Realm, straight into its published 3D Areas. Whether it is open
+ * (unlock, season, age band) is still Django's answer (`island.unlocked`, `area.available`).
+ */
+function hasClientHub(island: IslandSummary): boolean {
+  return !island.isHome && getWorld(island.islandId) !== undefined;
+}
+
+/**
+ * A Place's card. On the home Realm, and on a Realm without a client hub, it links to the Place
+ * page and its 3D Area. In a Realm with a client hub it has no links of its own: that Realm is
+ * entered through its hub, which records the arrival (Phase 29), so its Places are shown for
+ * discovery and reached from there.
  */
 function toPlace(childId: string, place: PlaceSummary, linkable: boolean): RealmPlace | null {
   const area =
@@ -100,7 +113,7 @@ function toPlace(childId: string, place: PlaceSummary, linkable: boolean): Realm
     linkable && SOURCE_PAGES.has(place.placeId)
       ? portalPath(childId, { kind: 'place', locationSlug: place.placeId })
       : null;
-  // A home Place with neither a page nor a 3D Area has nothing to open yet (as before AP-03).
+  // A linked Place with neither a page nor an available 3D Area has nothing to open yet.
   if (linkable && !href && !area) return null;
   return {
     slug: place.placeId,
@@ -121,8 +134,9 @@ function toPlace(childId: string, place: PlaceSummary, linkable: boolean): Realm
 }
 
 function toRealm(childId: string, island: IslandSummary): Realm {
+  const viaHub = hasClientHub(island);
   const places = island.places
-    .map((place) => toPlace(childId, place, island.isHome))
+    .map((place) => toPlace(childId, place, !viaHub))
     .filter((place): place is RealmPlace => place !== null);
   const state: RealmState = !island.unlocked
     ? 'LOCKED'
@@ -131,14 +145,16 @@ function toRealm(childId: string, island: IslandSummary): Realm {
       : 'AVAILABLE';
   const resume = places.find((place) => place.area?.inProgress);
   const firstNew = places.find((place) => !place.explored) ?? places[0];
-  // Another Realm is entered through its hub, which records the arrival (Phase 29); the home
-  // Realm has no hub of its own, so "Start exploring" opens its first Place not yet explored.
+  // A Realm with a client hub is entered through it, which records the arrival (Phase 29). The
+  // home Realm and a Realm Django alone serves have none, so "Start exploring" opens the first
+  // Place not yet explored. Their Places without a page or an available Area were dropped
+  // above, so a Realm with nothing to open is UNAVAILABLE and has no start link.
   const startHref =
     state !== 'AVAILABLE'
       ? null
-      : island.isHome
-        ? (firstNew?.href ?? firstNew?.area?.href ?? null)
-        : portalPath(childId, { kind: 'island', worldSlug: island.islandId });
+      : viaHub
+        ? portalPath(childId, { kind: 'island', worldSlug: island.islandId })
+        : (firstNew?.href ?? firstNew?.area?.href ?? null);
   return {
     slug: island.islandId,
     title: island.title,

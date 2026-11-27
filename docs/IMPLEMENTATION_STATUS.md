@@ -64,6 +64,24 @@ the redesigned adventure first, checklist section F). Design:
 - Deferred: jumping onto the creek's stones (LAI 04 engine-bridge ticket), map assembly and
   LAI 06's proposed kinds (need scenes), Pip's spoken stage intros (NPC release), a cave interior.
 
+## LAI-07 MVP realm asset support: realm thumbnails, Treasure Rush audit, region catalog fix (2026-11-26, `feature/mvp-realm-asset-support`, `main` `41ee7320`)
+
+- Report: `docs/qa/MVP_REALM_ASSET_SUPPORT_2026-11-26.md` (realm thumbnail matrix, Treasure Rush
+  asset matrix, missing-required and optional lists, asset findings for #98, #99 and #100).
+- Realm thumbnails (PR #104): the page uses the existing child-scoped image resolver and
+  published-art filter; no realm authors an `artAssetId` and no approved art exists, so every
+  card shows its drawn scene (the designed fallback).
+- Treasure Rush (LAI 01, #102): no new asset is required to be playable; existing bundled ids
+  `crate`, `barrel`, `signpost`, `cave-mouth`, `treasure-chest`, `clue-map`, `star-carving` cover
+  part of it, the rest are stand-ins. The 16 required cove audio cues remain missing.
+- #98, #99, #100: no asset contributes; each fails in routing or catalog data first.
+- Fix: `apps/game_sessions/play_state.py` `region_catalog` collects scene ids with the
+  dependency registry's `scene_asset_ids`, so North Pole's scenery-only ids reach the client and
+  the served Area is no longer refused with `UNKNOWN_ASSET` once #98's routing lands.
+- Tests: `test_environment_catalog.py` (4 new, fail on `main`), new
+  `test_region_catalog_completeness.py` (North Pole per band through the API, Firepeak volcano and
+  heart). PG18 slot 9; no browser tests.
+
 ## LAI-01 Treasure Rush final release preparation (2026-11-25, `lai-01/treasure-rush-release-prep`, `main` `05b54d8a`)
 
 Status: release candidate on `main`, **not owner-accepted** (TR-21 stays open until the owner's
