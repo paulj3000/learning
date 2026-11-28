@@ -23,7 +23,7 @@ from django.utils.html import format_html, format_html_join
 from apps.catalog.authoring_admin import AuthoredContentAdminMixin
 from apps.catalog.models import ContentAsset
 
-from . import image_profiles
+from . import image_profiles, licences
 from .models import AssetVersion, ImageProfile, MaterialDefinition, VersionStatus
 
 logger = logging.getLogger("lai.assets")
@@ -159,6 +159,16 @@ class ImageProfileAdmin(admin.ModelAdmin):
         logger.info("image profile saved: %s", obj)
         for warning in getattr(form, "warnings", []):
             self.message_user(request, warning, messages.WARNING)
+        version = image_profiles.profile_version(obj)
+        problem = licences.licence_problem(version) if version is not None else None
+        if problem:
+            # D-3: an existing image keeps resolving; it simply cannot join new realm content.
+            self.message_user(
+                request,
+                f"licence_required: {obj.asset.asset_id} v{version.number} cannot be used by "
+                f"materials or new versions published until it is licensed ({problem}).",
+                messages.WARNING,
+            )
 
     @admin.display(description="Scope")
     def scope(self, obj):

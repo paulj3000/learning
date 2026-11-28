@@ -1647,7 +1647,12 @@ changed in the library.
     `render` block when a profile exists.
   - Material entries (`family: "material"`) inline each map's image entry. Section 21.7 is
     otherwise unchanged.
+- **Licences (owner D-3, 2026-11-28; `licences.py`).**
+  - A version of an image asset that has an image profile publishes only with a verified,
+    permitted licence (`licence_required`). A material cannot use an unlicensed texture.
+  - Images without a profile are unchanged.
 - **Dependencies.** The new `materials` provider (section 25.3), AUTHORITATIVE (section 25.9).
+  `region_catalog` marks a material deliverable once its content has a published revision.
 - **Conversion.** Convert and Resize default to the `data` purpose (lossless) for a material map.
 - **Groups.**
   - Asset editors view image profiles and may add material rows.

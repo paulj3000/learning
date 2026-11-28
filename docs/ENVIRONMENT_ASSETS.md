@@ -1,8 +1,12 @@
 # Environmental image assets and materials (LAI-ENV-01 to 03)
 
 Status: **Proposed contract `env-assets/1` (draft)**. LAI 07 wrote it on 2026-11-27, on branch
-`feature/environmental-image-assets` from `main` `d812ad71`.
+`feature/environmental-image-assets` from `main` `d812ad71` (merged up to `c14392b0` on
+2026-11-28).
 
+- The owner decided D-1 to D-4 on 2026-11-28 (section 9). The design is approved.
+- The ADR number 074 is reserved by registry-only PR #117. The draft decision text is in section
+  13; its final text is written once LAI 04 agrees the interface.
 - The Django side (sections 3 to 7) is implemented on this branch. It is not merged.
 - The runtime side belongs to LAI 04. Nothing in `react/` or `game/` was changed.
 - The contract freezes only after LAI 04 answers the decisions in section 8.
@@ -279,8 +283,22 @@ scene names a material.
   recorded on every version.
 - When an image is uploaded with no confirmed licence (no "licence confirmed by"), the Admin
   upload shows the warning `licence_unknown`. It is a page message; the file is still stored.
-- Refusing publication outright for unknown licences is an owner decision (section 9, D-3). It
-  would change today's behaviour for every image.
+- **D-3 enforcement** (owner, 2026-11-28; `apps/assets/licences.py`). Only new environmental
+  assets are affected; there is no global restriction:
+  - A version of an image asset that has an image profile publishes only with a verified,
+    permitted licence. Otherwise it is refused with `licence_required` and left `VALIDATED`, not
+    rejected.
+  - Verified means `provenance.licenceStatus` is `confirmed`. Permitted means `CC0-1.0`,
+    `original` or `proprietary` (a commercial licence with no in-product attribution duty).
+  - A material cannot publish a map whose texture's default version is not licensed.
+  - Saving an image profile on an unlicensed image warns `licence_required`. The image keeps
+    resolving; nothing is unpublished.
+  - Images without a profile (every existing image) publish and resolve exactly as before, and
+    only warn.
+- **Legacy remediation** is a separate task (Trello card LAI-ENV-02a):
+  - a read-only report of image versions without verified provenance;
+  - back-filling provenance as new versions (published metadata is immutable);
+  - then an owner decision on enforcing the licence globally.
 - **ADR-028 still applies:** CC-BY and other attribution licences are barred until an in-product
   attribution surface exists. CC0, original work and commercially licensed files with no
   attribution duty are fine.
@@ -297,6 +315,18 @@ The existing Pillow function (ADR-068) already does everything LAI-ENV-03 lists:
   box filter);
 - WebP, PNG and JPEG output, thumbnails, and EXIF and GPS removed from every output;
 - derivatives that are versioned, reviewed and promoted, with the original never changed.
+
+**Local development (D-2, owner 2026-11-28).** Pillow stays out of Django (ADR-068).
+
+- The Admin's Convert, Resize and Thumbnail actions therefore do not work in a local Django
+  server. Keep `LAI_IMAGE_CONVERSION=off` locally; the actions then answer "Image conversion is
+  switched off".
+- The `inline` jobs backend has no runner for `asset.convert_image`.
+- `scripts/processing/local-demo.sh` is the local route. It runs the real Pillow converter when
+  Pillow is importable (`LAI_DEMO_PILLOW_SITE`), on synthetic images, with in-memory SQS and S3
+  and its own database.
+- It does not convert a file uploaded to the local Admin. For local content, prepare the image
+  in an editor (sRGB colour, linear data maps, metadata removed) and upload the result.
 
 This branch only connects it to profiles. The Convert and Resize actions default `purpose` to
 `data` when the version's profile is a `MATERIAL_MAP` (and to `artwork` otherwise), so a normal
@@ -322,18 +352,18 @@ KTX2 stays off:
 | E-5 | Decal projection (mesh decal, projected box, or a ground quad for flat ground) | Runtime choice; the library sends size, depth, opacity and rotation only |
 | E-6 | KTX2 for environment images | Not before ADR-070's gates. WebP until then |
 | E-7 | How scenes reference these (field names in `ThreeLocationManifest` and Django `scene`) | Use `...AssetId` names (`materialAssetId`, `skyAssetId`, `spriteAssetIds`), so the regions dependency provider tracks them with no change |
-| E-8 | `mediaAssets.ts` always sets sRGB | It must use `render.colourSpace`, and set wrap and repeat from `sampling` |
+| E-8 | Colour space. `mediaAssets.ts` always sets `SRGBColorSpace` | Rule (owner follow-up 2, 2026-11-28): **colour images are sRGB; data maps are never sampled or colour-managed as sRGB.** In Three.js terms: `render.colourSpace === "linear"` (every `MATERIAL_MAP`: normal, roughness, metalness, occlusion, ORM, opacity, height) → `texture.colorSpace = NoColorSpace`; `"srgb"`, or no `render` block at all → `SRGBColorSpace`. Wrap, repeat and rotation come from `sampling`. The library side guarantees this: a material map must be linear (form rule and database constraint); a material's data slot accepts only a matching material map; conversion of a map is lossless and untagged. The loader change is LAI 04's |
 | E-9 | Bundled image fallbacks in TS manifests (#247) | Not in v1. The scene asset index would need image ids first |
-| E-10 | The region catalog (`game_sessions/play_state.py` `region_catalog`) already lists every `...AssetId` a scene names, with `deliverable` true only for a default version or a bundled file. A material has neither, so it would be reported as not deliverable | When the first scene names a material, `deliverable` for kind `material` should mean "has a published revision". It is a one-line change in a shared app, left for the scene-field work (E-7) so that it lands with a test that uses it |
+| E-10 | The region catalog (`game_sessions/play_state.py` `region_catalog`) lists every `...AssetId` a scene names, with `deliverable` true only for a default version or a bundled file. A material has neither | **Done** (owner follow-up 3, 2026-11-28): for kind `material`, `deliverable` is true once its content has a published revision. A material asset with no definition row, or with no published revision, is false. Tested with a nested scene. LAI 04 to confirm the client treats `kind: "material"` catalog rows correctly |
 
 ## 9. Owner decisions
 
-| # | Decision | Recommendation |
+| # | Question | Owner decision (2026-11-28) |
 |---|---|---|
-| D-1 | Accept this design (a material kind on `ContentAsset` with ADR-047 revisions, and `ImageProfile` on the CollisionProfile pattern) and reserve an ADR number on `main` | Accept. Reserve ADR-074 |
-| D-2 | Local image conversion: the `inline` jobs backend cannot run `asset.convert_image` without Pillow in Django | Keep Pillow out of Django (ADR-068). Document `local-demo.sh` as the local route |
-| D-3 | Make an unconfirmed licence a publish refusal for image roles | Warn now. Refuse once the existing images are back-filled |
-| D-4 | Environment images above 4096 px a side or 16 Mpx (a large sky) | Keep the limits. 4096 x 2048 is enough for a child-scale sky |
+| D-1 | Accept this design (a material kind on `ContentAsset` with ADR-047 revisions, and `ImageProfile` on the CollisionProfile pattern) and reserve an ADR number on `main` | **Approved.** Number 074 confirmed free on `main` `c14392b0` and every remote branch; reserved by PR #117 (registry only, for the owner to merge). Final ADR text after LAI 04 agrees the interface |
+| D-2 | Local image conversion: the `inline` jobs backend cannot run `asset.convert_image` without Pillow in Django | **Approved.** Pillow stays out of Django; `local-demo.sh` is the local route; limitations in section 7 |
+| D-3 | Unknown licences | **Approved with conditions.** Existing images stay compatible and warn. New environmental assets need a verified, permitted licence before published realm content uses them. No global restriction. A separate task handles legacy remediation. Implemented as in section 6 |
+| D-4 | Environment images above 4096 px a side or 16 Mpx (a large sky) | **Approved.** The limits stay; raising them needs benchmarks and approval |
 
 ## 10. Mobile (Unity) compatibility
 
@@ -397,3 +427,44 @@ KTX2 stays off:
 
 Every file needs a confirmed licence that ADR-028 allows, before it is published. None is
 sourced yet. Treasure Rush gameplay and layouts are not changed by this work.
+
+## 13. Draft decision record (number 074 reserved by PR #117; final text after LAI 04 agrees)
+
+Written with the placeholder `ADR-NNN`, because the registry check refuses a number before its
+reservation is on `main`. When PR #117 is merged and LAI 04 has answered section 8, this text
+moves into `docs/DECISIONS.md` as that ADR, with its registry row replacing the `Reserved` one.
+
+```text
+## ADR-NNN: Environmental image assets and materials in the Asset Library
+
+Status: Proposed (design approved by the owner, D-1, 2026-11-28; interface pending LAI 04)
+
+Context. Realms need image-based environment detail (surfaces, sprites, decals, skies,
+particles) and reusable materials, not a model for every detail. The Asset Library already
+stores, validates, versions, delivers and protects image files; ADR-047 already versions
+authored JSON; ADR-068 already converts images off the web server.
+
+Decision.
+1. Images stay ContentAsset + AssetVersion (kinds texture, sprite, image). How an image is drawn
+   is an ImageProfile (asset default plus optional per-version override, the CollisionProfile
+   pattern): role, colour space, alpha, sampling, sprite/decal/particle sizing, sheets, sky
+   layout. Profiles never produce collision.
+2. A material is a ContentAsset of kind material that holds no file, with an ADR-047
+   authorable MaterialDefinition (kind "material") whose published body names texture asset
+   ids by slot (glTF metal-rough channel conventions) plus factors and UV defaults.
+3. Delivery is additive to the child-scoped resolver (contract env-assets/1): image entries
+   gain media.hasAlpha, media.colourModel and a render block; material entries inline their
+   maps' image entries. Colour images are sRGB; data maps are linear and never colour-managed.
+4. Scenes reference these by ids under keys ending in AssetId / AssetIds, so the existing
+   regions dependency provider protects them; a new authoritative materials provider protects
+   textures used by published materials and reports the 3D Areas reached through them.
+5. New environmental assets need a verified, permitted licence (CC0-1.0, original,
+   proprietary; attribution licences barred by ADR-028) before published content uses them;
+   existing images are unaffected.
+6. No new storage prefix, IAM grant, dependency or runtime-specific type; KTX2 for standalone
+   images waits for ADR-070's gates.
+
+Consequences. One catalog, one storage path and one versioning model serve every asset family;
+runtimes (Three.js now, a possible Unity adapter later) read the same plain-unit answer. LAI 04
+owns rendering, scene fields and the client parser for material entries.
+```

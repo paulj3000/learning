@@ -208,6 +208,12 @@ def _map_asset_problems(where: str, slot: str, asset_id: str) -> list[str]:
         return [f"{where}.assetId: {asset_id!r} is a {asset.kind}, not a texture"]
     if asset.status != AssetStatus.ACTIVE:
         return [f"{where}.assetId: {asset_id!r} is retired"]
+    from .licences import licence_problem
+
+    if asset.default_version_id is not None:
+        problem = licence_problem(asset.default_version)
+        if problem is not None:  # D-3: published realm content needs a licensed texture
+            return [f"{where}.assetId: {asset_id!r} cannot be used yet: {problem}"]
     profile = asset.image_profiles.filter(version__isnull=True).first()
     if slot in COLOUR_SLOTS:
         if profile is not None and profile.role != image_profiles.SURFACE:

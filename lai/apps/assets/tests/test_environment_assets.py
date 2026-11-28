@@ -88,7 +88,19 @@ def webp_extended(width=16, height=16, alpha=True) -> bytes:
     return b"RIFF" + struct.pack("<I", 4 + len(chunk)) + b"WEBP" + chunk
 
 
+#: A confirmed, permitted licence (D-3). Environmental images need one to publish.
+CC0 = {
+    "provenance": {
+        "licenceId": "CC0-1.0",
+        "licenceStatus": "confirmed",
+        "author": "LAI tests",
+        "ownerConfirmation": "synthetic test image",
+    }
+}
+
+
 def put(asset, data, name="file.png", **options):
+    options.setdefault("extra_metadata", CC0)
     return services.upload_version(asset, io.BytesIO(data), original_filename=name, **options)
 
 
@@ -884,3 +896,156 @@ def test_the_shared_content_editor_drafts_and_publishes_a_material(roles, dock_t
     assert row.texture_asset_ids == ["tr-dock-albedo"]
     asset_editor = staff_client("plain", "Asset editors")
     assert asset_editor.get(start).status_code == 403  # content drafting is a content role
+
+
+# --- scene discovery and the region catalog (owner follow-up 3, 2026-11-28) -------------------
+
+ENV_SCENE = {
+    "groundAssetId": "tr-beach-sand",
+    "surfaces": [
+        {"id": "dock", "materialAssetId": "tr-wooden-dock", "uv": {"repeat": [2, 2]}},
+        {"id": "path", "layers": [{"materialAssetId": "tr-path-mat"}]},
+    ],
+    "decor": {
+        "scatter": [{"spriteAssetIds": ["tr-shell-a", "tr-starfish"], "count": 12}],
+        "decals": [{"decalAssetId": "tr-footprint", "at": [1, 2]}],
+    },
+    "sky": {"skyAssetId": "tr-sky", "backdrops": {"islandAssetIds": ["tr-island-far"]}},
+    # Not asset references: ids of other things, and names that do not end in AssetId(s).
+    "materialId": "not-an-asset",
+    "spriteNames": ["also-not"],
+}
+
+
+def test_every_asset_id_key_is_found_at_any_depth_and_in_lists():
+    from apps.regions.dependencies import scene_asset_ids
+
+    found = scene_asset_ids(ENV_SCENE)
+    assert set(found) == {
+        "tr-beach-sand",
+        "tr-wooden-dock",
+        "tr-path-mat",
+        "tr-shell-a",
+        "tr-starfish",
+        "tr-footprint",
+        "tr-sky",
+        "tr-island-far",
+    }
+    assert found["tr-path-mat"] == ["surfaces[1].layers[0].materialAssetId"]
+    assert found["tr-starfish"] == ["decor.scatter[0].spriteAssetIds[1]"]
+    assert found["tr-island-far"] == ["sky.backdrops.islandAssetIds[0]"]
+
+
+def test_a_nested_material_reference_protects_the_material_and_its_textures(env):
+    _area("nested-cove", {"a": [{"b": {"layers": [{"materialAssetId": "tr-wooden-dock"}]}}]})
+    with pytest.raises(AssetActionRefused) as material_refusal:
+        services.retire_asset(env["material"].asset)
+    assert material_refusal.value.code == "region_placement_dependency"
+    with pytest.raises(AssetActionRefused) as texture_refusal:
+        services.retire_asset(env["normal"])
+    assert texture_refusal.value.code == material_usage.REFUSAL_CODE
+    assert "3D Area nested-cove (published)" in texture_refusal.value.message
+
+
+def test_a_draft_area_using_a_material_is_reported_not_blocking(env):
+    _area(
+        "draft-cove",
+        {"surfaces": [{"materialAssetId": "tr-wooden-dock"}]},
+        status=ContentStatus.DRAFT,
+    )
+    usages = dependencies.usages_for(env["material"].asset)
+    assert usages and not any(u.blocks_retirement for u in usages)
+
+
+def test_the_region_catalog_delivers_a_material_only_once_published(env):
+    from apps.game_sessions.play_state import region_catalog
+
+    texture("tr-beach-sand")
+    make_material("tr-path-mat")  # created, never published
+    region = _area("catalog-cove", ENV_SCENE)
+    listed = {row["assetId"]: row for row in region_catalog(region)["assets"]}
+    assert listed["tr-wooden-dock"]["kind"] == "material"
+    assert listed["tr-wooden-dock"]["deliverable"] is True
+    assert listed["tr-path-mat"]["deliverable"] is False
+    assert listed["tr-beach-sand"]["deliverable"] is True  # a published texture, as before
+
+
+def test_a_material_asset_with_no_definition_row_is_not_deliverable(storage):
+    from apps.game_sessions.play_state import region_catalog
+
+    make_definition("tr-bare-mat", kind="material", category="texture")
+    region = _area("bare-cove", {"surfaces": [{"materialAssetId": "tr-bare-mat"}]})
+    (row,) = region_catalog(region)["assets"]
+    assert row == {"assetId": "tr-bare-mat", "kind": "material", "clips": [], "deliverable": False}
+
+
+# --- D-3 licence conditions (owner, 2026-11-28) -------------------------------------------------
+
+UNLICENSED = {"provenance": {}}
+
+
+def test_an_existing_image_without_a_licence_still_publishes(storage):
+    """Backward compatible: no image profile, so no new rule applies."""
+    art = make_definition("legacy-island-art", kind="image", category="image")
+    version = services.publish_version(put(art, png(), extra_metadata=None))
+    assert version.status == VersionStatus.PUBLISHED
+
+
+@pytest.mark.parametrize(
+    ("provenance", "problem"),
+    [
+        ({}, "not confirmed"),
+        ({"licenceId": "CC0-1.0", "licenceStatus": "unconfirmed"}, "not confirmed"),
+        ({"licenceStatus": "confirmed"}, "no licence id"),
+        ({"licenceId": "CC-BY-4.0", "licenceStatus": "confirmed"}, "ADR-028"),
+        ({"licenceId": "MIT", "licenceStatus": "confirmed"}, "not a permitted licence"),
+    ],
+)
+def test_an_environmental_image_needs_a_verified_permitted_licence(storage, provenance, problem):
+    sand = texture("tr-env-sand")  # v1 licensed
+    profile(sand, "SURFACE")
+    candidate = put(sand, png(16, 16), extra_metadata={"provenance": provenance})
+    with pytest.raises(AssetActionRefused) as refused:
+        services.publish_version(candidate)
+    assert refused.value.code == "licence_required" and problem in refused.value.message
+    candidate.refresh_from_db()
+    assert candidate.status == VersionStatus.VALIDATED  # refused, not rejected
+    assert services.publish_refusal(candidate).code == "licence_required"  # shown in Admin
+
+
+@pytest.mark.parametrize("licence", ["CC0-1.0", "original", "proprietary"])
+def test_a_permitted_confirmed_licence_publishes(storage, licence):
+    sand = texture("tr-env-ok")
+    profile(sand, "SURFACE")
+    provenance = {"licenceId": licence, "licenceStatus": "confirmed"}
+    version = put(sand, png(16, 16), extra_metadata={"provenance": provenance})
+    assert services.publish_version(version).status == VersionStatus.PUBLISHED
+
+
+def test_a_material_cannot_use_an_unlicensed_texture(storage):
+    legacy = make_definition("tr-legacy-planks", kind="texture", category="texture")
+    services.publish_version(put(legacy, png(), extra_metadata=UNLICENSED))
+    problems = materials.body_problems(body_with(baseColor="tr-legacy-planks"))
+    assert problems and "cannot be used yet: its licence is not confirmed" in problems[0]
+
+
+def test_the_profile_admin_warns_about_an_unlicensed_default(roles, storage):
+    legacy = make_definition("tr-legacy-rock", kind="texture", category="texture")
+    services.publish_version(put(legacy, png(), extra_metadata=UNLICENSED))
+    publisher = staff_client("pub", "Asset publishers")
+    response = publisher.post(
+        f"{PROFILES}add/",
+        {
+            "asset": legacy.pk,
+            "role": "SURFACE",
+            "colour_space": "SRGB",
+            "alpha_mode": "OPAQUE",
+            "wrap": "REPEAT",
+            "loop": "on",
+        },
+        follow=True,
+    )
+    shown = [str(m) for m in response.context["messages"]]
+    assert any(m.startswith("licence_required") for m in shown), shown
+    legacy.refresh_from_db()
+    assert legacy.default_version.status == VersionStatus.PUBLISHED  # nothing is unpublished

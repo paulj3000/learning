@@ -367,6 +367,11 @@ def publish_refusal(
     compression = compression_refusal(version)
     if compression is not None:
         return compression
+    from .licences import publish_refusal as licence_refusal  # D-3, environmental images only
+
+    licence = licence_refusal(version, asset)
+    if licence is not None:
+        return licence
     if async_validation_applies(version) and not _has_passing_validation(version):
         return AssetActionRefused(
             "processing_required",
