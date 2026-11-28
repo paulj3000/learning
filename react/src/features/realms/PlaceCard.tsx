@@ -11,10 +11,25 @@ import { themeFor } from './realmThemes';
  * already exist: the Place page (its Adventures) and its published 3D Area. Nothing here starts
  * Three.js; the 3D route loads its scene only when opened.
  */
-export function PlaceCard({ place, realmTitle }: { place: RealmPlace; realmTitle: string }) {
+export function PlaceCard({
+  place,
+  realmTitle,
+  displayTitle = place.title,
+  displayTagline = place.tagline,
+  eager = false,
+}: {
+  place: RealmPlace;
+  realmTitle: string;
+  /** Explorer-only presentation; never changes the catalog or the published routes. */
+  displayTitle?: string;
+  displayTagline?: string;
+  eager?: boolean;
+}) {
   const theme = themeFor(place.slug);
   const adventureTotal = place.adventureCount + place.questCount;
   const titleId = `place-card-${place.slug}`;
+  const areaTitle =
+    displayTitle === place.title ? (place.area?.title ?? displayTitle) : displayTitle;
   return (
     <article
       aria-labelledby={titleId}
@@ -28,7 +43,12 @@ export function PlaceCard({ place, realmTitle }: { place: RealmPlace; realmTitle
         <RealmPicture
           assetId={place.thumbnailAssetId}
           scene={theme.scene}
-          label={place.area ? `${place.title}: ${place.area.title}` : place.title}
+          label={
+            displayTitle === place.title && place.area
+              ? `${place.title}: ${place.area.title}`
+              : displayTitle
+          }
+          eager={eager}
           className={cn('aspect-[16/10] w-full', theme.wash)}
         />
         {place.completed ? (
@@ -46,10 +66,10 @@ export function PlaceCard({ place, realmTitle }: { place: RealmPlace; realmTitle
         ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-3 p-5">
-        <h3 id={titleId} className="m-0 font-display text-xl leading-tight text-ocean-900">
-          {place.title}
+        <h3 id={titleId} className="m-0 font-display text-2xl leading-tight text-ocean-900">
+          {displayTitle}
         </h3>
-        {place.tagline ? <p className="m-0">{place.tagline}</p> : null}
+        {displayTagline ? <p className="m-0">{displayTagline}</p> : null}
         <SubjectBadges subjects={place.subjectAreas} />
         {adventureTotal > 0 ? (
           <p className="m-0 text-sm font-semibold text-ink-muted">
@@ -70,17 +90,17 @@ export function PlaceCard({ place, realmTitle }: { place: RealmPlace; realmTitle
               <Link to={place.area.href}>
                 <span aria-hidden="true">{place.area.inProgress ? '▶️' : '🧭'}</span>
                 {place.area.inProgress
-                  ? `Continue in ${place.area.title}`
+                  ? `Continue in ${areaTitle}`
                   : place.completed
-                    ? `Visit ${place.area.title} again`
-                    : `Explore ${place.area.title} in 3D`}
+                    ? `Visit ${areaTitle} again`
+                    : `Explore ${areaTitle} in 3D`}
               </Link>
             </PortalButton>
           ) : null}
           {place.href ? (
             <PortalButton asChild tone={place.area ? 'quiet' : 'ocean'} block>
               <Link to={place.href}>
-                <span aria-hidden="true">🗺️</span>Visit {place.title}
+                <span aria-hidden="true">🗺️</span>Visit {place.area ? place.title : displayTitle}
               </Link>
             </PortalButton>
           ) : null}

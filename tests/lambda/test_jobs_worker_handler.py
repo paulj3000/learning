@@ -58,7 +58,9 @@ def speech_payload(**overrides):
     return payload
 
 
-ASSET_KEY = f"assets/models/pip-boat/{uuid.uuid4()}/model.glb"
+# A fixed id: the key appears in parametrized test ids, which parallel workers (pytest-xdist)
+# require to be identical on every collection.
+ASSET_KEY = "assets/models/pip-boat/4fad6e8c-ab7a-4d5e-9c6f-5a8b9cadbec4/model.glb"
 
 
 def work(worker, kind, payload, job_id=None):
@@ -298,7 +300,7 @@ def test_wrong_queue_gets_a_failed_result(worker, fakes, make_runtime, context):
         json.dumps(
             {
                 "schema": 1,
-                "job_id": str(uuid.uuid4()),
+                "job_id": "50be7f9d-bc8b-4e6f-8d7a-6b9cadbecfd5",
                 "kind": "shell.exec",
                 "attempt": 1,
                 "submitted_at": "2026-11-16T00:00:00Z",
@@ -308,7 +310,7 @@ def test_wrong_queue_gets_a_failed_result(worker, fakes, make_runtime, context):
         json.dumps(
             {
                 "schema": 2,
-                "job_id": str(uuid.uuid4()),
+                "job_id": "61cf8a0e-cd9c-4f7a-9e8b-7cadbecfd0e6",
                 "kind": "asset.inspect",
                 "attempt": 1,
                 "submitted_at": "2026-11-16T00:00:00Z",

@@ -99,6 +99,7 @@ describe('Welcome Harbor on the generic view: parity with WelcomeHarborWorldView
   it('opens a conversation with Pip from the "Things to do here" list', async () => {
     const user = userEvent.setup();
     renderHarbor();
+    await user.click(await screen.findByRole('button', { name: 'Things to do' }));
     await user.click(await screen.findByRole('button', { name: /say hello to pip/i }));
     expect(await screen.findByTestId('npc-conversation')).toHaveTextContent('pirate-pip');
   });

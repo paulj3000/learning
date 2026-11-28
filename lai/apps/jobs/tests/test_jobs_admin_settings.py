@@ -55,6 +55,18 @@ def _load(name):
     return importlib.import_module(name)
 
 
+@pytest.fixture(autouse=True)
+def forget_loaded_settings():
+    """Drop the settings modules `_load` built from this test's environment.
+
+    Left cached, a later test elsewhere that imports production settings would inherit this
+    test's values (seen as `LAI_ASSET_ASYNC_VALIDATION=on` failing the AI settings tests).
+    """
+    yield
+    for name in ("config.settings.production", "config.settings.base"):
+        sys.modules.pop(name, None)
+
+
 SQS_ENV = {
     "LAI_JOBS_BACKEND": "sqs",
     "LAI_JOBS_AI_QUEUE_URL": AI_URL,

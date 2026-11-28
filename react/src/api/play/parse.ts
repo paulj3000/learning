@@ -88,6 +88,9 @@ const PUZZLE_KINDS = [
   'RETURN_TO_NPC',
   'CHOOSE_ANSWER',
   'ORDER_SEQUENCE',
+  'NAVIGATE_ROUTE',
+  'SORT_ITEMS',
+  'SHARE_ITEMS',
 ] as const;
 
 export function puzzleState(r: Reader): PuzzleState {
@@ -142,7 +145,7 @@ function chest(r: Reader): ChestState {
     lockReason: optional(
       r,
       'lockReason',
-      (v) => v.nullable((reason) => reason.oneOf(['PROGRESS', 'ITEM'] as const)),
+      (v) => v.nullable((reason) => reason.oneOf(['PROGRESS', 'ITEM', 'PUZZLE'] as const)),
       null,
     ),
     requiredItemId: optional(r, 'requiredItemId', (v) => v.nullable((id) => id.string()), null),
@@ -276,6 +279,16 @@ export function puzzleOutcome(r: Reader): PuzzleOutcome {
     alreadySolved: r.field('alreadySolved').boolean(),
     practice: optional(r, 'practice', (v) => v.boolean(), false),
     failedAttempts: r.field('failedAttempts').integer(),
+    skillPracticed: optional(
+      r,
+      'skillPracticed',
+      (v) =>
+        v.nullable((s) => ({
+          code: s.field('code').string(),
+          title: s.field('title').string(),
+        })),
+      null,
+    ),
     newItems: r.field('newItems').array(item),
     rewardMessage: r.field('rewardMessage').nullable((v) => v.string()),
     questUpdates: r.field('questUpdates').array(questUpdate),

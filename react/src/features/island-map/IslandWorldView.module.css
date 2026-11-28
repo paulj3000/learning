@@ -105,16 +105,17 @@
 }
 
 /*
-  Full screen (WorldStage.tsx): one viewport-high column. The 3D stage takes
-  whatever height is left, and panels below it scroll inside themselves, so
-  the page itself never needs scrolling while a child walks around.
+  Full screen (WorldStage.tsx): one viewport-high column, edge to edge (GE-101). The 3D stage
+  takes the whole height: settings and the exploration list are menus on the stage, and dialogue
+  and puzzle layers are fixed over it. Anything else left in flow (a one-line status) scrolls
+  inside itself, so the page itself never needs scrolling while a child walks around.
 */
 .wrapper:fullscreen {
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  padding: var(--space-3);
-  gap: var(--space-3);
+  padding: 0;
+  gap: 0;
   overflow: hidden;
   background: var(--color-background);
 }

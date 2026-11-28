@@ -5,7 +5,12 @@ from apps.catalog.importer import import_content
 from apps.catalog.models import ItemDefinition, RewardRule
 from apps.inventory.models import GrantedRule, InventoryItem
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 
 def test_an_item_is_owned_once_and_a_rule_is_granted_once_per_child(families):

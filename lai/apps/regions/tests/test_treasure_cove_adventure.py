@@ -16,7 +16,12 @@ from apps.catalog.importer import import_content
 from apps.regions.models import PlacementKind, WorldRegion
 from apps.regions.treasure_rush_seed import REGION_ID, seed_treasure_rush
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 DEFINITION = (
     Path(settings.BASE_DIR).parent / "react/src/features/region-play/treasureCoveAdventure.json"

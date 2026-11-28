@@ -42,6 +42,46 @@ function renderInWrapper() {
 }
 
 describe('WorldStage', () => {
+  it('puts the view menus in the stage toolbar beside Full screen (GE-101)', () => {
+    setFullscreenEnabled(true);
+    render(
+      <WorldStage menus={<button type="button">Settings</button>}>
+        <span>canvas</span>
+      </WorldStage>,
+    );
+    const toolbar = document.querySelector('[data-stage-toolbar]')!;
+    expect(toolbar).toContainElement(screen.getByRole('button', { name: 'Full screen' }));
+    expect(toolbar).toContainElement(screen.getByRole('button', { name: 'Settings' }));
+  });
+
+  it('keeps the menus where the browser cannot go full screen (iPhone Safari)', () => {
+    setFullscreenEnabled(false);
+    render(
+      <WorldStage menus={<button type="button">Settings</button>}>
+        <span>canvas</span>
+      </WorldStage>,
+    );
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Full screen' })).not.toBeInTheDocument();
+  });
+
+  it('keeps Exit full screen reachable, and its Space press away from the engine', async () => {
+    setFullscreenEnabled(true);
+    renderInWrapper();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Full screen' }));
+    });
+    const exit = screen.getByRole('button', { name: 'Exit full screen' });
+    const onDown = vi.fn();
+    window.addEventListener('keydown', onDown);
+    try {
+      fireEvent.keyDown(exit, { key: ' ' });
+      expect(onDown).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('keydown', onDown);
+    }
+  });
+
   it('hides the full screen button when the browser cannot go full screen', () => {
     setFullscreenEnabled(false);
     renderInWrapper();

@@ -1,0 +1,2340 @@
+{
+ "placements": [
+  {
+   "asset_id": "",
+   "entity_id": "cove-map-piece-1",
+   "kind": "PROP",
+   "label": "Torn map piece 1",
+   "placeholder_depth": 0.45,
+   "placeholder_height": 0.15,
+   "placeholder_width": 0.6,
+   "rotation_y": 0.4,
+   "x": -2.5,
+   "z": 16.0
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-map-piece-2",
+   "kind": "PROP",
+   "label": "Torn map piece 2",
+   "placeholder_depth": 0.45,
+   "placeholder_height": 0.15,
+   "placeholder_width": 0.6,
+   "rotation_y": 0.8,
+   "x": 6.2,
+   "z": 11.0
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-map-piece-3",
+   "kind": "PROP",
+   "label": "Torn map piece 3",
+   "placeholder_depth": 0.45,
+   "placeholder_height": 0.15,
+   "placeholder_width": 0.6,
+   "rotation_y": 1.2000000000000002,
+   "x": 2.6,
+   "z": 25.6
+  },
+  {
+   "asset_id": "signpost",
+   "entity_id": "cove-way-grove",
+   "kind": "PROP",
+   "label": "Sign to Palm Tree Grove",
+   "placeholder_depth": 0.2,
+   "placeholder_height": 1.6,
+   "placeholder_width": 0.6,
+   "rotation_y": 1.57,
+   "x": -10.5,
+   "z": 10.0
+  },
+  {
+   "asset_id": "signpost",
+   "entity_id": "cove-way-beach",
+   "kind": "PROP",
+   "label": "Sign to Shipwreck Beach",
+   "placeholder_depth": 0.2,
+   "placeholder_height": 1.6,
+   "placeholder_width": 0.6,
+   "rotation_y": -1.57,
+   "x": 10.5,
+   "z": 10.0
+  },
+  {
+   "asset_id": "signpost",
+   "entity_id": "cove-way-ruins",
+   "kind": "PROP",
+   "label": "Sign to the ruins",
+   "placeholder_depth": 0.2,
+   "placeholder_height": 1.6,
+   "placeholder_width": 0.6,
+   "rotation_y": 0.0,
+   "x": 1.8,
+   "z": -2.5
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-creek-stone-a",
+   "kind": "PROP",
+   "label": "Stepping stone 1",
+   "placeholder_depth": 0.9,
+   "placeholder_height": 0.25,
+   "placeholder_width": 0.9,
+   "rotation_y": 0.0,
+   "x": -13.2,
+   "z": 6.4
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-creek-stone-b",
+   "kind": "PROP",
+   "label": "Stepping stone 2",
+   "placeholder_depth": 0.9,
+   "placeholder_height": 0.25,
+   "placeholder_width": 0.9,
+   "rotation_y": 0.0,
+   "x": -14.1,
+   "z": 8.4
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-creek-stone-c",
+   "kind": "PROP",
+   "label": "Stepping stone 3",
+   "placeholder_depth": 0.9,
+   "placeholder_height": 0.25,
+   "placeholder_width": 0.9,
+   "rotation_y": 0.0,
+   "x": -15.0,
+   "z": 6.6
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-creek-stone-d",
+   "kind": "PROP",
+   "label": "Stepping stone 4",
+   "placeholder_depth": 0.9,
+   "placeholder_height": 0.25,
+   "placeholder_width": 0.9,
+   "rotation_y": 0.0,
+   "x": -15.9,
+   "z": 8.6
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-creek-stone-e",
+   "kind": "PROP",
+   "label": "Stepping stone 5",
+   "placeholder_depth": 0.9,
+   "placeholder_height": 0.25,
+   "placeholder_width": 0.9,
+   "rotation_y": 0.0,
+   "x": -16.6,
+   "z": 6.8
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-creek-crocodile",
+   "kind": "PROP",
+   "label": "Snappy the crocodile",
+   "placeholder_depth": 0.6,
+   "placeholder_height": 0.5,
+   "placeholder_width": 1.8,
+   "rotation_y": 2.6,
+   "x": -14.6,
+   "z": 4.0
+  },
+  {
+   "asset_id": "crate",
+   "entity_id": "cove-dock-crate-a",
+   "kind": "SCENERY",
+   "label": "Cargo crate A",
+   "placeholder_depth": 0.9,
+   "placeholder_height": 0.9,
+   "placeholder_width": 0.9,
+   "rotation_y": 0.0,
+   "x": 17.2,
+   "z": 22.6
+  },
+  {
+   "asset_id": "crate",
+   "entity_id": "cove-dock-crate-b",
+   "kind": "SCENERY",
+   "label": "Cargo crate B",
+   "placeholder_depth": 0.9,
+   "placeholder_height": 0.9,
+   "placeholder_width": 0.9,
+   "rotation_y": 0.3,
+   "x": 18.4,
+   "z": 26.2
+  },
+  {
+   "asset_id": "crate",
+   "entity_id": "cove-dock-crate-c",
+   "kind": "SCENERY",
+   "label": "Cargo crate C",
+   "placeholder_depth": 0.9,
+   "placeholder_height": 0.9,
+   "placeholder_width": 0.9,
+   "rotation_y": 0.6,
+   "x": 23.6,
+   "z": 26.6
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-cave-carving-1",
+   "kind": "PROP",
+   "label": "Old carving 1",
+   "placeholder_depth": 0.25,
+   "placeholder_height": 1.0,
+   "placeholder_width": 0.8,
+   "rotation_y": 0.0,
+   "x": -7.2,
+   "z": -22.0
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-cave-carving-2",
+   "kind": "PROP",
+   "label": "Old carving 2",
+   "placeholder_depth": 0.25,
+   "placeholder_height": 1.0,
+   "placeholder_width": 0.8,
+   "rotation_y": 0.0,
+   "x": 8.6,
+   "z": -19.0
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-cave-carving-3",
+   "kind": "PROP",
+   "label": "Old carving 3",
+   "placeholder_depth": 0.25,
+   "placeholder_height": 1.0,
+   "placeholder_width": 0.8,
+   "rotation_y": 0.0,
+   "x": -7.6,
+   "z": -33.6
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-finale-torch-1",
+   "kind": "PROP",
+   "label": "Torch 1",
+   "placeholder_depth": 0.4,
+   "placeholder_height": 1.6,
+   "placeholder_width": 0.4,
+   "rotation_y": 0.0,
+   "x": -4.2,
+   "z": -30.4
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-finale-torch-2",
+   "kind": "PROP",
+   "label": "Torch 2",
+   "placeholder_depth": 0.4,
+   "placeholder_height": 1.6,
+   "placeholder_width": 0.4,
+   "rotation_y": 0.0,
+   "x": 4.2,
+   "z": -30.4
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-finale-torch-3",
+   "kind": "PROP",
+   "label": "Torch 3",
+   "placeholder_depth": 0.4,
+   "placeholder_height": 1.6,
+   "placeholder_width": 0.4,
+   "rotation_y": 0.0,
+   "x": -4.2,
+   "z": -34.0
+  },
+  {
+   "asset_id": "",
+   "entity_id": "cove-finale-torch-4",
+   "kind": "PROP",
+   "label": "Torch 4",
+   "placeholder_depth": 0.4,
+   "placeholder_height": 1.6,
+   "placeholder_width": 0.4,
+   "rotation_y": 0.0,
+   "x": 4.2,
+   "z": -34.0
+  }
+ ],
+ "puzzles": [
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "discoveryMessage": "You found piece 1 of Pip's map! It was by the tent.",
+      "hints": [
+       "Look round the landing for a torn piece of paper."
+      ]
+     },
+     "PATHFINDER": {
+      "discoveryMessage": "You found piece 1 of Pip's map!",
+      "hints": [
+       "Look round the landing for a torn piece of paper."
+      ]
+     },
+     "SPROUT": {
+      "discoveryMessage": "You found piece 1 of Pip's map!",
+      "hints": [
+       "Look round the landing for a torn piece of paper."
+      ]
+     }
+    },
+    "kind": "COLLECT_OBJECT",
+    "puzzleId": "cove-map-piece-1",
+    "requiresChangeKeys": [],
+    "rewardRuleId": null,
+    "title": "Torn map piece 1",
+    "worldChangeKey": "TREASURE_COVE_MAP_PIECE_1"
+   },
+   "entityIds": [
+    "cove-map-piece-1"
+   ],
+   "kind": "COLLECT_OBJECT",
+   "puzzleId": "cove-map-piece-1"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "discoveryMessage": "You found piece 2 of Pip's map! It was near the crates.",
+      "hints": [
+       "Look round the landing for a torn piece of paper."
+      ]
+     },
+     "PATHFINDER": {
+      "discoveryMessage": "You found piece 2 of Pip's map!",
+      "hints": [
+       "Look round the landing for a torn piece of paper."
+      ]
+     },
+     "SPROUT": {
+      "discoveryMessage": "You found piece 2 of Pip's map!",
+      "hints": [
+       "Look round the landing for a torn piece of paper."
+      ]
+     }
+    },
+    "kind": "COLLECT_OBJECT",
+    "puzzleId": "cove-map-piece-2",
+    "requiresChangeKeys": [],
+    "rewardRuleId": null,
+    "title": "Torn map piece 2",
+    "worldChangeKey": "TREASURE_COVE_MAP_PIECE_2"
+   },
+   "entityIds": [
+    "cove-map-piece-2"
+   ],
+   "kind": "COLLECT_OBJECT",
+   "puzzleId": "cove-map-piece-2"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "discoveryMessage": "You found piece 3 of Pip's map! It was on the way to the dock.",
+      "hints": [
+       "Look round the landing for a torn piece of paper."
+      ]
+     },
+     "PATHFINDER": {
+      "discoveryMessage": "You found piece 3 of Pip's map!",
+      "hints": [
+       "Look round the landing for a torn piece of paper."
+      ]
+     },
+     "SPROUT": {
+      "discoveryMessage": "You found piece 3 of Pip's map!",
+      "hints": [
+       "Look round the landing for a torn piece of paper."
+      ]
+     }
+    },
+    "kind": "COLLECT_OBJECT",
+    "puzzleId": "cove-map-piece-3",
+    "requiresChangeKeys": [],
+    "rewardRuleId": null,
+    "title": "Torn map piece 3",
+    "worldChangeKey": "TREASURE_COVE_MAP_PIECE_3"
+   },
+   "entityIds": [
+    "cove-map-piece-3"
+   ],
+   "kind": "COLLECT_OBJECT",
+   "puzzleId": "cove-map-piece-3"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Cross out every place a clue says no to.",
+       "The sun goes down in the west."
+      ],
+      "optionEntities": {
+       "beach": "cove-way-beach",
+       "grove": "cove-way-grove",
+       "ruins": "cove-way-ruins"
+      },
+      "presentation": "PATHS",
+      "skill": "observation",
+      "subject": "LOGIC",
+      "variants": [
+       {
+        "answer": "grove",
+        "explanation": "West, past the flowers and into the trees: that is the path to Palm Tree Grove.",
+        "id": "e1",
+        "options": [
+         {
+          "id": "grove",
+          "label": "West, to the grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "East, to the beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "South, to the ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Pip's map says: start at the landing, walk west past the flowers, and the X is in the trees. Which sign do you follow?",
+        "skill": "following-instructions"
+       },
+       {
+        "answer": "grove",
+        "explanation": "Away from the east is west, and the west sign goes to the grove.",
+        "id": "e2",
+        "options": [
+         {
+          "id": "grove",
+          "label": "West, to the grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "East, to the beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "South, to the ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The map's arrow points away from where the sun comes up. The sun comes up in the east. Which way does the arrow point?",
+        "skill": "following-instructions"
+       },
+       {
+        "answer": "grove",
+        "explanation": "The shipwreck is at the beach and the pillars are in the ruins. Tall palms grow in the grove.",
+        "id": "e3",
+        "options": [
+         {
+          "id": "grove",
+          "label": "Palm Tree Grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "Shipwreck Beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "Ancient Ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Three clues: not by the shipwreck, not by the old pillars, near tall palm trees. Which sign leads to the X?",
+        "skill": "reading-comprehension"
+       },
+       {
+        "answer": "grove",
+        "explanation": "North-west is between north and west, so the west sign is the closest way.",
+        "id": "e4",
+        "options": [
+         {
+          "id": "grove",
+          "label": "West, to the grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "East, to the beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "South, to the ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The X is to the north-west of the landing. Which sign points nearest to north-west?",
+        "skill": "following-instructions"
+       }
+      ]
+     },
+     "PATHFINDER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Read the map clue again, one part at a time.",
+       "Palm Tree Grove is where the tall palm trees grow."
+      ],
+      "optionEntities": {
+       "beach": "cove-way-beach",
+       "grove": "cove-way-grove",
+       "ruins": "cove-way-ruins"
+      },
+      "presentation": "PATHS",
+      "skill": "observation",
+      "subject": "LOGIC",
+      "variants": [
+       {
+        "answer": "grove",
+        "explanation": "Flowers and palm trees grow in Palm Tree Grove, so that sign shows the way.",
+        "id": "p1",
+        "options": [
+         {
+          "id": "grove",
+          "label": "Palm Tree Grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "Shipwreck Beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "Ancient Ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The map shows the X past the flowers, under the palm trees. Which sign points there?",
+        "skill": "observation"
+       },
+       {
+        "answer": "grove",
+        "explanation": "The sun goes down in the west, and the west sign goes to Palm Tree Grove.",
+        "id": "p2",
+        "options": [
+         {
+          "id": "grove",
+          "label": "West, to the grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "East, to the beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "South, to the ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The map says the sun goes down over the treasure. The sun goes down in the west. Which sign points west?",
+        "skill": "following-instructions"
+       },
+       {
+        "answer": "grove",
+        "explanation": "The beach is sand and the ruins are old stones, so the grove is the one left.",
+        "id": "p3",
+        "options": [
+         {
+          "id": "grove",
+          "label": "Palm Tree Grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "Shipwreck Beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "Ancient Ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The map says: not by the sand, and not by the old stones. Which way is left?",
+        "skill": "following-instructions"
+       }
+      ]
+     },
+     "SPROUT": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Look for the star on a sign.",
+       "The star sign is on the path to the trees."
+      ],
+      "optionEntities": {
+       "beach": "cove-way-beach",
+       "grove": "cove-way-grove",
+       "ruins": "cove-way-ruins"
+      },
+      "presentation": "PATHS",
+      "skill": "observation",
+      "subject": "LOGIC",
+      "variants": [
+       {
+        "answer": "grove",
+        "explanation": "The star on the map matches the star on the sign to Palm Tree Grove.",
+        "id": "s1",
+        "options": [
+         {
+          "id": "grove",
+          "label": "Palm Tree Grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "Shipwreck Beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "Ancient Ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Pip's map has a star by the X. Walk to the sign with the star.",
+        "skill": "observation"
+       },
+       {
+        "answer": "grove",
+        "explanation": "Palm Tree Grove is where the palm trees are. Its sign has a star.",
+        "id": "s2",
+        "options": [
+         {
+          "id": "grove",
+          "label": "Palm Tree Grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "Shipwreck Beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "Ancient Ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The map shows palm trees by the X. Walk to the sign that goes to the palm trees.",
+        "skill": "observation"
+       },
+       {
+        "answer": "grove",
+        "explanation": "The flowers and trees are in Palm Tree Grove. Well spotted!",
+        "id": "s3",
+        "options": [
+         {
+          "id": "grove",
+          "label": "Palm Tree Grove",
+          "symbol": "star"
+         },
+         {
+          "id": "beach",
+          "label": "Shipwreck Beach",
+          "symbol": "circle"
+         },
+         {
+          "id": "ruins",
+          "label": "Ancient Ruins",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The map shows flowers and trees by the X. Which sign goes to the trees?",
+        "skill": "observation"
+       }
+      ]
+     }
+    },
+    "kind": "CHOOSE_ANSWER",
+    "puzzleId": "cove-treasure-map",
+    "requiresChangeKeys": [
+     "TREASURE_COVE_MAP_PIECE_1",
+     "TREASURE_COVE_MAP_PIECE_2",
+     "TREASURE_COVE_MAP_PIECE_3"
+    ],
+    "rewardRuleId": "reward-treasure-rush-cove-chest",
+    "title": "Pip's treasure map",
+    "worldChangeKey": "TREASURE_RUSH_COVE_CHEST_OPENED"
+   },
+   "entityIds": [
+    "cove-way-grove",
+    "cove-way-beach",
+    "cove-way-ruins"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "cove-treasure-map"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Find the rule from the first two stones.",
+       "Check each step with the rule."
+      ],
+      "itemEntities": {
+       "a": "cove-creek-stone-a",
+       "b": "cove-creek-stone-b",
+       "c": "cove-creek-stone-c",
+       "d": "cove-creek-stone-d",
+       "e": "cove-creek-stone-e"
+      },
+      "presentation": "PATH",
+      "skill": "patterns",
+      "subject": "MATHEMATICS",
+      "variants": [
+       {
+        "answer": [
+         "a",
+         "b",
+         "c",
+         "d",
+         "e"
+        ],
+        "explanation": "2, 5, 8, 11, 14: add 3 each time.",
+        "id": "e1",
+        "items": [
+         {
+          "id": "a",
+          "label": "2",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "5",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "8",
+          "symbol": "triangle"
+         },
+         {
+          "id": "d",
+          "label": "11",
+          "symbol": "star"
+         },
+         {
+          "id": "e",
+          "label": "14",
+          "symbol": "diamond"
+         }
+        ],
+        "prompt": "Each stone is 3 more than the one before. Start at 2 and cross.",
+        "skill": "patterns"
+       },
+       {
+        "answer": [
+         "b",
+         "c",
+         "d",
+         "e",
+         "a"
+        ],
+        "explanation": "Look at the tens first: 12 and 19, then 25, then 38, then 41.",
+        "id": "e2",
+        "items": [
+         {
+          "id": "a",
+          "label": "41",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "12",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "19",
+          "symbol": "triangle"
+         },
+         {
+          "id": "d",
+          "label": "25",
+          "symbol": "star"
+         },
+         {
+          "id": "e",
+          "label": "38",
+          "symbol": "diamond"
+         }
+        ],
+        "prompt": "Cross from the smallest number to the biggest.",
+        "skill": "comparing-and-ordering-numbers"
+       },
+       {
+        "answer": [
+         "c",
+         "d",
+         "e",
+         "a",
+         "b"
+        ],
+        "explanation": "25, 20, 15, 10, 5: take away 5 each time.",
+        "id": "e3",
+        "items": [
+         {
+          "id": "a",
+          "label": "10",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "5",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "25",
+          "symbol": "triangle"
+         },
+         {
+          "id": "d",
+          "label": "20",
+          "symbol": "star"
+         },
+         {
+          "id": "e",
+          "label": "15",
+          "symbol": "diamond"
+         }
+        ],
+        "prompt": "Count back by 5 from 25 to cross.",
+        "skill": "patterns"
+       },
+       {
+        "answer": [
+         "d",
+         "e",
+         "a",
+         "b",
+         "c"
+        ],
+        "explanation": "1, 2, 4, 8, 16: each number is the last one added to itself.",
+        "id": "e4",
+        "items": [
+         {
+          "id": "a",
+          "label": "4",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "8",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "16",
+          "symbol": "triangle"
+         },
+         {
+          "id": "d",
+          "label": "1",
+          "symbol": "star"
+         },
+         {
+          "id": "e",
+          "label": "2",
+          "symbol": "diamond"
+         }
+        ],
+        "prompt": "Each stone doubles the one before. Start at 1.",
+        "skill": "patterns"
+       }
+      ]
+     },
+     "PATHFINDER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Find the first number, then look for the next one.",
+       "Say the numbers out loud."
+      ],
+      "itemEntities": {
+       "a": "cove-creek-stone-a",
+       "b": "cove-creek-stone-b",
+       "c": "cove-creek-stone-c",
+       "d": "cove-creek-stone-d"
+      },
+      "presentation": "PATH",
+      "skill": "patterns",
+      "subject": "MATHEMATICS",
+      "variants": [
+       {
+        "answer": [
+         "a",
+         "b",
+         "c",
+         "d"
+        ],
+        "explanation": "2 is smallest, then 4, then 6, and 9 is biggest.",
+        "id": "p1",
+        "items": [
+         {
+          "id": "a",
+          "label": "2",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "4",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "6",
+          "symbol": "triangle"
+         },
+         {
+          "id": "d",
+          "label": "9",
+          "symbol": "star"
+         }
+        ],
+        "prompt": "Step on the numbers from the smallest to the biggest.",
+        "skill": "comparing-and-ordering-numbers"
+       },
+       {
+        "answer": [
+         "b",
+         "c",
+         "d",
+         "a"
+        ],
+        "explanation": "2, 4, 6, 8: each stone is two more than the one before.",
+        "id": "p2",
+        "items": [
+         {
+          "id": "a",
+          "label": "8",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "2",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "4",
+          "symbol": "triangle"
+         },
+         {
+          "id": "d",
+          "label": "6",
+          "symbol": "star"
+         }
+        ],
+        "prompt": "Count by twos to cross the creek. Start at 2.",
+        "skill": "patterns"
+       },
+       {
+        "answer": [
+         "c",
+         "d",
+         "a",
+         "b"
+        ],
+        "explanation": "10 is biggest, then 7, then 5, and 1 is smallest.",
+        "id": "p3",
+        "items": [
+         {
+          "id": "a",
+          "label": "5",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "1",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "10",
+          "symbol": "triangle"
+         },
+         {
+          "id": "d",
+          "label": "7",
+          "symbol": "star"
+         }
+        ],
+        "prompt": "Snappy counts down. Step from the biggest number to the smallest.",
+        "skill": "comparing-and-ordering-numbers"
+       },
+       {
+        "answer": [
+         "d",
+         "a",
+         "b",
+         "c"
+        ],
+        "explanation": "8, 7, 6, 5: each stone is one less.",
+        "id": "p4",
+        "items": [
+         {
+          "id": "a",
+          "label": "7",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "6",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "5",
+          "symbol": "triangle"
+         },
+         {
+          "id": "d",
+          "label": "8",
+          "symbol": "star"
+         }
+        ],
+        "prompt": "Count back by ones to cross. Start at 8.",
+        "skill": "counting-sets"
+       }
+      ]
+     },
+     "SPROUT": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Start with the stone that has the fewest.",
+       "Count out loud."
+      ],
+      "itemEntities": {
+       "a": "cove-creek-stone-a",
+       "b": "cove-creek-stone-b",
+       "c": "cove-creek-stone-c"
+      },
+      "presentation": "PATH",
+      "skill": "patterns",
+      "subject": "MATHEMATICS",
+      "variants": [
+       {
+        "answer": [
+         "a",
+         "b",
+         "c"
+        ],
+        "explanation": "One, two, three! You counted your way across the creek.",
+        "id": "s1",
+        "items": [
+         {
+          "id": "a",
+          "label": "One dot",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "Two dots",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "Three dots",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Snappy says: step on the stones in order. One dot, then two dots, then three dots.",
+        "skill": "counting-sets"
+       },
+       {
+        "answer": [
+         "b",
+         "c",
+         "a"
+        ],
+        "explanation": "Small, then middle, then big. You put them in order of size.",
+        "id": "s2",
+        "items": [
+         {
+          "id": "a",
+          "label": "Big fish",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "Small fish",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "Middle fish",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Step on the stones from the smallest fish to the biggest fish.",
+        "skill": "comparing-lengths"
+       },
+       {
+        "answer": [
+         "c",
+         "a",
+         "b"
+        ],
+        "explanation": "1 frog, then 2, then 3. Each stone has one more frog.",
+        "id": "s3",
+        "items": [
+         {
+          "id": "a",
+          "label": "2 frogs",
+          "symbol": "circle"
+         },
+         {
+          "id": "b",
+          "label": "3 frogs",
+          "symbol": "square"
+         },
+         {
+          "id": "c",
+          "label": "1 frog",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Step on the stones from the fewest frogs to the most frogs.",
+        "skill": "counting-sets"
+       }
+      ]
+     }
+    },
+    "kind": "ORDER_SEQUENCE",
+    "puzzleId": "cove-crocodile-creek",
+    "requiresChangeKeys": [
+     "TREASURE_RUSH_COVE_CHEST_OPENED"
+    ],
+    "rewardRuleId": "reward-treasure-cove-grove-chest",
+    "title": "Crocodile Creek",
+    "worldChangeKey": "TREASURE_COVE_GROVE_CHEST_OPENED"
+   },
+   "entityIds": [
+    "cove-creek-stone-a",
+    "cove-creek-stone-b",
+    "cove-creek-stone-c",
+    "cove-creek-stone-d",
+    "cove-creek-stone-e"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "cove-crocodile-creek"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Write the numbers in your head as a sum.",
+       "Check your answer the other way."
+      ],
+      "optionEntities": {
+       "a": "cove-dock-crate-a",
+       "b": "cove-dock-crate-b",
+       "c": "cove-dock-crate-c"
+      },
+      "presentation": "CARDS",
+      "skill": "counting-sets",
+      "subject": "MATHEMATICS",
+      "variants": [
+       {
+        "answer": "c",
+        "explanation": "5 and 4 more make 9, so adding 4 balances the boat.",
+        "id": "e1",
+        "options": [
+         {
+          "id": "a",
+          "label": "3",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "5",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "4",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "Balance the boat: the left side has 9 sacks and the right side has 5. Which crate makes both sides the same?",
+        "skill": "subtraction-within-ten"
+       },
+       {
+        "answer": "a",
+        "explanation": "4 and 4 and 4 make 12, so each sailor gets 4 fish.",
+        "id": "e2",
+        "options": [
+         {
+          "id": "a",
+          "label": "4",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "3",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "6",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "3 sailors share 12 fish equally. Which crate shows each sailor's share?",
+        "skill": "equal-sharing"
+       },
+       {
+        "answer": "b",
+        "explanation": "3 groups of 4 is 12: 4, 8, 12.",
+        "id": "e3",
+        "options": [
+         {
+          "id": "a",
+          "label": "7",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "12",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "10",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "Each barrel holds 4 cups of water. Pip needs 3 barrels. How many cups is that?",
+        "skill": "multiplication-facts"
+       },
+       {
+        "answer": "c",
+        "explanation": "A hammer and nails are tools for fixing things. The others are food.",
+        "id": "e4",
+        "options": [
+         {
+          "id": "a",
+          "label": "Bread and cheese",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "Apples and fish",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "Hammer and nails",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "Pip needs tools, not food. Which crate goes on the tool shelf?",
+        "skill": "classification"
+       }
+      ]
+     },
+     "PATHFINDER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Use your fingers to count it out.",
+       "Try each crate's number in the story."
+      ],
+      "optionEntities": {
+       "a": "cove-dock-crate-a",
+       "b": "cove-dock-crate-b",
+       "c": "cove-dock-crate-c"
+      },
+      "presentation": "CARDS",
+      "skill": "counting-sets",
+      "subject": "MATHEMATICS",
+      "variants": [
+       {
+        "answer": "a",
+        "explanation": "3 and 3 make 6, so each sailor gets 3 coconuts.",
+        "id": "p1",
+        "options": [
+         {
+          "id": "a",
+          "label": "3",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "2",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "4",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "Two sailors share 6 coconuts equally. Walk to the crate showing how many each sailor gets.",
+        "skill": "equal-sharing"
+       },
+       {
+        "answer": "c",
+        "explanation": "4 and 3 more is 7. Count on from 4: 5, 6, 7.",
+        "id": "p2",
+        "options": [
+         {
+          "id": "a",
+          "label": "6",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "8",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "7",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "The boat has 4 barrels. Pip loads 3 more. Which crate shows how many barrels now?",
+        "skill": "addition-within-ten"
+       },
+       {
+        "answer": "b",
+        "explanation": "5 and 3 more make 8, so 3 apples are missing.",
+        "id": "p3",
+        "options": [
+         {
+          "id": "a",
+          "label": "2",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "3",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "4",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "Pip packed 8 apples. 5 are in the boat. Which crate has the missing apples?",
+        "skill": "subtraction-within-ten"
+       },
+       {
+        "answer": "a",
+        "explanation": "Apples and bananas are both fruit.",
+        "id": "p4",
+        "options": [
+         {
+          "id": "a",
+          "label": "Apples and bananas",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "Rope and nails",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "Fish and bread",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "Which crate has only fruit in it?",
+        "skill": "classification"
+       }
+      ]
+     },
+     "SPROUT": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Count each crate's things out loud.",
+       "Look at every crate before you choose."
+      ],
+      "optionEntities": {
+       "a": "cove-dock-crate-a",
+       "b": "cove-dock-crate-b",
+       "c": "cove-dock-crate-c"
+      },
+      "presentation": "CARDS",
+      "skill": "counting-sets",
+      "subject": "MATHEMATICS",
+      "variants": [
+       {
+        "answer": "a",
+        "explanation": "That crate has 3 bananas, just what the boat needs.",
+        "id": "s1",
+        "options": [
+         {
+          "id": "a",
+          "label": "3 bananas",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "2 bananas",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "4 bananas",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "Pip's boat needs 3 bananas. Walk to the crate with 3 bananas.",
+        "skill": "number-recognition"
+       },
+       {
+        "answer": "b",
+        "explanation": "4 fish is more than 2 fish and more than 1 fish.",
+        "id": "s2",
+        "options": [
+         {
+          "id": "a",
+          "label": "1 fish",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "4 fish",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "2 fish",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "Which crate has the most fish? Walk to it.",
+        "skill": "counting-sets"
+       },
+       {
+        "answer": "c",
+        "explanation": "Apples are food. Rope and hammers are tools.",
+        "id": "s3",
+        "options": [
+         {
+          "id": "a",
+          "label": "Rope",
+          "symbol": "square"
+         },
+         {
+          "id": "b",
+          "label": "Hammers",
+          "symbol": "diamond"
+         },
+         {
+          "id": "c",
+          "label": "Apples",
+          "symbol": "hexagon"
+         }
+        ],
+        "prompt": "The boat needs food. Which crate has food in it?",
+        "skill": "classification"
+       }
+      ]
+     }
+    },
+    "kind": "CHOOSE_ANSWER",
+    "puzzleId": "cove-supply-dock",
+    "requiresChangeKeys": [
+     "TREASURE_COVE_GROVE_CHEST_OPENED",
+     "TREASURE_COVE_KEY_FOUND"
+    ],
+    "rewardRuleId": "reward-treasure-cove-beach-chest",
+    "title": "The supply dock",
+    "worldChangeKey": "TREASURE_COVE_BEACH_CHEST_OPENED"
+   },
+   "entityIds": [
+    "cove-dock-crate-a",
+    "cove-dock-crate-b",
+    "cove-dock-crate-c"
+   ],
+   "kind": "CHOOSE_ANSWER",
+   "puzzleId": "cove-supply-dock"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "discoveryMessage": "You found a carved star with 1 dot! Remember it.",
+      "hints": [
+       "The carvings hide in the corners of the ruins."
+      ]
+     },
+     "PATHFINDER": {
+      "discoveryMessage": "You found a carved star with 1 dot!",
+      "hints": [
+       "The carvings hide in the corners of the ruins."
+      ]
+     },
+     "SPROUT": {
+      "discoveryMessage": "You found a carved star with 1 dot!",
+      "hints": [
+       "The carvings hide in the corners of the ruins."
+      ]
+     }
+    },
+    "kind": "COLLECT_OBJECT",
+    "puzzleId": "cove-cave-carving-1",
+    "requiresChangeKeys": [
+     "TREASURE_COVE_BEACH_CHEST_OPENED"
+    ],
+    "rewardRuleId": null,
+    "title": "Old carving 1",
+    "worldChangeKey": "TREASURE_COVE_CARVING_1"
+   },
+   "entityIds": [
+    "cove-cave-carving-1"
+   ],
+   "kind": "COLLECT_OBJECT",
+   "puzzleId": "cove-cave-carving-1"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "discoveryMessage": "You found a carved moon with 2 dots! Remember it.",
+      "hints": [
+       "The carvings hide in the corners of the ruins."
+      ]
+     },
+     "PATHFINDER": {
+      "discoveryMessage": "You found a carved moon with 2 dots!",
+      "hints": [
+       "The carvings hide in the corners of the ruins."
+      ]
+     },
+     "SPROUT": {
+      "discoveryMessage": "You found a carved moon with 2 dots!",
+      "hints": [
+       "The carvings hide in the corners of the ruins."
+      ]
+     }
+    },
+    "kind": "COLLECT_OBJECT",
+    "puzzleId": "cove-cave-carving-2",
+    "requiresChangeKeys": [
+     "TREASURE_COVE_BEACH_CHEST_OPENED"
+    ],
+    "rewardRuleId": null,
+    "title": "Old carving 2",
+    "worldChangeKey": "TREASURE_COVE_CARVING_2"
+   },
+   "entityIds": [
+    "cove-cave-carving-2"
+   ],
+   "kind": "COLLECT_OBJECT",
+   "puzzleId": "cove-cave-carving-2"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "discoveryMessage": "You found a carved triangle with 3 dots! Remember it.",
+      "hints": [
+       "The carvings hide in the corners of the ruins."
+      ]
+     },
+     "PATHFINDER": {
+      "discoveryMessage": "You found a carved triangle with 3 dots!",
+      "hints": [
+       "The carvings hide in the corners of the ruins."
+      ]
+     },
+     "SPROUT": {
+      "discoveryMessage": "You found a carved triangle with 3 dots!",
+      "hints": [
+       "The carvings hide in the corners of the ruins."
+      ]
+     }
+    },
+    "kind": "COLLECT_OBJECT",
+    "puzzleId": "cove-cave-carving-3",
+    "requiresChangeKeys": [
+     "TREASURE_COVE_BEACH_CHEST_OPENED"
+    ],
+    "rewardRuleId": null,
+    "title": "Old carving 3",
+    "worldChangeKey": "TREASURE_COVE_CARVING_3"
+   },
+   "entityIds": [
+    "cove-cave-carving-3"
+   ],
+   "kind": "COLLECT_OBJECT",
+   "puzzleId": "cove-cave-carving-3"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots.",
+       "Say the order out loud before you press the first stone."
+      ],
+      "itemEntities": {
+       "moon": "cove-rune-stone-2",
+       "star": "cove-rune-stone-1",
+       "triangle": "cove-rune-stone-3"
+      },
+      "presentation": "SWITCHES",
+      "skill": "observation",
+      "subject": "LOGIC",
+      "variants": [
+       {
+        "answer": [
+         "moon",
+         "triangle",
+         "star"
+        ],
+        "explanation": "2 dots is the moon, the most is the triangle, the fewest is the star. The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots.",
+        "id": "e1",
+        "items": [
+         {
+          "id": "star",
+          "label": "Star",
+          "symbol": "star"
+         },
+         {
+          "id": "moon",
+          "label": "Moon",
+          "symbol": "moon"
+         },
+         {
+          "id": "triangle",
+          "label": "Triangle",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The riddle says: start with the carving that had 2 dots, then the one with the most, then the one with the fewest.",
+        "skill": "reading-comprehension"
+       },
+       {
+        "answer": [
+         "triangle",
+         "star",
+         "moon"
+        ],
+        "explanation": "A triangle has 3 sides. Then the star (1 dot) and the moon (2 dots). The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots.",
+        "id": "e2",
+        "items": [
+         {
+          "id": "star",
+          "label": "Star",
+          "symbol": "star"
+         },
+         {
+          "id": "moon",
+          "label": "Moon",
+          "symbol": "moon"
+         },
+         {
+          "id": "triangle",
+          "label": "Triangle",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Begin with the shape that has 3 sides. Then press the others from fewest dots to most.",
+        "skill": "reading-comprehension"
+       },
+       {
+        "answer": [
+         "triangle",
+         "moon",
+         "star"
+        ],
+        "explanation": "If the star is last and the moon is not first, the triangle must be first.",
+        "id": "e3",
+        "items": [
+         {
+          "id": "star",
+          "label": "Star",
+          "symbol": "star"
+         },
+         {
+          "id": "moon",
+          "label": "Moon",
+          "symbol": "moon"
+         },
+         {
+          "id": "triangle",
+          "label": "Triangle",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The star is last. The moon is not first. What order opens the cave?",
+        "skill": "reading-comprehension"
+       }
+      ]
+     },
+     "PATHFINDER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots.",
+       "Say the order out loud before you press the first stone."
+      ],
+      "itemEntities": {
+       "moon": "cove-rune-stone-2",
+       "star": "cove-rune-stone-1",
+       "triangle": "cove-rune-stone-3"
+      },
+      "presentation": "SWITCHES",
+      "skill": "observation",
+      "subject": "LOGIC",
+      "variants": [
+       {
+        "answer": [
+         "star",
+         "moon",
+         "triangle"
+        ],
+        "explanation": "The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots. You remembered them all!",
+        "id": "s1",
+        "items": [
+         {
+          "id": "star",
+          "label": "Star",
+          "symbol": "star"
+         },
+         {
+          "id": "moon",
+          "label": "Moon",
+          "symbol": "moon"
+         },
+         {
+          "id": "triangle",
+          "label": "Triangle",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Press the rune stones in order of their dots: 1 dot, then 2 dots, then 3 dots.",
+        "skill": "observation"
+       },
+       {
+        "answer": [
+         "triangle",
+         "moon",
+         "star"
+        ],
+        "explanation": "The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots. Most to fewest: triangle, moon, star.",
+        "id": "p2",
+        "items": [
+         {
+          "id": "star",
+          "label": "Star",
+          "symbol": "star"
+         },
+         {
+          "id": "moon",
+          "label": "Moon",
+          "symbol": "moon"
+         },
+         {
+          "id": "triangle",
+          "label": "Triangle",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Press the stones from the most dots to the fewest dots.",
+        "skill": "observation"
+       },
+       {
+        "answer": [
+         "moon",
+         "star",
+         "triangle"
+        ],
+        "explanation": "Moon first. Then the star has fewer dots than the triangle. The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots.",
+        "id": "p3",
+        "items": [
+         {
+          "id": "star",
+          "label": "Star",
+          "symbol": "star"
+         },
+         {
+          "id": "moon",
+          "label": "Moon",
+          "symbol": "moon"
+         },
+         {
+          "id": "triangle",
+          "label": "Triangle",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The moon goes first. Then press the other two from fewest dots to most.",
+        "skill": "reading-comprehension"
+       }
+      ]
+     },
+     "SPROUT": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots.",
+       "Say the order out loud before you press the first stone."
+      ],
+      "itemEntities": {
+       "moon": "cove-rune-stone-2",
+       "star": "cove-rune-stone-1",
+       "triangle": "cove-rune-stone-3"
+      },
+      "presentation": "SWITCHES",
+      "skill": "observation",
+      "subject": "LOGIC",
+      "variants": [
+       {
+        "answer": [
+         "star",
+         "moon",
+         "triangle"
+        ],
+        "explanation": "The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots. You remembered them all!",
+        "id": "s1",
+        "items": [
+         {
+          "id": "star",
+          "label": "Star",
+          "symbol": "star"
+         },
+         {
+          "id": "moon",
+          "label": "Moon",
+          "symbol": "moon"
+         },
+         {
+          "id": "triangle",
+          "label": "Triangle",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Press the rune stones in order of their dots: 1 dot, then 2 dots, then 3 dots.",
+        "skill": "observation"
+       },
+       {
+        "answer": [
+         "triangle",
+         "moon",
+         "star"
+        ],
+        "explanation": "The star had 1 dot, the moon had 2 dots, and the triangle had 3 dots. Most to fewest: triangle, moon, star.",
+        "id": "s2",
+        "items": [
+         {
+          "id": "star",
+          "label": "Star",
+          "symbol": "star"
+         },
+         {
+          "id": "moon",
+          "label": "Moon",
+          "symbol": "moon"
+         },
+         {
+          "id": "triangle",
+          "label": "Triangle",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Press the stone with the most dots first, then the next, then the fewest.",
+        "skill": "observation"
+       }
+      ]
+     }
+    },
+    "kind": "ORDER_SEQUENCE",
+    "puzzleId": "cove-forgotten-cave",
+    "requiresChangeKeys": [
+     "TREASURE_COVE_BEACH_CHEST_OPENED",
+     "TREASURE_COVE_CARVING_1",
+     "TREASURE_COVE_CARVING_2",
+     "TREASURE_COVE_CARVING_3"
+    ],
+    "rewardRuleId": null,
+    "title": "The forgotten cave",
+    "worldChangeKey": "TREASURE_COVE_RUINS_PUZZLE_SOLVED"
+   },
+   "entityIds": [
+    "cove-rune-stone-1",
+    "cove-rune-stone-2",
+    "cove-rune-stone-3"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "cove-forgotten-cave"
+  },
+  {
+   "body": {
+    "ageBands": {
+     "EXPLORER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "First the map, then the creek, then the dock, then the cave.",
+       "Read the rule again: which places had water?"
+      ],
+      "itemEntities": {
+       "cave": "cove-finale-torch-4",
+       "creek": "cove-finale-torch-2",
+       "dock": "cove-finale-torch-3",
+       "map": "cove-finale-torch-1"
+      },
+      "presentation": "SWITCHES",
+      "skill": "sequencing",
+      "subject": "LITERACY",
+      "variants": [
+       {
+        "answer": [
+         "map",
+         "creek",
+         "dock",
+         "cave"
+        ],
+        "explanation": "First the map, then the creek, then the dock, then the cave.",
+        "id": "p1",
+        "items": [
+         {
+          "id": "map",
+          "label": "Pip's map",
+          "symbol": "star"
+         },
+         {
+          "id": "creek",
+          "label": "Crocodile Creek",
+          "symbol": "moon"
+         },
+         {
+          "id": "dock",
+          "label": "The supply dock",
+          "symbol": "diamond"
+         },
+         {
+          "id": "cave",
+          "label": "The forgotten cave",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Light the torches in the order of your adventure, from first to last.",
+        "skill": "sequencing"
+       },
+       {
+        "answer": [
+         "cave",
+         "dock",
+         "creek",
+         "map"
+        ],
+        "explanation": "Backwards: the cave, the dock, the creek, then the map.",
+        "id": "p2",
+        "items": [
+         {
+          "id": "map",
+          "label": "Pip's map",
+          "symbol": "star"
+         },
+         {
+          "id": "creek",
+          "label": "Crocodile Creek",
+          "symbol": "moon"
+         },
+         {
+          "id": "dock",
+          "label": "The supply dock",
+          "symbol": "diamond"
+         },
+         {
+          "id": "cave",
+          "label": "The forgotten cave",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Light the torches backwards, from the last place you went to the first.",
+        "skill": "sequencing"
+       },
+       {
+        "answer": [
+         "creek",
+         "dock",
+         "map",
+         "cave"
+        ],
+        "explanation": "The creek and the dock have water. Then the map and the cave, in the order you went.",
+        "id": "e3",
+        "items": [
+         {
+          "id": "map",
+          "label": "Pip's map",
+          "symbol": "star"
+         },
+         {
+          "id": "creek",
+          "label": "Crocodile Creek",
+          "symbol": "moon"
+         },
+         {
+          "id": "dock",
+          "label": "The supply dock",
+          "symbol": "diamond"
+         },
+         {
+          "id": "cave",
+          "label": "The forgotten cave",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Light the places with water first, in the order you went, then the others in order.",
+        "skill": "reading-comprehension"
+       }
+      ]
+     },
+     "PATHFINDER": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "First the map, then the creek, then the dock, then the cave.",
+       "Think about where you walked, one place at a time."
+      ],
+      "itemEntities": {
+       "cave": "cove-finale-torch-4",
+       "creek": "cove-finale-torch-2",
+       "dock": "cove-finale-torch-3",
+       "map": "cove-finale-torch-1"
+      },
+      "presentation": "SWITCHES",
+      "skill": "sequencing",
+      "subject": "LITERACY",
+      "variants": [
+       {
+        "answer": [
+         "map",
+         "creek",
+         "dock",
+         "cave"
+        ],
+        "explanation": "First the map, then the creek, then the dock, then the cave.",
+        "id": "p1",
+        "items": [
+         {
+          "id": "map",
+          "label": "Pip's map",
+          "symbol": "star"
+         },
+         {
+          "id": "creek",
+          "label": "Crocodile Creek",
+          "symbol": "moon"
+         },
+         {
+          "id": "dock",
+          "label": "The supply dock",
+          "symbol": "diamond"
+         },
+         {
+          "id": "cave",
+          "label": "The forgotten cave",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Light the torches in the order of your adventure, from first to last.",
+        "skill": "sequencing"
+       },
+       {
+        "answer": [
+         "cave",
+         "dock",
+         "creek",
+         "map"
+        ],
+        "explanation": "Backwards: the cave, the dock, the creek, then the map.",
+        "id": "p2",
+        "items": [
+         {
+          "id": "map",
+          "label": "Pip's map",
+          "symbol": "star"
+         },
+         {
+          "id": "creek",
+          "label": "Crocodile Creek",
+          "symbol": "moon"
+         },
+         {
+          "id": "dock",
+          "label": "The supply dock",
+          "symbol": "diamond"
+         },
+         {
+          "id": "cave",
+          "label": "The forgotten cave",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "Light the torches backwards, from the last place you went to the first.",
+        "skill": "sequencing"
+       },
+       {
+        "answer": [
+         "cave",
+         "map",
+         "creek",
+         "dock"
+        ],
+        "explanation": "The cave first, then the map, the creek and the dock, in the order you went.",
+        "id": "p3",
+        "items": [
+         {
+          "id": "map",
+          "label": "Pip's map",
+          "symbol": "star"
+         },
+         {
+          "id": "creek",
+          "label": "Crocodile Creek",
+          "symbol": "moon"
+         },
+         {
+          "id": "dock",
+          "label": "The supply dock",
+          "symbol": "diamond"
+         },
+         {
+          "id": "cave",
+          "label": "The forgotten cave",
+          "symbol": "triangle"
+         }
+        ],
+        "prompt": "The cave torch goes first. Then light the others in the order of your adventure.",
+        "skill": "sequencing"
+       }
+      ]
+     },
+     "SPROUT": {
+      "hintAfterAttempts": 2,
+      "hints": [
+       "Where did you meet Pip's map?",
+       "The map came first, then the creek."
+      ],
+      "itemEntities": {
+       "creek": "cove-finale-torch-2",
+       "dock": "cove-finale-torch-3",
+       "map": "cove-finale-torch-1"
+      },
+      "presentation": "SWITCHES",
+      "skill": "sequencing",
+      "subject": "LITERACY",
+      "variants": [
+       {
+        "answer": [
+         "map",
+         "creek",
+         "dock"
+        ],
+        "explanation": "First the map, then the creek, then the crates at the dock. What an adventure!",
+        "id": "s1",
+        "items": [
+         {
+          "id": "map",
+          "label": "Pip's map",
+          "symbol": "star"
+         },
+         {
+          "id": "creek",
+          "label": "Crocodile Creek",
+          "symbol": "moon"
+         },
+         {
+          "id": "dock",
+          "label": "The supply dock",
+          "symbol": "diamond"
+         }
+        ],
+        "prompt": "Light the torches in the order of your adventure. What did you do first?",
+        "skill": "sequencing"
+       },
+       {
+        "answer": [
+         "dock",
+         "creek",
+         "map"
+        ],
+        "explanation": "Backwards: the dock, then the creek, then the map.",
+        "id": "s2",
+        "items": [
+         {
+          "id": "map",
+          "label": "Pip's map",
+          "symbol": "star"
+         },
+         {
+          "id": "creek",
+          "label": "Crocodile Creek",
+          "symbol": "moon"
+         },
+         {
+          "id": "dock",
+          "label": "The supply dock",
+          "symbol": "diamond"
+         }
+        ],
+        "prompt": "Light the torches backwards: start with the last place you went.",
+        "skill": "sequencing"
+       }
+      ]
+     }
+    },
+    "kind": "ORDER_SEQUENCE",
+    "puzzleId": "cove-lost-treasure",
+    "requiresChangeKeys": [
+     "TREASURE_COVE_RUINS_PUZZLE_SOLVED"
+    ],
+    "rewardRuleId": "reward-treasure-cove-final-chest",
+    "title": "Pip's lost treasure",
+    "worldChangeKey": "TREASURE_COVE_FINAL_CHEST_OPENED"
+   },
+   "entityIds": [
+    "cove-finale-torch-1",
+    "cove-finale-torch-2",
+    "cove-finale-torch-3",
+    "cove-finale-torch-4"
+   ],
+   "kind": "ORDER_SEQUENCE",
+   "puzzleId": "cove-lost-treasure"
+  }
+ ],
+ "standIns": [
+  {
+   "color": 15259043,
+   "entityId": "cove-map-piece-1",
+   "shape": "MARKER"
+  },
+  {
+   "color": 15259043,
+   "entityId": "cove-map-piece-2",
+   "shape": "MARKER"
+  },
+  {
+   "color": 15259043,
+   "entityId": "cove-map-piece-3",
+   "shape": "MARKER"
+  },
+  {
+   "color": 10251068,
+   "entityId": "cove-way-grove",
+   "shape": "SIGN"
+  },
+  {
+   "color": 10251068,
+   "entityId": "cove-way-beach",
+   "shape": "SIGN"
+  },
+  {
+   "color": 10251068,
+   "entityId": "cove-way-ruins",
+   "shape": "SIGN"
+  },
+  {
+   "color": 9341568,
+   "entityId": "cove-creek-stone-a",
+   "shape": "STONE"
+  },
+  {
+   "color": 9341568,
+   "entityId": "cove-creek-stone-b",
+   "shape": "STONE"
+  },
+  {
+   "color": 9341568,
+   "entityId": "cove-creek-stone-c",
+   "shape": "STONE"
+  },
+  {
+   "color": 9341568,
+   "entityId": "cove-creek-stone-d",
+   "shape": "STONE"
+  },
+  {
+   "color": 9341568,
+   "entityId": "cove-creek-stone-e",
+   "shape": "STONE"
+  },
+  {
+   "color": 6196282,
+   "entityId": "cove-creek-crocodile",
+   "shape": "ANIMAL"
+  },
+  {
+   "color": 11895370,
+   "entityId": "cove-dock-crate-a",
+   "shape": "BOX"
+  },
+  {
+   "color": 11895370,
+   "entityId": "cove-dock-crate-b",
+   "shape": "BOX"
+  },
+  {
+   "color": 11895370,
+   "entityId": "cove-dock-crate-c",
+   "shape": "BOX"
+  },
+  {
+   "color": 10722187,
+   "entityId": "cove-cave-carving-1",
+   "shape": "MARKER"
+  },
+  {
+   "color": 10722187,
+   "entityId": "cove-cave-carving-2",
+   "shape": "MARKER"
+  },
+  {
+   "color": 10722187,
+   "entityId": "cove-cave-carving-3",
+   "shape": "MARKER"
+  },
+  {
+   "color": 15902017,
+   "entityId": "cove-finale-torch-1",
+   "shape": "LANTERN"
+  },
+  {
+   "color": 15902017,
+   "entityId": "cove-finale-torch-2",
+   "shape": "LANTERN"
+  },
+  {
+   "color": 15902017,
+   "entityId": "cove-finale-torch-3",
+   "shape": "LANTERN"
+  },
+  {
+   "color": 15902017,
+   "entityId": "cove-finale-torch-4",
+   "shape": "LANTERN"
+  }
+ ]
+}

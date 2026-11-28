@@ -256,7 +256,8 @@ class ProgressView(ChildScopedAPIView):
 
 
 class PuzzleSolveView(GameRuntimeAccessMixin, ChildScopedAPIView):
-    """POST {submission}: one attempt at a 3D Area puzzle, graded on the server (LAI-0812).
+    """POST {submission, hintsUsed?}: one attempt at a 3D Area puzzle, graded on the server
+    (LAI-0812; hintsUsed, issue #102).
 
     200 with `correct` either way; 400 `invalid_submission` for a malformed one (nothing is
     recorded); 409 `puzzle_locked` before the earlier stage is done, `session_not_open`, or
@@ -268,7 +269,11 @@ class PuzzleSolveView(GameRuntimeAccessMixin, ChildScopedAPIView):
         body.is_valid(raise_exception=True)
         try:
             outcome = services.solve_puzzle(
-                self.child, session_id, puzzle_id, body.validated_data["submission"]
+                self.child,
+                session_id,
+                puzzle_id,
+                body.validated_data["submission"],
+                hints_used=body.validated_data.get("hints_used"),
             )
         except services.InvalidSubmission:
             raise exceptions.ValidationError(

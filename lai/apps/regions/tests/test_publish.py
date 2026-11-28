@@ -13,7 +13,12 @@ from apps.regions.pips_treasure_seed import PIPS_QUEST_ID
 from apps.regions.treasure_rush_publish import PublishRefused, publish_treasure_rush
 from apps.regions.treasure_rush_seed import REGION_ID, seed_treasure_rush
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 
 @pytest.fixture
@@ -42,8 +47,9 @@ def test_publishes_the_seeded_region_and_challenges(local):
     # Region, eighteen challenge specs (three bands for each of the four chests, the ruins puzzle
     # and the Lookout spyglass, TR-14 and TR-20) and the signpost's three launch points
     # (ADR-041); the quest is catalog content. Pirate's Leap (LAI-JMP-03) adds six specs: three
-    # bands for its riddle drum and its secret treasure.
-    assert len(changed) == 28
+    # bands for its riddle drum and its secret treasure. The redesign (#102) adds its eleven
+    # stage puzzles.
+    assert len(changed) == 39
     assert statuses() == (ContentStatus.PUBLISHED, [ContentStatus.PUBLISHED])
     assert publish_treasure_rush() == []  # idempotent
 

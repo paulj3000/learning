@@ -27,8 +27,7 @@ HOME = "learning-adventure-island"
 BANDS = ("SPROUT", "PATHFINDER", "EXPLORER")
 
 
-@pytest.fixture
-def realms(families):
+def _seed_realms():
     """A fresh environment set up as the local playthrough instructions say."""
     import_content()
     with override_settings(DEBUG=True):
@@ -42,6 +41,18 @@ def realms(families):
             "seed_seasonal_events",
         ):
             call_command(command, stdout=None)
+
+
+@pytest.fixture(scope="module")
+def realms_content(module_content):
+    """`_seed_realms()` once for the module (lai/conftest.py, "Module content baseline")."""
+    return module_content.seed("realms", _seed_realms)
+
+
+@pytest.fixture
+def realms(realms_content, families):
+    if not realms_content.has("realms"):
+        _seed_realms()
     return families
 
 

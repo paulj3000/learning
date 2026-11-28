@@ -421,7 +421,7 @@ class TestVariantSkill:
 
     @pytest.mark.parametrize(
         "kind",
-        [k for k in PuzzleKind.values if k not in puzzles.SKILL_KINDS],
+        [k for k in PuzzleKind.values if k not in puzzles.EVIDENCE_KINDS],
     )
     def test_mechanical_kinds_teach_no_curriculum_skill(self, kind):
         assert puzzles.skill_for(kind, {"skill": "patterns"}, {}) is None

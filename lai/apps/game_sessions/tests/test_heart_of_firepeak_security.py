@@ -26,7 +26,12 @@ from apps.regions.seeding import seed_puzzle
 from apps.users import services
 from apps.users.models import ParentAccount
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 REGION = "firepeak-heart"
 PICKUP = "fh-test-ember"

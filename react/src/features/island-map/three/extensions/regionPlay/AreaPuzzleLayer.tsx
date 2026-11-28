@@ -152,13 +152,21 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
       { puzzle: PuzzleState; params: Extract<PuzzleParams, { kind: K }> } | undefined;
 
   const [active, setActive] = useState<string | null>(null);
+  // The object the child touched, by its label: "Pick up the torn map piece" (#102).
+  const [touched, setTouched] = useState<string | null>(null);
   const [observed, setObserved] = useState<string[]>([]);
   const [placements, setPlacements] = useState<Record<string, string>>({});
   const [carried, setCarried] = useState<string | null>(null);
   const [sequence, setSequence] = useState<string[]>([]);
   const [lastTurnMoved, setLastTurnMoved] = useState<boolean | null>(null);
   const [wrong, setWrong] = useState<string | null>(null);
-  const [discovery, setDiscovery] = useState<'ready' | 'discovering' | 'found'>('ready');
+  // One discovery phase per COLLECT_OBJECT puzzle: an Area may hide many (Treasure Cove's map
+  // pieces and carvings), and finding one must never show another as found.
+  const [discoveries, setDiscoveries] = useState<Record<string, 'ready' | 'discovering' | 'found'>>(
+    {},
+  );
+  const setDiscovery = (puzzleId: string, phase: 'ready' | 'discovering' | 'found') =>
+    setDiscoveries((all) => ({ ...all, [puzzleId]: phase }));
   const [reveal, setReveal] = useState<{
     outcome: PuzzleOutcome;
     title: string;
@@ -171,7 +179,10 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
 
   const crossing = byKind('PLACE_PLATFORMS');
   const valves = byKind('VALVE_SEQUENCE');
-  const crystal = byKind('COLLECT_OBJECT');
+  const collects = useMemo(
+    () => [...typed.values()].filter((entry) => entry.params.kind === 'COLLECT_OBJECT'),
+    [typed],
+  );
   const location = bootstrap.region.locationSlug;
 
   // The scene follows the server's world changes only.
@@ -181,16 +192,18 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
     );
   }, [bootstrap.worldChanges, location, sceneApi]);
 
-  // A solved crossing stays built; a found crystal stays gone (resume, FP scenario 10).
+  // A solved crossing stays built; a found object stays gone (resume, FP scenario 10).
   useEffect(() => {
     if (crossing?.puzzle.solved) setPlacements(solvedPlacements(crossing.params));
   }, [crossing?.puzzle.solved, crossing?.params]);
   useEffect(() => {
-    if (!sceneApi || !crystal) return;
-    for (const entityId of crystal.puzzle.entityIds) {
-      sceneApi.puzzles?.setVisible(entityId, !crystal.puzzle.solved);
+    if (!sceneApi) return;
+    for (const { puzzle } of collects) {
+      for (const entityId of puzzle.entityIds) {
+        sceneApi.puzzles?.setVisible(entityId, !puzzle.solved);
+      }
     }
-  }, [crystal, sceneApi]);
+  }, [collects, sceneApi]);
 
   useEffect(() => {
     if (!sceneApi || !crossing) return;
@@ -299,6 +312,7 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
     }
     const entry = typed.get(puzzle.puzzleId);
     if (!entry) return;
+    setTouched(event.label && event.label !== event.entityId ? event.label : null);
     if (isChoiceKind(entry.params)) {
       openChoice(entry.puzzle, entry.params, active !== puzzle.puzzleId, event.entityId);
       setActive(puzzle.puzzleId);
@@ -515,21 +529,23 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
           );
       }
     } else if (params.kind === 'COLLECT_OBJECT') {
+      const discovery = discoveries[puzzle.puzzleId] ?? 'ready';
       panel = (
         <DiscoveryPanel
           title={puzzle.title}
+          objectLabel={touched}
           params={params}
           phase={puzzle.solved && discovery === 'ready' ? 'found' : discovery}
           busy={props.busy}
           onCollect={() => {
-            setDiscovery('discovering');
+            setDiscovery(puzzle.puzzleId, 'discovering');
             void props.solvePuzzle(puzzle.puzzleId, {}).then(async (outcome) => {
               if (!outcome?.correct) {
-                setDiscovery('ready');
+                setDiscovery(puzzle.puzzleId, 'ready');
                 return;
               }
               for (const entityId of puzzle.entityIds) await sceneApi?.puzzles?.discover(entityId);
-              setDiscovery('found');
+              setDiscovery(puzzle.puzzleId, 'found');
               setReveal({ outcome, title: params.discoveryMessage, message: params.scienceNote });
             });
           }}

@@ -18,7 +18,12 @@ from apps.catalog.models import (
     RewardRule,
 )
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 NPCS = {"flint", "kindle", "professor-basalt", "cinder", "ignis"}
 PUZZLES = {
