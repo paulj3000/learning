@@ -14,7 +14,12 @@ from apps.education.models import SkillEvidence, SkillProgress
 from apps.progression.models import NpcRelationship, WorldChange, WorldState
 from apps.quests.models import QuestProgress
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 NPC = {
     "intent": "NARRATE",

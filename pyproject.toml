@@ -25,6 +25,9 @@ select = ["E", "F", "W", "I", "B", "UP", "S"]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 pythonpath = ["lai", "processing"]
 testpaths = ["tests", "lai"]
-markers = ["postgres: needs the docker-compose PostgreSQL (skipped when unreachable)"]
+markers = [
+    "postgres: needs the docker-compose PostgreSQL (skipped when unreachable)",
+    "without_module_content: runs with the module's content baseline closed (lai/conftest.py)",
+]
 python_files = ["test_*.py"]
 addopts = "-p no:cacheprovider"

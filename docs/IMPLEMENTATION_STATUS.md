@@ -55,6 +55,38 @@ Docs only; no code, seed or asset changed. Trello #244, #246, #247.
   although the client raises both, and `crystalCollect` fires on every North Pole pickup.
 - Checks: `make docs-check`. No tests apply (no code).
 
+## Backend test suite speed: module content baseline and parallel pytest (2026-11-28, `ccr-7ec57d09-gp9p2c`, base `e13e03b`, `main` `7ba5425` merged in, no Trello card; owner-directed, owner authorized the merge)
+
+Status: Development Complete; merged to `main` on the owner's direct instruction. Details:
+[TESTING_STRATEGY.md](TESTING_STRATEGY.md), "Backend suite speed".
+
+- Cause: `import_content()` takes about 3.5 s into an empty database and fixtures such as
+  `treasure`, `realms`, `heart`, `north_pole` and `firepeak` ran it (and slow publish commands)
+  for every test; about 900 tests in 64 modules spent 77% of the 68-minute run in that setup.
+- `lai/conftest.py`: `module_content` (one import per module inside an outer transaction rolled
+  back at module end), `treasure` seeded once per module, the `without_module_content` marker,
+  transactional tests closing the baseline, and `xdist_group`s for parallel runs. Five module
+  fixtures converted (`test_realm_entry`, `test_north_pole_seed`, `test_firepeak`,
+  `test_firepeak_heart_play`, `test_puzzle_evidence`); 17 modules opted in; five tests that need
+  the content absent marked. Test fixtures only; no application code changed.
+- pytest-xdist 3.8.0 and execnet 2.1.2 (MIT, owner-approved 2026-11-28) in
+  `requirements-dev.txt`; `make py-test` and `make py-test-db` run
+  `-n auto --dist loadgroup --no-loadscope-reorder` (`PYTEST_WORKERS`). Without the last flag
+  xdist schedules large groups first, so a transactional group could flush a worker's database
+  (migration-seeded rows included) before another module's tests ran there; a guard in
+  `lai/conftest.py` now fails any database test that would run after a flush, with the reason.
+- Order-dependent tests that parallel runs exposed, fixed: three parametrize lists put `uuid4()`
+  in test ids (now fixed ids); `jobs/tests/test_jobs_admin_settings.py` left settings modules
+  built from its environment in `sys.modules`, which failed `ai/tests/test_ai_settings.py` when
+  it ran later in the same process (pre-existing; serially `ai` always ran first).
+- Measured (`make py-test-db`, 4 CPUs, a local PostgreSQL 16 because Docker was unavailable):
+  68 min before; 23 min serial (`PYTEST_WORKERS=0`) and 6 min with 4 workers after; 9,238 passed
+  each way. The one failure in every run, before and after, is
+  `test_postgres_18_connection_and_framework_migrations`, which requires PostgreSQL 18.
+- Deferred: a run on PostgreSQL 18 (CI's `python` job runs it on the merge); the EC2 unit-test
+  gate (`scripts/ci/remote_runner.py`) still runs pytest serially and gets only the fixture speed-up.
+  Vitest (4 min) is unchanged.
+
 ## LAI-06 #102 interactive learning scoring (2026-11-26, `feature/interactive-learning-scoring`, base `41ee7320`)
 
 Status: **Development Complete on its branch**, not merged, not owner-accepted (GitHub #102, Trello

@@ -17,7 +17,12 @@ from apps.npcs.management.commands.seed_npc_orion import seed_orion
 from apps.npcs.models import NpcDialogue, NpcRelease
 from apps.npcs.publishing import active_release, preview
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 
 @pytest.fixture
@@ -52,6 +57,7 @@ def set_band(child, band: str):
 # --- the command ---------------------------------------------------------------------------------
 
 
+@pytest.mark.without_module_content  # the content must be absent
 def test_needs_the_content_first(families):
     with pytest.raises(CommandError, match="load_content"):
         run()

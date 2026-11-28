@@ -31,6 +31,32 @@
 - AI route authorization;
 - storage path restrictions.
 
+### Backend suite speed (2026-11-28)
+
+The full pytest suite against PostgreSQL (`make py-test-db`, about 9,300 tests) took 68 minutes
+serially. Importing the real content export into an empty database takes about 3.5 seconds and
+fixtures such as `treasure` did it for every test. Two changes bring it to about 6 minutes on
+four cores:
+
+- **Module content baseline** (`lai/conftest.py`, "Module content baseline"). A module imports
+  the content once, inside an outer transaction rolled back when the module ends; each test's
+  transaction nests inside it, so every test still starts from the same state. A module opts in
+  with `pytestmark = pytest.mark.usefixtures("module_content")`; using `treasure`, or a fixture
+  built with `module_content.seed(...)`, opts in too. Every test in such a module sees the
+  imported content: a test that needs it absent is marked
+  `@pytest.mark.without_module_content` and runs last in its module with the baseline closed.
+  `transaction=True` tests never share a baseline; they seed for themselves as before. Write new
+  expensive seeding fixtures the same way (`_seed_x()`, a module fixture calling
+  `module_content.seed("x", _seed_x)`, and the test fixture seeding only when
+  `x_content.has("x")` is False).
+- **Parallel full runs** (pytest-xdist, owner-approved 2026-11-28). `make py-test` and
+  `make py-test-db` use one worker per CPU (`PYTEST_WORKERS=2` on a busy machine,
+  `PYTEST_WORKERS=0` for serial), each worker with its own test database, with
+  `--dist loadgroup --no-loadscope-reorder`: groups keep a module on one worker, and handing them
+  out in collection order runs each worker's transactional tests (which flush its database) after
+  the ordinary ones. A database test that would run after a flush fails at once with the reason. Parametrized test ids must be the same on every collection (no `uuid4()` in a
+  parametrize list), or the workers refuse to start. Development runs by path stay serial.
+
 ## End-to-end tests
 
 Critical paths:

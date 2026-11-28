@@ -300,7 +300,9 @@ def test_a_feed_page_is_capped_and_says_there_is_more(families, api, scoring):
     assert len(seen) == FEED_LIMIT + 5  # same timestamp: the id tiebreak loses nothing
 
 
-BAD_CURSORS = ["nonsense", "123", str(uuid.uuid4())]
+# A fixed unknown UUID: a random one changes the test id on every collection, which parallel
+# workers (pytest-xdist) refuse because they must all collect the same tests.
+BAD_CURSORS = ["nonsense", "123", "5f0c1d2e-3b4a-4c5d-8e6f-7a8b9c0d1e2f"]
 
 
 @pytest.mark.parametrize("cursor", BAD_CURSORS)

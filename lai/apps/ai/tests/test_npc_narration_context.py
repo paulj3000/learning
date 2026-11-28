@@ -10,7 +10,12 @@ from apps.ai.services.context import ContextNotFound, load_npc_narration
 from apps.catalog.models import NpcDefinition
 from apps.progression.models import NpcRelationship
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 PIP = {
     "intent": "NARRATE",
