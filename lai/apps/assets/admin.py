@@ -85,6 +85,54 @@ class UploadForm(forms.Form):
     notes = forms.CharField(
         max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2})
     )
+    # Provenance (LAI-ENV-02, docs/ENVIRONMENT_ASSETS.md s.6). Optional; stored in the version's
+    # metadata in the shape pack imports use, so derived versions keep it. Frozen at publish.
+    source_url = forms.URLField(required=False, max_length=500, label="Source URL")
+    author = forms.CharField(required=False, max_length=200, label="Creator or publisher")
+    licence_id = forms.CharField(
+        required=False,
+        max_length=64,
+        label="Licence",
+        help_text="SPDX id (CC0-1.0, CC-BY-4.0), or 'proprietary' or 'original'. CC-BY and "
+        "other attribution licences are not allowed in the game yet (ADR-028).",
+    )
+    attribution = forms.CharField(required=False, max_length=500, label="Attribution text")
+    source_version = forms.CharField(required=False, max_length=100, label="Source version")
+    modifications = forms.CharField(
+        required=False,
+        max_length=500,
+        label="Modifications made",
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+    licence_confirmed_by = forms.CharField(
+        required=False,
+        max_length=200,
+        label="Licence confirmed by",
+        help_text="Who checked the licence against the source, and when. Empty: unconfirmed.",
+    )
+
+    PROVENANCE_FIELDS = {
+        "source_url": "sourceUrl",
+        "author": "author",
+        "licence_id": "licenceId",
+        "attribution": "attribution",
+        "source_version": "sourceVersion",
+        "modifications": "modifications",
+        "licence_confirmed_by": "ownerConfirmation",
+    }
+
+    def provenance(self) -> dict:
+        """The provenance record, or {} when nothing was entered."""
+        record = {
+            key: self.cleaned_data[name].strip()
+            for name, key in self.PROVENANCE_FIELDS.items()
+            if (self.cleaned_data.get(name) or "").strip()
+        }
+        if not record:
+            return {}
+        record["licenceStatus"] = "confirmed" if record.get("ownerConfirmation") else "unconfirmed"
+        record["confirmationSource"] = "admin upload"
+        return record
 
     def clean_file(self):
         upload = self.cleaned_data["file"]
@@ -254,11 +302,13 @@ class AssetVersionAdmin(
             if form.is_valid():
                 upload = form.cleaned_data["file"]
                 try:
+                    provenance = form.provenance()
                     version = services.upload_version(
                         form.cleaned_data["asset"],
                         upload,
                         original_filename=upload.name,
                         user=request.user,
+                        extra_metadata={"provenance": provenance} if provenance else None,
                     )
                 except services.AssetActionRefused as refused:
                     form.add_error(None, refused.message)
@@ -280,6 +330,16 @@ class AssetVersionAdmin(
                         + state,
                         messages.SUCCESS,
                     )
+                    if version.family == "image" and (
+                        provenance.get("licenceStatus") != "confirmed"
+                    ):
+                        # licence_unknown (LAI-ENV-02): a warning, never a refusal (owner D-3).
+                        self.message_user(
+                            request,
+                            "licence_unknown: no confirmed licence is recorded for this image. "
+                            "Do not publish it until its source and licence are confirmed.",
+                            messages.WARNING,
+                        )
                     return redirect(reverse("admin:assets_assetversion_change", args=[version.pk]))
         else:
             form = UploadForm(initial={"asset": request.GET.get("asset")})
@@ -1353,4 +1413,5 @@ class CollisionProfileAdmin(admin.ModelAdmin):
         return preview.link_for(version)
 
 
-from . import admin_artifacts  # noqa: E402,F401 - registers the derived artifact admin
+from . import admin_artifacts  # noqa: E402,F401,I001 - registers the derived artifact admin
+from . import admin_environment  # noqa: E402,F401,I001 - image profiles and materials

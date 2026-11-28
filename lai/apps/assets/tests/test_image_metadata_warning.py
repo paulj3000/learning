@@ -34,7 +34,9 @@ def test_gps_in_a_jpeg_warns_but_still_passes():
     result = check(jpeg(jpeg_app1_exif(tiff_exif(orientation=6, gps="position"))))
     assert result.passed and result.format == "jpeg"
     assert {"image_location_present", "image_metadata_present"} <= warning_codes(result)
-    assert result.metadata == {"width": 8, "height": 8}  # metadata is unchanged by the scan
+    # Metadata is unchanged by the scan: only the header facts (LAI-ENV-02 adds transparency and
+    # colour model), never a scanned value such as the GPS position.
+    assert result.metadata == {"width": 8, "height": 8, "hasAlpha": False, "colourModel": "grey"}
 
 
 def test_exif_without_gps_warns_about_metadata_only():

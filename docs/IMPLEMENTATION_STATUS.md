@@ -37,6 +37,38 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 environmental image assets and materials, LAI-ENV-01 to 03 (2026-11-27 to 28, `feature/environmental-image-assets`, `main` `c14392b0` merged in); Development Complete for the Django side, NOT merged
+
+- 2026-11-28:
+  - The owner approved D-1 to D-4. The D-3 licence gate applies to environmental images and
+    materials only (`licences.py`); the legacy follow-up is Trello #283.
+  - ADR-074 records the decision (number reserved by PR #117, which the owner merged).
+  - LAI 04 agreed the contract on Trello #273, with amendments A1 to A4 applied.
+  - `region_catalog` treats published materials as deliverable.
+
+- Design, audit and capability matrix, contract `env-assets/1` (draft), LAI 04 decisions E-1 to
+  E-10, owner decisions D-1 to D-4, staff guide and the Treasure Rush pilot list:
+  [ENVIRONMENT_ASSETS.md](ENVIRONMENT_ASSETS.md). Library changes: `ASSET_LIBRARY.md` section 29.
+- Built:
+  - `ImageProfile`: roles, colour space, alpha, tiling, sprite and decal sizing, sheets and sky
+    layouts.
+  - The `material` kind and `MaterialDefinition`, an ADR-047 authorable kind.
+  - `hasAlpha` and `colourModel` recorded at upload.
+  - Provenance fields on the admin upload.
+  - Resolver `render` blocks and material entries.
+  - The `materials` dependency provider (AUTHORITATIVE, indirect usages followed).
+  - The data purpose as the default for material-map conversion.
+  - Admin pages and role groups.
+- Migration: `assets.0006`, two new tables, nothing destructive.
+- No `react/` or `game/` change. Rendering is LAI 04's (#276 to #278); the pilot is LAI 01's
+  (#279).
+- Not done:
+  - KTX2 for standalone images (ADR-070 gates).
+  - A local runner for image conversion (D-2).
+  - A global licence publish gate (D-3 limits it to environmental assets; legacy remediation is #283).
+- Tests: `apps/assets/tests/test_environment_assets.py`, plus 6 existing assertions updated for
+  the two new metadata fields. Final results are in PR #116.
+
 ## LAI-07 asset intake checklist: one sourcing list for missing audio and models (2026-11-27, `docs/asset-intake-checklist`, `main` `d812ad71`)
 
 Docs only; no code, seed or asset changed. Trello #244, #246, #247.
