@@ -4,8 +4,11 @@ Three different identities, kept apart on purpose:
 
 1. Cognito identity: proves who is signed in. Only the immutable `sub` claim is stored here.
 2. `ParentAccount`: the application's record of that parent. It is the Django user model.
-3. `ChildProfile`: a player profile a parent manages. It has no login, no email, no Cognito
-   identity, and no password. Children never authenticate.
+3. `ChildProfile`: a player profile a parent manages. It has no email and no password of its
+   own. A parent may give it an independent sign-in (`ChildCredential`, ADR-075): a username
+   in the separate child Cognito pool, mapped here by the pool's issuer and the user's
+   immutable `sub`, never by the username. The profile's id, and so all its progress, stays
+   the same whether or not it has one.
 
 Privacy rule for this module: `__str__` and `__repr__` use ids only, never names, so a log line
 or exception message built from a model cannot carry a child's nickname.
@@ -337,105 +340,52 @@ class AuthSessionAnchor(models.Model):
         return f"session anchor {self.pk}"
 
 
-# --- Family accounts and child authentication (LAI-AUTH-01, ADR-NNN) ---------------------------
+# --- Independent child sign-in (LAI-AUTH-02 to 07, ADR-075) ------------------------------------
 #
 # docs/platform/FAMILY_CHILD_AUTHENTICATION.md. Additive only: nothing here changes a parent or
-# child row, and every child-owned record keeps pointing at `ChildProfile`, so the family login
-# (mode A) and the independent child login (mode B) reach the same progress by construction.
-# None of these tables is read by an authenticator or a route yet: until ADR-NNN is accepted and
-# LAI-AUTH-02/03/04 wire them, they are inert. Only SHA-256 digests of credentials are stored;
-# PINs are stored as Django password hashes; Cognito passwords are never seen by Django.
-
-
-class FamilyDevice(models.Model):
-    """A shared device a signed-in parent handed to their children (mode A).
-
-    Carried by an opaque HttpOnly cookie; only its SHA-256 is stored. It can list the parent's
-    active children and open a child play session for one of them, and nothing else: it is not a
-    parent credential. `remembered` devices live `LAI_FAMILY_DEVICE_REMEMBER_SECONDS`, the others
-    `LAI_FAMILY_DEVICE_SESSION_SECONDS`. Ends at `expires_at`, on `revoked_at`, or when the parent
-    is deactivated. No device name, user agent or IP address is kept.
-    """
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    parent = models.ForeignKey(
-        ParentAccount, on_delete=models.CASCADE, related_name="+", editable=False
-    )
-    token_hash = models.CharField(max_length=64, unique=True, editable=False)
-    remembered = models.BooleanField(default=False)
-    created_at = models.DateTimeField(default=now, editable=False)
-    last_used_at = models.DateTimeField(default=now)
-    expires_at = models.DateTimeField()
-    revoked_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        constraints = [
-            models.CheckConstraint(
-                condition=models.Q(expires_at__gt=models.F("created_at")),
-                name="users_familydevice_expires_later",
-            ),
-        ]
-        indexes = [models.Index(fields=["parent", "revoked_at"], name="users_device_parent")]
-
-    def __str__(self) -> str:
-        return f"family device {self.pk}"
-
-
-class ChildPin(ChildOwnedModel):
-    """An optional profile-switching PIN a parent set for one child (mode A).
-
-    A convenience between siblings on a family device, never a replacement for the parent's
-    Cognito sign-in and never accepted on its own (a live `FamilyDevice` is always required).
-    Stored as a Django password hash. A four-digit PIN is guessable offline from its hash, so the
-    real protection is the server-side lockout: `failed_attempts` and `locked_until` live in
-    PostgreSQL, not a per-process cache, so every worker and restart sees the same count.
-    """
-
-    pin_hash = models.CharField(max_length=256, editable=False)
-    failed_attempts = models.PositiveSmallIntegerField(default=0)
-    locked_until = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(default=now)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["child"], name="users_childpin_one_per_child"),
-        ]
-
-    def __repr__(self) -> str:
-        return f"<ChildPin {self.id}>"
+# child row, and every child-owned record keeps pointing at `ChildProfile`, so a child who signs
+# in on their own reaches exactly the progress they had before. Session and device credentials
+# are 256-bit random values; only their SHA-256 digests are stored. Child passwords live only in
+# the child Cognito pool: Django passes one through when the parent sets it and never keeps it.
 
 
 class ChildCredentialStatus(models.TextChoices):
-    # Django has the row; the Cognito user is being created (LAI-AUTH-05).
+    # Django has the row; the child-pool user is being created.
     PROVISIONING = "PROVISIONING", "Provisioning"
     ACTIVE = "ACTIVE", "Active"
-    # The parent paused independent login; the profile and progress are untouched.
+    # The parent paused sign-in; the profile and progress are untouched.
     SUSPENDED = "SUSPENDED", "Suspended"
-    # The parent removed independent login; kept as a tombstone so the login name is released.
+    # The parent removed sign-in. Kept as a tombstone (login name cleared, identity kept so the
+    # `sub` can never map to a child again).
     REVOKED = "REVOKED", "Revoked"
 
 
 LOGIN_NAME_MIN_LENGTH = 4
 LOGIN_NAME_MAX_LENGTH = 20
+LOGIN_NAME_REGEX = r"^[a-z0-9][a-z0-9._-]{3,19}$"
 
 
 class ChildCredential(ChildOwnedModel):
-    """A parent-managed independent sign-in for one child (mode B), mapped to its profile.
+    """A parent-managed independent sign-in for one child, mapped to that child's profile.
 
-    The Cognito user lives in the child user pool (ADR-NNN decision 3). Django keeps only the
-    login name the parent chose (it is the Cognito username, so the child can type it), the
-    pool's issuer and the user's immutable `sub`. The password is never sent to or stored by
-    Django except in transit to Cognito when the parent sets it (LAI-AUTH-05).
+    The user lives in the child Cognito pool (ADR-075). Identity is `(issuer, subject)`: the
+    pool's issuer URL and the user's immutable `sub`, both taken from Cognito, never from a
+    request. `provider_username` is the pool's internal username, an opaque value Django
+    generates so the Cognito admin calls can address the user; the child signs in with
+    `login_name`, which the pool holds as the `preferred_username` alias and the parent may
+    change. Neither name is ever an identity key.
 
-    `tokens_valid_after` is Django's own revocation line: a session or token issued before it is
-    refused even while Cognito still considers it valid (a reset, suspension or revocation moves
-    it). Suspension and revocation take effect in Django first, so they never wait on Cognito.
+    `tokens_valid_after` is Django's own revocation line: a token issued before it cannot open a
+    session, and a session or remembered device created before it is refused, even while
+    Cognito still considers the token valid. A password reset, suspension or revocation moves
+    it, so they take effect in Django immediately and never wait for a Cognito token to expire.
 
     Privacy: the login name is personal data. It is never logged, never shown in Django Admin,
     and `__str__`/`__repr__` use the id only.
     """
 
-    login_name = models.CharField(max_length=LOGIN_NAME_MAX_LENGTH, editable=False)
+    login_name = models.CharField(max_length=LOGIN_NAME_MAX_LENGTH, blank=True)
+    provider_username = models.CharField(max_length=64, unique=True, editable=False)
     issuer = models.CharField(max_length=200, blank=True, editable=False)
     subject = models.CharField(max_length=128, blank=True, editable=False)
     status = models.CharField(
@@ -446,6 +396,9 @@ class ChildCredential(ChildOwnedModel):
     tokens_valid_after = models.DateTimeField(default=now)
     created_at = models.DateTimeField(default=now, editable=False)
     status_changed_at = models.DateTimeField(default=now)
+    password_set_at = models.DateTimeField(null=True, blank=True)
+    # Revoked in Django, but the child-pool user could not be deleted yet; a retry finishes it.
+    provider_cleanup_pending = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
@@ -459,26 +412,30 @@ class ChildCredential(ChildOwnedModel):
                 condition=~models.Q(status="REVOKED"),
                 name="users_childcredential_one_live_per_child",
             ),
-            # Login names are case-insensitive, like the child pool's usernames.
+            # Login names are case-insensitive, like the child pool's aliases.
             models.UniqueConstraint(
                 Lower("login_name"),
                 condition=~models.Q(status="REVOKED"),
                 name="users_childcredential_login_name_unique",
             ),
-            # A Cognito identity maps to at most one credential, so to one child.
+            # A Cognito identity maps to at most one credential, so to one child, forever.
             models.UniqueConstraint(
                 fields=["issuer", "subject"],
                 condition=~models.Q(subject=""),
                 name="users_childcredential_identity_unique",
             ),
-            # An active credential always has a verified Cognito identity behind it.
+            # Anything but provisioning has a verified Cognito identity behind it.
             models.CheckConstraint(
-                condition=~models.Q(status="ACTIVE")
+                condition=models.Q(status="PROVISIONING")
                 | (~models.Q(subject="") & ~models.Q(issuer="")),
-                name="users_childcredential_active_has_identity",
+                name="users_childcredential_live_has_identity",
             ),
+            # A live credential has a well-formed login name; a tombstone has none.
             models.CheckConstraint(
-                condition=models.Q(login_name__regex=r"^[a-z0-9][a-z0-9._-]{3,19}$"),
+                condition=(
+                    models.Q(status="REVOKED", login_name="")
+                    | (~models.Q(status="REVOKED") & models.Q(login_name__regex=LOGIN_NAME_REGEX))
+                ),
                 name="users_childcredential_login_name_format",
             ),
         ]
@@ -487,37 +444,67 @@ class ChildCredential(ChildOwnedModel):
         return f"<ChildCredential {self.id}>"
 
 
-class ChildSessionSource(models.TextChoices):
-    FAMILY_DEVICE = "FAMILY_DEVICE", "Family device (mode A)"
-    CHILD_LOGIN = "CHILD_LOGIN", "Independent child login (mode B)"
+class ChildDevice(ChildOwnedModel):
+    """A device on which a child chose "remember me" (a remembered sign-in).
+
+    Carried by an opaque HttpOnly cookie that only the child sign-in routes receive; only its
+    SHA-256 is stored. It can do exactly one thing: open a new `ChildPlaySession` for this one
+    child, after every check runs again (credential active and not reset since, consent still
+    given, child and parent active). It is never a parent credential, never lists siblings, and
+    cannot switch to another child: on a shared device, each child signs in with their own name
+    and password, and that replaces the previous child's cookie. Signing out forgets it.
+
+    No device name, user agent or IP address is kept. The parent sees when it was remembered and
+    last used, and can revoke it.
+    """
+
+    CHILD_LINKS = ("credential",)
+
+    credential = models.ForeignKey(
+        ChildCredential, on_delete=models.CASCADE, related_name="+", editable=False
+    )
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    created_at = models.DateTimeField(default=now, editable=False)
+    last_used_at = models.DateTimeField(default=now)
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(expires_at__gt=models.F("created_at")),
+                name="users_childdevice_expires_later",
+            ),
+        ]
+        indexes = [models.Index(fields=["child", "revoked_at"], name="users_childdev_child")]
+
+    def __repr__(self) -> str:
+        return f"<ChildDevice {self.id}>"
 
 
 class ChildPlaySession(ChildOwnedModel):
     """A restricted gameplay session for exactly one child: the child principal.
 
-    Both modes end here. Mode A opens one from a `FamilyDevice` (after the PIN, if the child has
-    one); mode B opens one by exchanging a verified child-pool access token. The cookie carrying
-    it (only its SHA-256 is stored) will authenticate only the child gameplay routes that opt in
-    (LAI-AUTH-03), and only for this child: never account, child management, credential, consent,
+    Opened by exchanging a verified child-pool access token (or from a remembered `ChildDevice`).
+    The cookie carrying it (only its SHA-256 is stored) authenticates only the child gameplay
+    routes on the allowlist in `apps.users.child_session`, only for this child, and only with
+    the methods listed there: never account, child management, sign-in management, consent,
     photo upload or deletion routes.
 
     It ends at `expires_at` (absolute), after `LAI_CHILD_SESSION_IDLE_SECONDS` without use, on
-    `revoked_at`, or when the parent or child is deactivated, the device is revoked, or the
-    credential is suspended, revoked or reset. Expiry is a security control, not a play-time
-    limit (ADR-053): a family device reopens the session without interrupting the child.
+    `revoked_at`, or when the parent or child is deactivated, the credential is suspended,
+    revoked or reset, consent is withdrawn, or its remembered device is revoked. Expiry is a
+    security control, not a play-time limit (ADR-053): a remembered device reopens the session
+    without interrupting the child.
     """
 
-    CHILD_LINKS = ("credential",)
+    CHILD_LINKS = ("credential", "device")
 
-    parent = models.ForeignKey(
-        ParentAccount, on_delete=models.CASCADE, related_name="+", editable=False
-    )
-    source = models.CharField(max_length=16, choices=ChildSessionSource.choices, editable=False)
-    family_device = models.ForeignKey(
-        FamilyDevice, on_delete=models.CASCADE, null=True, blank=True, related_name="+"
-    )
     credential = models.ForeignKey(
-        ChildCredential, on_delete=models.CASCADE, null=True, blank=True, related_name="+"
+        ChildCredential, on_delete=models.CASCADE, related_name="+", editable=False
+    )
+    device = models.ForeignKey(
+        ChildDevice, on_delete=models.CASCADE, null=True, blank=True, related_name="+"
     )
     token_hash = models.CharField(max_length=64, unique=True, editable=False)
     created_at = models.DateTimeField(default=now, editable=False)
@@ -531,24 +518,92 @@ class ChildPlaySession(ChildOwnedModel):
                 condition=models.Q(expires_at__gt=models.F("created_at")),
                 name="users_childplaysession_expires_later",
             ),
-            models.CheckConstraint(
-                condition=(
-                    models.Q(
-                        source="FAMILY_DEVICE",
-                        family_device__isnull=False,
-                        credential__isnull=True,
-                    )
-                    | models.Q(
-                        source="CHILD_LOGIN", family_device__isnull=True, credential__isnull=False
-                    )
-                ),
-                name="users_childplaysession_source_matches",
-            ),
         ]
-        indexes = [
-            models.Index(fields=["parent", "revoked_at"], name="users_playsess_parent"),
-            models.Index(fields=["child", "revoked_at"], name="users_playsess_child"),
-        ]
+        indexes = [models.Index(fields=["child", "revoked_at"], name="users_playsess_child")]
 
     def __repr__(self) -> str:
         return f"<ChildPlaySession {self.id}>"
+
+
+class ConsentPurpose(models.TextChoices):
+    # The parent allows this child to sign in on their own (ADR-075). More purposes arrive with
+    # the full consent design (LAI-0308, gate G9).
+    CHILD_INDEPENDENT_SIGN_IN = "CHILD_INDEPENDENT_SIGN_IN", "Independent child sign-in"
+
+
+class ParentConsent(ChildOwnedModel):
+    """A parent's consent for one purpose for one child (the `ParentConsent` domain concept).
+
+    Deliberately narrow until the consent design (LAI-0308, gate G9) is approved: it records
+    who consented, to which approved policy text (`policy_version`), and when, and when it was
+    withdrawn. A consent can only be given while `LAI_CHILD_SIGN_IN_CONSENT_VERSION` names an
+    approved text, so with no approved text nobody can consent and child sign-in stays closed.
+    Withdrawing it ends the child's sessions and remembered devices at once.
+    """
+
+    parent = models.ForeignKey(
+        ParentAccount, on_delete=models.CASCADE, related_name="+", editable=False
+    )
+    purpose = models.CharField(max_length=40, choices=ConsentPurpose.choices, editable=False)
+    policy_version = models.CharField(max_length=40, editable=False)
+    granted_at = models.DateTimeField(default=now, editable=False)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(purpose__in=ConsentPurpose.values),
+                name="users_parentconsent_purpose_valid",
+            ),
+            models.UniqueConstraint(
+                fields=["child", "purpose"],
+                condition=models.Q(withdrawn_at__isnull=True),
+                name="users_parentconsent_one_live_per_purpose",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(policy_version=""),
+                name="users_parentconsent_has_policy_version",
+            ),
+        ]
+
+    def __repr__(self) -> str:
+        return f"<ParentConsent {self.id}>"
+
+
+class ChildAccountAction(models.TextChoices):
+    CONSENT_GRANTED = "CONSENT_GRANTED", "Consent given"
+    CONSENT_WITHDRAWN = "CONSENT_WITHDRAWN", "Consent withdrawn"
+    SIGN_IN_ENABLED = "SIGN_IN_ENABLED", "Sign-in enabled"
+    LOGIN_NAME_CHANGED = "LOGIN_NAME_CHANGED", "Username changed"
+    PASSWORD_SET = "PASSWORD_SET", "Password set"
+    SUSPENDED = "SUSPENDED", "Sign-in paused"
+    RESUMED = "RESUMED", "Sign-in resumed"
+    REVOKED = "REVOKED", "Sign-in removed"
+    SESSIONS_REVOKED = "SESSIONS_REVOKED", "Signed out everywhere"
+    DEVICE_REVOKED = "DEVICE_REVOKED", "Remembered device removed"
+
+
+class ChildAccountEvent(ChildOwnedModel):
+    """An audit record of a parent's change to a child's sign-in or consent.
+
+    An action code and a time only: never a password, token, login name, IP address or device
+    detail. Child sign-ins themselves are not recorded here (sessions carry their own times).
+    """
+
+    parent = models.ForeignKey(
+        ParentAccount, on_delete=models.CASCADE, related_name="+", editable=False
+    )
+    action = models.CharField(max_length=24, choices=ChildAccountAction.choices, editable=False)
+    occurred_at = models.DateTimeField(default=now, editable=False)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(action__in=ChildAccountAction.values),
+                name="users_childaccountevent_action_valid",
+            ),
+        ]
+        indexes = [models.Index(fields=["child", "occurred_at"], name="users_acctevent_child")]
+
+    def __repr__(self) -> str:
+        return f"<ChildAccountEvent {self.id}>"

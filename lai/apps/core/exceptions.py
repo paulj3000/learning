@@ -109,6 +109,21 @@ _CODED = {
     "invalid_trigger": "That is not something a character can react to.",
     "ai_unavailable": "The character will use their own words for now.",
     "rate_limited": "Let's take a little break and try again soon.",
+    # Independent child sign-in (ADR-075). The child-facing one is calm and points to the parent.
+    "child_sign_in_unavailable": (
+        "This sign-in is not available right now. Please ask your grown-up."
+    ),
+    "child_csrf_failed": "This request could not be verified.",
+    "child_sign_in_not_found": "This child does not have their own sign-in.",
+    "child_sign_in_exists": "This child already has their own sign-in.",
+    "login_name_invalid": (
+        "Choose a username of 4 to 20 letters, numbers, dots, dashes or underscores."
+    ),
+    "login_name_unavailable": "That username is taken. Please choose another one.",
+    "password_invalid": "Choose a password of 8 to 64 characters that is not the username.",
+    "consent_required": "Please give consent for this child to sign in on their own first.",
+    "consent_unavailable": "Children cannot sign in on their own yet.",
+    "child_identity_unavailable": "Child sign-in is not available right now. Please try again.",
 }
 _PASSTHROUGH_HEADERS = {"Allow", "WWW-Authenticate", "Retry-After"}
 

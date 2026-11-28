@@ -2,6 +2,7 @@ import { App, BootstraplessSynthesizer } from 'aws-cdk-lib';
 import { fileURLToPath } from 'node:url';
 import { AiGuardrailStack } from '../lib/aiGuardrailStack';
 import { AssetStorageStack, type AssetEnvironment } from '../lib/assetStorageStack';
+import { ChildIdentityStack } from '../lib/childIdentityStack';
 import { ChildPhotoStorageStack } from '../lib/childPhotoStorageStack';
 import { DevArtifactsStack } from '../lib/devArtifactsStack';
 import { DEV_PLATFORM_STACK, DevPlatformStack } from '../lib/devPlatformStack';
@@ -21,6 +22,7 @@ import { readFileSync } from 'node:fs';
  * | `LaiDevArtifacts-dev`   | dev   | artifacts bucket: releases, Lambda zip, job results          |
  * | `LaiAssetStorage-<env>` | both  | asset library bucket and Django policy (ADR-035)             |
  * | `LaiChildPhotos-<env>`  | both  | private child photo bucket and policy (ADR-042)              |
+ * | `LaiChildIdentity-<env>` | both | child Cognito pool and Django policy (ADR-075), opt-in only  |
  * | `LaiDevPlatform-dev`    | dev   | native EC2 (no Docker, no ALB), RDS, SQS + Lambda, power     |
  * |                         |       | schedule (Step Functions, Scheduler), SSM documents, roles   |
  * | `LaiDjangoRelease`      | prod  | ECR repository, GitHub OIDC, image publisher role            |
@@ -51,6 +53,7 @@ import { readFileSync } from 'node:fs';
  * | `optimizeWorker`     | `LAI_OPTIMIZE_WORKER`       | `true`: define the GLB optimize worker        |
  * | `processingBudgetUsd` | `LAI_PROCESSING_BUDGET_USD` | prod processing budget; no default (P15)     |
  * | `processingSizing`   | `LAI_PROCESSING_SIZING`     | JSON memory/timeout overrides per workload    |
+ * | `enableChildPool`    | `LAI_ENABLE_CHILD_POOL`     | `1`: define the child user pool (ADR-075)     |
  *
  * Deploy-time values (API and admin host names, AMI, instance type, Cognito ids, alarm
  * e-mail) are CloudFormation parameters of `LaiDjangoEc2-prod` (scripts/aws/provision.sh) and
@@ -156,6 +159,18 @@ new ChildPhotoStorageStack(app, `LaiChildPhotos-${envName}`, {
   synthesizer: synthesizer(),
   description: `Learning Adventure Island private child photo storage (${envName})`,
 });
+
+// Independent child sign-in (ADR-075): defined only on request, never by default, so no deploy
+// creates it by accident. Deploying it is an owner approval (G7).
+if (setting('enableChildPool', 'LAI_ENABLE_CHILD_POOL') === '1') {
+  new ChildIdentityStack(app, `LaiChildIdentity-${envName}`, {
+    envName: envName as AssetEnvironment,
+    djangoRoleArn: setting('djangoRoleArn', 'LAI_DJANGO_ROLE_ARN') || undefined,
+    env,
+    synthesizer: synthesizer(),
+    description: `Learning Adventure Island child user pool (${envName})`,
+  });
+}
 
 if (envName === 'dev') {
   // The native dev environment (no Docker, no load balancer): see infra/lib/devPlatformStack.ts.

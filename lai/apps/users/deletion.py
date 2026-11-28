@@ -21,7 +21,7 @@ import logging
 from django.db import transaction
 
 from . import photos, services
-from .models import ChildPhoto, ParentAccount
+from .models import ChildCredential, ChildPhoto, ParentAccount
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,9 @@ def delete_child_profile(parent: ParentAccount, child_id) -> None:
     its records are then unchanged, apart from photos no longer being served).
     """
     child = services.get_owned_child_profile(parent, child_id)
+    if not _remove_child_sign_in(parent, child):
+        logger.warning("child deletion deferred: child sign-in cleanup incomplete")
+        raise ChildDeletionIncomplete
     if not photos.delete_all_child_photos(child):
         logger.warning("child deletion deferred: photo storage cleanup incomplete")
         raise ChildDeletionIncomplete
@@ -58,6 +61,23 @@ def delete_child_profile(parent: ParentAccount, child_id) -> None:
     except Exception:  # noqa: BLE001 - never block a deletion that already succeeded
         logger.warning("child deletion: speech cleanup deferred to expiry")
     logger.info("child profile deleted")
+
+
+def _remove_child_sign_in(parent: ParentAccount, child) -> bool:
+    """The child's own sign-in (ADR-075) goes first, pool user included, like photo objects.
+
+    Django's refusal takes effect at once; if the child pool cannot delete the user, the child
+    is kept (a credential row records the pending cleanup) and a retry finishes the job.
+    """
+    from . import child_auth
+
+    try:
+        child_auth.remove_sign_in(parent, child.pk)
+    except child_auth.CredentialUnavailable:
+        return True  # no sign-in and nothing pending
+    except child_auth.ProfileUnavailable:
+        return True  # deleted concurrently; the caller's own lookup decides
+    return not ChildCredential.objects.filter(child=child, provider_cleanup_pending=True).exists()
 
 
 class StaffAccountNotDeletable(Exception):

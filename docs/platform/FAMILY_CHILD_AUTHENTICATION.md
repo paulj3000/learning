@@ -1,350 +1,299 @@
-# Family accounts and child authentication (LAI-AUTH-01)
+# Family accounts and independent child sign-in (LAI-AUTH-01 to 10)
 
-- **Status:** Proposal for owner decision. Decision record: ADR-NNN in [DECISIONS.md](../DECISIONS.md)
-  (number 074 requested; not reserved on `main` yet). Nothing here is accepted, deployed or
-  live-verified.
+- **Status:** Development direction approved by the owner (2026-11-27): independent child sign-in
+  is the primary authentication model, with a separate child Cognito user pool. The decision
+  record, ADR-075 in [DECISIONS.md](../DECISIONS.md), is Proposed; the number is reserved by the
+  registry pull request #118 (stacked on #117, which takes 074). Nothing here is deployed,
+  live-verified or owner-accepted.
 - **Owner:** project owner
 - **Last reviewed:** 2026-11-27
 - **Trello:** parent #97 "[Subproject] Child Authentication & Family Accounts"; LAI-AUTH-01 to 10
   (#98 to #107)
 - **Branch:** `feature/family-child-authentication` from `main` `d812ad71`
-- **Related ADRs:** ADR-019 (gates G2, G7, G9, G10), ADR-022, ADR-024 (A1, A3, A6), ADR-036,
-  ADR-039, ADR-040, ADR-043, ADR-053
-- **Code (this branch, not wired to any route):** `lai/apps/users/models.py` (`FamilyDevice`,
-  `ChildPin`, `ChildCredential`, `ChildPlaySession`), `lai/apps/users/family_auth.py`,
-  migration `0009_family_child_authentication`, `lai/apps/users/tests/test_family_auth.py`
+- **Related ADRs:** ADR-019 (gates G2, G7, G9, G10), ADR-022, ADR-024, ADR-036, ADR-039, ADR-040,
+  ADR-043, ADR-053
+- **Supersedes:** the 2026-11-27 morning proposal on this branch (commit `5ed26189`), which made
+  parent-led "family login" (mode A) primary. Mode A is deferred (section 9).
 
-The goal is to support two ways a child gets into the island, and have both resolve to the
-**same** `ChildProfile` and therefore the same progress:
+## Summary
 
-- **Mode A, family login.** A parent signs in with Cognito, picks a child from a profile picker,
-  and the child plays in a restricted session. An optional per-child PIN guards sibling switching.
-- **Mode B, independent child login.** A parent creates a username and password for a child,
-  who signs in on their own (for example on a second device). No child email or phone number.
+```text
+ParentAccount                       parent Cognito pool (unchanged: email, password, recovery, MFA)
+ ├── ChildProfile A ── ChildCredential ── child Cognito pool user (username + password)
+ ├── ChildProfile B ── ChildCredential ── child Cognito pool user
+ └── ChildProfile C ── ChildCredential ── child Cognito pool user
+```
 
-## Summary of the recommendation
+- Every child can have their own sign-in. The parent creates it, sets and resets the password,
+  pauses, resumes and removes it, signs the child out everywhere and forgets remembered devices.
+  The child has no email or phone number and cannot create accounts, recover their own password,
+  reach the parent dashboard or a sibling, or change consent or controls.
+- Children live in a **separate child Cognito user pool** (username-only, no public sign-up, no
+  self-service recovery). Django creates and manages its users with a narrowly scoped admin
+  policy. A child token can never pass a parent check: the parent verifier accepts only the
+  parent pool's issuer and client, and the child verifier only the child pool's.
+- A child-pool token is used **once**, right after sign-in: Django verifies it, maps
+  `(issuer, sub)` to the child's existing `ChildProfile`, checks the sign-in is active and
+  consent is given, and opens a **child session**: an HttpOnly, SameSite=Strict cookie bound to
+  exactly one child. The browser then discards the Cognito tokens.
+- The child session is accepted only on an **allowlist of gameplay routes and methods**, and only
+  for the session's own child. Every other route never reads it (401). Django is the revocation
+  authority, so suspension, password reset, consent withdrawal and sign-out-everywhere take
+  effect on the next request, without waiting for a Cognito token to expire.
+- Existing `ParentAccount` and `ChildProfile` rows, ids and every progress record are untouched:
+  enabling sign-in adds a `ChildCredential` row and never creates a profile.
+- Consent (gate G9) fails closed: without a parent's consent to the currently approved consent
+  text (`LAI_CHILD_SIGN_IN_CONSENT_VERSION`, empty by default), no credential can be created and
+  no child can sign in.
 
-1. **One child principal for both modes: a Django `ChildPlaySession`**, carried by an opaque,
-   HttpOnly, Secure, SameSite=Strict cookie and bound to exactly one child. It is accepted only
-   by child gameplay routes that opt in (the ADR-036 allowlist pattern, generalized from "one
-   child, one region" to "one child"). Parent routes never accept it.
-2. **Mode A hands the device to the child.** Opening family play needs a recent parent sign-in
-   (ADR-043) and creates a `FamilyDevice` credential; the React app then **removes the parent's
-   Cognito tokens from the device**. The device credential can only list the family's children and
-   open a child session. Any parent function needs a fresh Cognito sign-in.
-3. **Mode B uses a separate Cognito user pool for children**, username-only, admin-created, with
-   no self-sign-up. A child's verified access token is exchanged once for a `ChildPlaySession`.
-   The parent pool is not changed.
-4. **Django is the revocation authority.** Suspension, reset and revocation take effect in
-   PostgreSQL first (`tokens_valid_after`, session revocation), so they never wait for a Cognito
-   token to expire.
-5. **Schema is additive.** Four new tables; no change to `ParentAccount`, `ChildProfile` or any
-   progress table, so existing child ids and progress are preserved by construction.
-6. **Consent fails closed.** Mode B cannot open a session until LAI-0308 (gate G9) records
-   parental consent for it.
+## 1. Identity mapping
 
----
-
-## 1. Existing authentication architecture audit
-
-Audited at `main` `d812ad71` (2026-11-27).
-
-| Area | What exists | Source |
-|---|---|---|
-| Identity provider | One Cognito user pool for parents, **email as username**, SRP from the browser, public SPA client, open email sign-up | ADR-024 evidence table; `react/src/lib/cognito/`, `SignUpForm.tsx` |
-| Token storage | Access, ID and refresh tokens in `localStorage` (Amplify-compatible keys); refresh default 30 days (deployed value unverified, G1) | `react/src/lib/cognito/auth.ts`; ADR-024 A1 open |
-| API credential | Cognito **access token** as `Authorization: Bearer`; RS256 via JWKS, `iss`, `exp`/`nbf`, `token_use=access`, `client_id` allow-list, known `kid`; 30 s leeway; fails closed | `lai/apps/users/authentication.py`, `jwks.py` (ADR-024, ADR-040) |
-| Identity mapping | Verified `sub` maps to `ParentAccount.cognito_sub` (unique, immutable); unprovisioned users are a non-row principal | `models.py`, `authentication.py` |
-| Children | `ChildProfile` owned by one parent (FK `PROTECT`), max three, **no login of any kind** (ADR-022: "Children never authenticate") | `models.py`, `services.py` |
-| Authorization | Default permission `IsProvisionedParent`; child routes under `/api/v1/children/<uuid:child_id>/` use `ChildScopedMixin`, which resolves the child through `request.user`; another family's child is the same 404 as a missing one | `permissions.py`, `scoping.py` |
-| Structural guards | Every route is public, parent-scoped or child-scoped; `ChildProfile.objects` only in `services.py`/`models.py`; no parent read from request data; cookie routes pinned | `apps/users/tests/test_tenant_isolation.py`, `apps/core/tests/test_api_conventions.py` |
-| Child-scoped credential | **Android WebView only**: single-use 60 s launch ticket redeemed for `lai_game_session` cookie (HttpOnly, Secure, SameSite=Strict, `/api/v1/`, 60 min), **one child and one region**, CSRF header `X-LAI-Game-CSRF`, opt-in routes only | `apps/game_sessions/launch.py`, `runtime_auth.py` (ADR-036, **Proposed**) |
-| Recent sign-in | `auth_time` within 300 s, per-session anchor, Cognito `GetUser` revocation check; guards child deletion | `recent_auth.py` (ADR-043, **Proposed**, live gate open) |
-| Web child mode | `/island/:childId/...` routes run on the **parent's bearer token**. Leaving child mode uses `ParentGate`, an adult check that asks for the sum of two numbers from 2 to 8 | `react/src/app/AppRoutes.tsx`, `features/child-profile/ParentGate.tsx` |
-| Parent dashboard child switch | `ChildSwitcher` changes which child the parent dashboard shows; not a sign-in | `features/child-profile/ChildSwitcher.tsx` |
-| Sign-out | Local only (revokes this device's refresh token); no global sign-out | ADR-024 evidence |
-| Rate limiting | DRF scope `game_launch` (30/min) only. No `CACHES` setting, so DRF throttles use per-process LocMem: they are per worker and reset on restart | `config/settings/base.py` |
-| Consent | `ParentConsent` not implemented (LAI-0308, gate G9) | ADR-019, ADR-022 |
-| Progress records | Every child-owned record extends `ChildOwnedModel` with a `child` FK to `ChildProfile` (CASCADE) | `apps/core/models.py` |
-
-## 2. Security and privacy gap analysis
-
-| # | Gap | Severity | Addressed by |
+| Identity | Where | Key | Never used as identity |
 |---|---|---|---|
-| S1 | **A child playing on the web holds the parent's full privileges.** Gameplay uses the parent's bearer token; the same token can change profiles, upload photos, toggle AI, start co-op, manage settings. Only child deletion needs recent sign-in. The arithmetic `ParentGate` is the only barrier, and many 5 to 8 year olds can pass it. | High | Child principal (section 5); mode A device hand-off |
-| S2 | Parent refresh token (about 30 days) stays in `localStorage` on a shared family device. | High on shared devices | Mode A removes parent tokens on hand-off |
-| S3 | No server-side notion of "which child is playing". Any child id the parent owns works on every request, so a sibling can play as another sibling. | Medium | Session bound to one child; optional PIN |
-| S4 | Cognito access tokens cannot be revoked before expiry from Django's side (A6 open). | Medium | Django revocation line (`tokens_valid_after`, session revocation) |
-| S5 | No durable rate limit: DRF throttles are per process. A PIN guarded only by them could be brute-forced across workers. | Medium | PIN lockout in PostgreSQL rows (implemented) |
-| S6 | Child login is prohibited by the standards (`security-policy.md` section 5, `architecture-rules.md` section 6.1, ADR-022). The owner's LAI 08 brief asks for it. | Governance conflict | Reported; resolved only by owner acceptance of ADR-NNN, which then amends those documents |
-| S7 | Consent design missing (G9). Mode B adds child-held credentials and child-initiated sessions without a parent present. | Blocking for mode B live use | Fail-closed consent check (implemented); LAI-0308 |
-| S8 | Infrastructure logs carry child UUIDs in URL paths (G10). A child session does not change that. | Existing | Unchanged; noted |
-| S9 | Recent sign-in (ADR-043) and the ADR-036 cookie are Proposed, not accepted. This design builds on both. | Dependency | Owner decision OD-4 |
-| S10 | Parent pool allows open sign-up with email usernames. Children placed there would need emails and would share a client allow-list with parents. | Design constraint | Separate child pool (section 3) |
-| P1 | A login name is new child personal data. | Privacy | Minimized: 4 to 20 chars, not the nickname, never logged, hidden in Django Admin, deleted with the credential |
-| P2 | Avatars and photos on a profile picker are shown to whoever holds the device. | Privacy | Picker shows only the device parent's active children; photos via the existing signed-URL path (LAI 07 coordination) |
-| P3 | Session expiry could be mistaken for a play-time limit (ADR-053 forbids those). | Product rule | Expiry is a security control; a family device reopens the session silently, with no countdown or message |
+| Parent | parent Cognito pool, `ParentAccount` | `cognito_sub` (unchanged) | email |
+| Child sign-in | child Cognito pool, `ChildCredential` | `(issuer, subject)`: the pool's issuer URL and the user's immutable `sub`, both from a verified token | login name, Cognito username |
+| Child profile and progress | `ChildProfile` and every `ChildOwnedModel` row | `ChildProfile.id` (unchanged) | anything the browser sends |
 
-## 3. Cognito identity architecture: shared or separate pool
+- The pool's username is an opaque value Django generates (`c-<uuid hex>`, stored as
+  `provider_username`) so the admin API can address the user. The child types their **login
+  name**, which the pool holds as the `preferred_username` alias. The parent can change the login
+  name without changing the identity, the profile or progress.
+- At exchange, the token's `username` claim must equal the credential's `provider_username`, as a
+  second check on top of `(issuer, sub)`.
+- A removed sign-in leaves a tombstone (`status=REVOKED`, login name cleared): the login name is
+  free again, and the old `sub` can never map to any child again (unique `(issuer, subject)`).
 
-Mode A needs no new Cognito resource: it reuses the parent pool exactly as it is.
+## 2. Cognito architecture
 
-Mode B needs Cognito users for children. Two options:
-
-| Criterion | A. Children in the existing parent pool | B. Separate child pool (recommended) |
+| | Parent pool (existing) | Child pool (new, `infra/lib/childIdentityStack.ts`) |
 |---|---|---|
-| Username without email | **Not possible as configured.** The pool uses email as the username, and Cognito cannot change username attributes after a pool is created | Username-only pool, case-insensitive |
-| Self-sign-up | Open in the parent pool; children would inherit it unless the whole pool changes | `AllowAdminCreateUserOnly`: only Django, on a parent's request, creates child users |
-| Privilege separation | A child token has the same issuer and could carry an allowed `client_id`. Parent routes would have to exclude children **explicitly**. That is a default-allow failure mode: one missed check gives a child parent rights | Different issuer. Parent verification rejects child tokens by construction (`iss` mismatch), with no new check on parent routes |
-| Password policy | One policy for adults and children | Child-appropriate policy (length over complexity), no MFA prompts a child cannot satisfy |
-| User enumeration | Parent pool setting applies to both | `PreventUserExistenceErrors` on the child client |
-| Recovery | Email reset flows built for adults | No self-service recovery; parent resets through Django |
-| Blast radius | A misconfiguration affects parent sign-in, which is accepted and must not regress | Parent pool untouched (#97: "do not regress or reopen it") |
-| Cost and operations | No new resource | One more pool, app client, JWKS issuer and IAM scope; Cognito charges per monthly active user in both cases |
-| Owner approval | Changing the live parent pool: G2 and G7 | Creating a new pool and IAM policy: G7 (CDK code can be written without deploying) |
+| Sign-in | Email + password, SRP | Login name (`preferred_username` alias) + password, SRP |
+| Sign-up | Public (parents register) | **None** (`AllowAdminCreateUserOnly`) |
+| Recovery | Email code (existing) | **None** (`AccountRecovery.NONE`): the parent sets a new password through Django |
+| Attributes | email | none required; no email, no phone; no client-writable attribute |
+| MFA, recent sign-in | Existing pool settings; recent sign-in for sensitive actions (ADR-043) | MFA off (children) |
+| App client | Existing web client (unchanged) | One public SRP-only client, no secret, no OAuth, token revocation on, access and ID tokens 5 minutes, refresh 60 minutes (the minimum) |
+| Who administers | Cognito and the parent | Django only, policy `lai-django-child-identity-<env>` with the eight admin actions it calls, on this pool's ARN |
+| Verified by | `CognitoJWTAuthentication` (every parent route) | `verify_child_access_token`, only at `POST /api/v1/child-auth/session/` |
 
-**Recommendation: B.** The username constraint alone rules out A without migrating every parent.
-The privilege argument settles it: in B, a child token cannot reach a parent route even if a
-parent route forgets a check.
+Why separate: the parent pool uses email as its username attribute, which Cognito cannot change
+after creation, and it has public sign-up and email recovery a child must not have. A separate
+issuer also means a forgotten check can never let a child token through as a parent. Settings
+refuse a child pool equal to the parent pool or sharing an app client with it.
 
-Child pool shape (for LAI-AUTH-04, CDK code only until deployment is approved):
+The stack is defined only when `LAI_ENABLE_CHILD_POOL=1` (`infra/bin/app.ts`) and is never
+deployed by this branch. Live creation is an owner approval (G7, OD-3).
 
-- Sign-in with username, case-insensitive; no email, phone or other required attributes; no
-  standard attributes written.
-- `AllowAdminCreateUserOnly`; no hosted UI, no OAuth flows, no identity pool, no federation.
-- One public app client (SRP), no secret, `PreventUserExistenceErrors=ENABLED`, token revocation
-  enabled, access token 60 minutes, short refresh token (owner decision OD-5; the client
-  exchanges and then discards it).
-- Django's IAM permissions limited to this pool's ARN: `AdminCreateUser`, `AdminSetUserPassword`,
-  `AdminDisableUser`, `AdminEnableUser`, `AdminUserGlobalSignOut`, `AdminDeleteUser`. Nothing on
-  the parent pool.
-- Cognito username = the parent-chosen login name. With existence errors suppressed, a wrong
-  username and a wrong password look identical to the child.
+## 3. Django model and migration
 
-## 4. Django identity model and migration plan
-
-New tables (implemented on this branch, migration `users/0009`):
+Migration `users/0009_child_sign_in` is create-only (five new tables; no change to any existing
+table, id or progress row). It replaces this branch's unmerged `0009_family_child_authentication`,
+which never left the branch (LAI 05 confirmed no `users/0009` on `main` or the integration branch).
 
 | Model | Purpose | Key rules |
 |---|---|---|
-| `FamilyDevice` | Mode A device credential, owned by a parent | Only SHA-256 of the cookie value stored; `remembered` selects 30-day or 12-hour lifetime (settings, bounded); revocable; dies with the parent account; no device name, user agent or IP |
-| `ChildPin` | Optional switching PIN per child | Django password hash; four ASCII digits; `failed_attempts` and `locked_until` in PostgreSQL under a row lock (5 tries, then 15 minutes, both bounded settings); a new PIN clears the lockout |
-| `ChildCredential` | Mode B mapping: child pool issuer and `sub` to `ChildProfile` | One live credential per child; login name unique case-insensitively among live rows; `(issuer, subject)` unique; `ACTIVE` requires both; status `PROVISIONING`/`ACTIVE`/`SUSPENDED`/`REVOKED`; `tokens_valid_after` is Django's revocation line |
-| `ChildPlaySession` | The child principal for both modes | Bound to one child and its parent; `source` must match exactly one of `family_device` or `credential` (check constraint); absolute (12 h) and idle (2 h) expiry; revocable; re-validated on every use |
+| `ChildCredential` | The child's sign-in, mapped to the profile | One live per child; `(issuer, subject)` unique forever; login name case-insensitively unique among live rows and format-checked; active and suspended rows always have an identity; `tokens_valid_after` revocation line; `provider_cleanup_pending` for a pool deletion still to finish |
+| `ChildDevice` | A remembered device ("remember me") | Opaque cookie, SHA-256 stored; one child only; rotated on every use; revocable by the parent; no device name, user agent or IP |
+| `ChildPlaySession` | The restricted child session | Opaque cookie, SHA-256 stored; one child; absolute and idle expiry; ends on any revocation |
+| `ParentConsent` | Consent for one purpose for one child (`CHILD_INDEPENDENT_SIGN_IN`) | Records the approved policy text version; one live per purpose; withdrawal ends sessions at once |
+| `ChildAccountEvent` | Audit of the parent's changes | Action code and time only: never a password, token, login name or device detail |
 
-Rules preserved:
+Retention: credentials, devices, sessions, consents and events are child-owned and cascade when
+the child is deleted. Deletion deletes the pool user first (like photo objects) and keeps the
+child if the pool cannot be reached (`503 child_deletion_incomplete`, safe to retry).
 
-- `ParentAccount` and `ChildProfile` keep their columns and constraints. Child ids do not change.
-- Every progress, inventory, scoring and reward record keeps its `child` FK to `ChildProfile`. A
-  session only names the child; it owns nothing. Both modes reach the same rows by construction
-  (test `test_both_modes_reach_the_same_child_profile`).
-- Children still have no Django login and no password in Django. Mode B passwords live only in
-  Cognito.
-- Deleting a child cascades its PIN, credential and sessions (test). The child deletion service
-  (LAI-0602) must also delete the Cognito child user: follow-up in LAI-AUTH-05.
-
-Migration:
-
-| Step | What | Reversible |
-|---|---|---|
-| 1 | `users/0009`: create four empty tables with constraints and indexes. No data migration, no backfill, no change to existing rows | Yes: reverse migration drops empty tables |
-| 2 | Routes and authenticators (LAI-AUTH-02/03), behind `LAI_FAMILY_LOGIN_ENABLED` (off by default) | Yes: flag off |
-| 3 | Child pool CDK and verifier (LAI-AUTH-04), behind `LAI_CHILD_LOGIN_ENABLED` (off) and the consent gate | Yes: flag off; pool deletable while empty |
-| 4 | React family entry; the bearer path keeps working during transition | Yes |
-| 5 | After parity (LAI-AUTH-09) and owner QA: child routes stop accepting the parent bearer for gameplay writes | Owner decision; only after the web app no longer depends on it |
-
-Existing profiles need nothing: a profile created before this change opens a family session
-with no data change (test `test_existing_profiles_need_nothing_to_use_family_login`). Legacy
-Amplify data import (ADR-039) is unaffected.
-
-## 5. Child-scoped session design
+## 4. Sign-in and sessions
 
 ```text
-Mode A                                         Mode B
-Parent: Cognito sign-in (parent pool)          Child: username + password (child pool, SRP)
-  -> POST /family/devices/  [recent sign-in]     -> POST /child-auth/sessions/ (child bearer)
-  -> device cookie; React clears parent tokens      Django: verify iss/aud/sig/exp, map
-Device: GET /family/profiles/ (picker)                (issuer, sub) -> ChildCredential, status,
-  -> POST /family/profiles/<id>/play/ {pin?}            tokens_valid_after, consent (G9)
-           \                                      /  React discards the child's Cognito tokens
-            `-> ChildPlaySession cookie (one child) <-'
-                 -> opted-in gameplay routes under /api/v1/children/<that child>/...
+child browser                       child Cognito pool                 Django
+  login name + password ── SRP ───▶  verifies password
+                         ◀── access token (5 min) ─
+  POST /child-auth/session/ (Bearer child token, {remember})  ───────▶  verify signature, issuer,
+                                                                         client, token_use, expiry;
+                                                                         auth_time ≤ 5 min old;
+                                                                         (iss, sub) → ChildCredential;
+                                                                         username = provider_username;
+                                                                         ACTIVE; auth_time after the
+                                                                         revocation line; child and
+                                                                         parent active; consent given
+                         ◀──── Set-Cookie lai_child_session (and lai_child_device if remembered)
+  discard Cognito tokens
+  gameplay calls with the cookie + X-LAI-Child-CSRF on writes ───────▶  allowlisted route + method,
+                                                                         own child only
 ```
 
-Credential properties:
+| Setting | Default | Bounds | Meaning |
+|---|---|---|---|
+| `LAI_CHILD_SESSION_MAX_SECONDS` | 12 h | 1 h to 24 h | Absolute session lifetime |
+| `LAI_CHILD_SESSION_IDLE_SECONDS` | 2 h | 15 min to 4 h | Idle timeout (not above the maximum) |
+| `LAI_CHILD_DEVICE_REMEMBER_SECONDS` | 30 days | 1 to 90 days | How long "remember me" lasts |
+| `LAI_CHILD_SIGN_IN_MAX_AGE_SECONDS` | 5 min | 1 to 15 min | How fresh the Cognito sign-in must be at exchange |
+| `LAI_CHILD_SIGN_IN_RATE`, `LAI_CHILD_ACCOUNT_RATE` | 20/min, 30/min | | Throttles on the child-auth and parent management routes |
+| `LAI_CHILD_IDENTITY_PROVIDER` | `disabled` (`fake` in local and test) | `cognito`, `fake`, `disabled` | Production refuses `fake` |
+| `LAI_CHILD_SIGN_IN_CONSENT_VERSION` | empty | | The approved consent text; empty closes child sign-in |
 
-| Property | `FamilyDevice` cookie | `ChildPlaySession` cookie |
-|---|---|---|
-| Name and path | `lai_family_device`, `Path=/api/v1/family/` | `lai_child_session`, `Path=/api/v1/` |
-| Flags | HttpOnly, Secure, SameSite=Strict, host-only | HttpOnly, Secure, SameSite=Strict, host-only |
-| Value | 256-bit random; SHA-256 stored | 256-bit random; SHA-256 stored |
-| Lifetime | 30 days remembered, 12 hours otherwise | 12 hours absolute, 2 hours idle |
-| CSRF on writes | `X-LAI-Family-CSRF` (HMAC of the device) and `Origin` check | `X-LAI-Child-CSRF` (HMAC of the session, `session_csrf_token`) and `Origin` check, as ADR-036 |
-| Can do | List the parent's active children; open a session for one; forget the device | Gameplay for its own child only |
-| Never | Any parent route, any child data beyond the picker | Account, child management, photos upload, settings, AI toggle, co-op creation, credentials, PIN, consent, deletion, dashboard summaries, any other child |
+Expiry is a security control, never a play-time limit (ADR-053): with "remember me", an expired
+session is reopened from the remembered device without interrupting the child.
 
-Web topology: CloudFront sends `/api/*` to Django on the same origin (`infra/lib/frontendStack.ts`),
-so SameSite=Strict, host-only cookies work for the React app, as ADR-036 already relies on for
-the WebView.
+**Revocation.** Every parent change that should stop access moves `tokens_valid_after` and revokes
+the child's sessions and remembered devices in the same transaction; every request re-checks the
+session, its device, the credential status, the revocation line, consent and that child and
+parent are active. The pool follow-up (disable, global sign-out, delete) is best effort after
+Django's change and reported as `providerSynced`.
 
-Authorization (LAI-AUTH-03):
+**Shared devices.** One child per browser. Signing in as another child ends the previous child's
+session and forgets their remembered device on that browser, so switching always needs the other
+child's own name and password. A remembered device reopens only its own child and is rotated on
+every use, so a copied cookie and the real one cannot both keep working. Signing out ends the
+session and forgets the device. No profile picker, PIN or parent-authenticated switching exists.
 
-1. `ChildSessionAuthentication` is never a default authenticator. A view opts in with a
-   `ChildSessionAccessMixin`, as `GameRuntimeAccessMixin` does today, and a structural test pins
-   the full list of routes that accept it.
-2. `ChildScopedMixin` learns one rule: for a child principal, the URL `child_id` must equal the
-   session's child, otherwise the identical 404. The parent path is unchanged.
-3. `request.user` stays the owning `ParentAccount` for model ownership, and `request.auth` is a
-   `ChildSessionGrant`, so existing views keep working. `IsProvisionedParent` rejects a child
-   grant, so every route that does not opt in stays parent-only. This is the deny-by-default
-   property, and it holds without touching parent routes.
-4. A child id in a body or query string is ignored, as today.
-5. Every use re-checks: not revoked, not expired, not idle, parent active, child active and still
-   the parent's, device live (mode A), credential active and not reset since the session began
-   (mode B). Implemented in `family_auth.session_for_value`.
+**Session fixation and CSRF.** Values are 256-bit server-generated; a cookie the server did not
+issue is never adopted, and any cookie the browser presents at sign-in is revoked. Cookies are
+HttpOnly, SameSite=Strict, Secure outside local HTTP; the session cookie is scoped to `/api/v1/`,
+the device cookie to `/api/v1/child-auth/` only. Writes need `X-LAI-Child-CSRF` (an HMAC of the
+session only same-origin script can read) and a same-origin `Origin` when one is sent; the
+restore and sign-out routes need `X-LAI-Child-Sign-In: 1`.
 
-Sibling switching, logout and recovery:
+**Rate limiting.** Password guessing is limited by the child pool (Cognito's built-in failed
+sign-in lockout); Django throttles the exchange, restore and management routes. The Django
+throttles use the per-process cache (no shared cache exists yet), so they are a speed bump, not
+a guarantee (risk R2).
 
-- **Switch player:** `POST /child-session/end/`, back to the picker; another child (PIN if set).
-  Opening a session on a device ends that device's previous session (implemented), so the
-  previous child's cookie is dead even if kept.
-- **Logout (child):** ends the child session; the device stays for the family.
-- **Forget this device:** ends the device and every session opened from it.
-- **Grown-ups:** a normal Cognito sign-in. The arithmetic `ParentGate` is no longer the way out
-  of child mode (owner decision OD-12).
-- **Parent dashboard:** sign out every family device; end a child's sessions on all devices.
-- **Expiry during play:** on a family device the React client reopens the session for the same
-  child (no PIN prompt for the same child within the device's life). The child never sees a
-  countdown or a "time is up" message (ADR-053).
+## 5. Authorization
 
-Rate limits (all counted in PostgreSQL rather than a per-process cache): PIN lockout per child
-(implemented); device creation and mode B exchange limits per parent and per credential, in
-LAI-AUTH-03/04. Cognito applies its own sign-in throttling to the child pool.
+- `apps.users.child_session.CHILD_SESSION_ROUTES` is the whole of a child's API: about 80 child
+  gameplay routes with their methods (play, answers, hints, quests, stories, inventory, rewards,
+  scoring reads, skill progress, assets, audio manifests, NPCs, AI companion and tutor turns,
+  speech, the child's own profile read and companion choice). `ChildScopedMixin` adds the child
+  authenticator only on those routes and methods; the child in the URL must be the session's own
+  (a sibling and a stranger get the same 404).
+- Never on the list: `me/`, `children/`, profile edits and deletion, photos, game launches,
+  sign-in management, consent, AI history and safety events, audio settings writes, every
+  `DELETE` (resets), and co-op sessions (they span siblings; LAI 04 to review).
+- `request.user` on a child session is the child's parent (so the existing scoping resolves the
+  child through its owner) and `request.auth` is a `ChildSessionGrant`; the allowlisted views
+  were checked to act only on `self.child`. Tests pin the list (`test_child_session_routes.py`).
+- A child-pool token presented as a bearer token anywhere is 401 (wrong issuer). A child session
+  on any parent route is 401 (the cookie is not read there).
+- The Android game cookie (ADR-036) is unchanged and independent.
 
-## 6. API and frontend changes
+## 6. Parent dashboard API
 
-API (none of these exist yet; each needs the LAI-0403 eight-test checklist):
+| Route | Method | Recent sign-in | Effect |
+|---|---|---|---|
+| `children/<id>/sign-in/` | GET | no | Overview: consent, status, username, dates, session and device counts, recent changes |
+| `children/<id>/consents/child-sign-in/` | POST / DELETE | POST yes / DELETE no | Give consent to the approved text / withdraw (ends sessions at once) |
+| `children/<id>/sign-in/` | POST `{username, password}` | yes | Enable sign-in for this existing child |
+| `children/<id>/sign-in/` | PATCH `{username}` | yes | Change the login name (identity unchanged) |
+| `children/<id>/sign-in/password/` | POST `{password}` | yes | Parent-managed reset; ends every session and device |
+| `children/<id>/sign-in/suspend/` | POST | no | Pause at once |
+| `children/<id>/sign-in/resume/` | POST | yes | Resume; old tokens stay refused |
+| `children/<id>/sign-in/sign-out-everywhere/` | POST | no | End every session and device |
+| `children/<id>/sign-in/devices/` and `.../<device_id>/` | GET / DELETE | no | List / forget remembered devices |
+| `children/<id>/sign-in/` | DELETE | yes | Remove sign-in; profile and progress stay |
 
-| Route | Credential | Guard |
-|---|---|---|
-| `POST /api/v1/family/devices/` `{remembered}` | Parent bearer | Recent sign-in; sets device cookie |
-| `GET /api/v1/family/devices/`, `DELETE .../<id>/`, `POST .../revoke-all/` | Parent bearer | Own devices only |
-| `GET /api/v1/family/profiles/` | Device cookie | Ids, nickname, avatar key, photo flag, `pinRequired` |
-| `POST /api/v1/family/profiles/<uuid>/play/` `{pin?}` | Device cookie and CSRF | PIN lockout; sets child session cookie |
-| `POST /api/v1/family/device/forget/` | Device cookie and CSRF | Ends device |
-| `GET /api/v1/child-session/` | Child session | Returns child id, CSRF value, source |
-| `POST /api/v1/child-session/end/` | Child session and CSRF | |
-| `PUT`, `DELETE /api/v1/children/<uuid>/pin/` | Parent bearer | Recent sign-in |
-| `POST /api/v1/children/<uuid>/sessions/revoke/` | Parent bearer | |
-| `GET`, `POST`, `PATCH`, `DELETE /api/v1/children/<uuid>/credential/` | Parent bearer | Recent sign-in for changes; create, reset password, suspend, resume, revoke |
-| `POST /api/v1/child-credentials/name-check/` | Parent bearer | Throttled; availability only |
-| `POST /api/v1/child-auth/sessions/` | Child-pool bearer | Verifies child issuer; consent; sets child session cookie |
-| Gameplay routes under `/api/v1/children/<uuid>/...` | Parent bearer **or** child session (opt-in) | The child session reaches only its own child |
+Rule: actions that grant or restore access need a recent parent sign-in; protective actions do
+not, so a parent can act immediately (OD-5). Bodies are closed; passwords are write-only, marked
+sensitive, validated (8 to 64 characters, not containing the login name) and never returned,
+stored, logged or audited. Creating a child profile, AI permissions, educational settings,
+progress views and child deletion are the existing dashboard features and are reused.
 
-The opt-in gameplay set starts as the routes the game cookie already accepts (pinned in
-`test_the_game_cookie_is_accepted_only_by_the_game_runtime_routes`) plus the child-facing reads
-the web island needs (home, discovery, quests, inventory read, adventure log, avatars, audio,
-speech, companion turns). Owners of those routes confirm the list: LAI 01 to 04 and LAI 06.
+Child-side routes: `POST /api/v1/child-auth/session/` (exchange), `GET` (who is signed in plus
+the CSRF value), `POST .../restore/` (remembered device), `POST .../end/` (sign out). Every
+refusal is one calm answer, `403 child_sign_in_unavailable` ("Please ask your grown-up"); the
+cause is logged as a reason code only.
 
-Frontend (React, existing components and tokens):
+## 7. Frontend
 
-| Screen | Notes |
+Built on this branch in `react/src`: one authentication landing page with two distinct
+experiences (child: username, password, "remember me", "Start my adventure", ask-your-grown-up
+recovery text; parent: the existing email sign-in, registration and recovery), a child session
+provider, a child mode in the API client (no `Authorization` header, same-origin cookies, the
+CSRF header on writes, one restore attempt on 401), routing by the identity the server verified,
+and a per-child sign-in management panel in the parent dashboard. The child's Cognito tokens
+are kept in memory only and dropped after the exchange.
+
+## 8. Consent (gate G9)
+
+`ParentConsent` is deliberately narrow: it records that this parent consented, for this child, to
+the approved text version, and when it was withdrawn. It does not design consent: the legal text,
+verification method and any other purposes remain LAI-0308 (G9). With
+`LAI_CHILD_SIGN_IN_CONSENT_VERSION` empty (the default everywhere), nobody can consent and child
+sign-in stays closed. A changed text version requires a new consent.
+
+## 9. Reconciliation with commit `5ed26189`
+
+| Part of `5ed26189` | Decision |
 |---|---|
-| Entry: "Grown-up sign in" and "I have my own login" | Large targets, readable aloud |
-| Family profile picker (`/family`) | `ChildAvatar` tiles; only the device parent's children; "Grown-ups" leads to Cognito sign-in |
-| PIN pad | Large digit buttons, four dots, no hint of the PIN; after a lockout: "Ask a grown-up to help." Never "try again in N minutes" |
-| Child sign-in (`/child-sign-in`) | Username and password, show-password toggle, one non-enumerating error: "That name and password did not match. Ask a grown-up for help." |
-| Parent: "Play on this device" | Recent sign-in dialog (existing `recentSignIn`), "Remember this device" checkbox, then hand-off |
-| Parent: child sign-in settings (`/home/children/:id/sign-in`) | Enable independent login, choose login name (availability check), set or reset password, suspend, resume, remove; set or clear PIN |
-| Parent: devices (`/home/settings`) | List devices (created, last used, remembered), forget one, forget all |
+| `ChildCredential` (status, `tokens_valid_after`, identity constraints, login-name rules) | **Kept and revised**: added `provider_username`, `password_set_at`, `provider_cleanup_pending`; tombstones clear the login name; suspended rows must also have an identity |
+| `ChildPlaySession` | **Kept and revised**: always tied to a credential, optionally to a remembered device; `parent` and `source` removed (mode A gone) |
+| `FamilyDevice` | **Replaced** by `ChildDevice` (one child, not a parent's device) |
+| `ChildPin`, PIN hashing and lockout | **Removed**: no profile picker means no PIN. The PostgreSQL lockout pattern is in git history (`5ed26189`) if mode A returns |
+| `family_auth.py` | **Replaced** by `child_auth.py` (same rules: digests only, re-check on every use, ownership through the parent, fail-closed consent, CSRF HMAC) |
+| Migration `0009_family_child_authentication` | **Replaced** by `0009_child_sign_in` (unmerged, branch only; history verified) |
+| Settings | Kept: session max and idle. Removed: family device and PIN settings. Added: device remember, sign-in age, cookies, child pool, provider, consent version, throttles |
+| 81 tests in `test_family_auth.py` | PIN, family device and mode A tests removed with their code. Session expiry, revocation, cross-family, constraints, logging and identity tests rewritten against the new model (`test_child_sign_in.py`, `test_child_session_routes.py`) |
 
-Client changes: an API client mode that sends cookies with `credentials: 'same-origin'` and the
-child CSRF header and **never** attaches a bearer token in child mode; a `ChildSessionContext`;
-a route guard for `/island/:childId/*` that accepts a child session for that child (the parent
-path stays during transition); after hand-off, Cognito tokens are cleared (local sign-out).
-The URL shape `/island/:childId/...` is unchanged, so gameplay code (LAI 01 to 04) is untouched.
+Deferred mode A (the owner may request it again): parent-authenticated profile picker, PIN,
+family device hand-off. No parent impersonation of a child exists. A restricted "parent preview"
+of the child view is not built; OD-9 asks whether it is wanted.
 
-## 7. Existing Trello ticket reconciliation
+## 10. ADR and policy reconciliation
 
-All ten cards are in Backlog with one-paragraph scopes and no ticket block. They cover the
-work; **no new card is needed**. Adjustments recommended for the owner:
-
-| Card | Fit with this design | Recommended change |
+| Source | Conflict | Resolution on this branch |
 |---|---|---|
-| #97 Subproject | Matches | Add dependency on LAI-0308 (G9) for mode B go-live, and on ADR-043/ADR-036 acceptance |
-| #98 AUTH-01 Architecture and migration | This branch | Acceptance: ADR-NNN accepted and the additive migration |
-| #99 AUTH-02 Family login and avatar selection | Device APIs and picker | Include retiring `ParentGate` as the child-mode exit (OD-12) |
-| #100 AUTH-03 Child-scoped sessions | Child principal, authenticator, route allowlist | **Do before AUTH-02's UI**: the picker needs the session |
-| #101 AUTH-04 Independent Cognito login | Child pool (CDK, no deploy), verifier, exchange | Blocked for live use on G9 and pool creation approval (G7) |
-| #102 AUTH-05 Credentials and recovery | Django-side state done here; Cognito admin calls with a fake | Add: delete the child pool user on child deletion (LAI-0602) |
-| #103 AUTH-06 Remembered device, PIN, switching | PIN and device rules done here | Routes and UI only |
-| #104 AUTH-07 Parental controls | Device, session and credential management | Remove "purchase/chat restrictions": no purchases or chat exist (CLAUDE.md section 12). Consent/legal item belongs to LAI-0308 |
-| #105 AUTH-08 Child login UI | As section 6 | None |
-| #106 AUTH-09 Progress parity | Same child id by construction; audit shared-device caches | None |
-| #107 AUTH-10 Security QA | As written | None |
+| ADR-022 "children never authenticate" | Direct | ADR-075 supersedes that sentence (proposed amendment note on ADR-022). `ParentAccount` stays the Django user model; a child is still not a Django user |
+| ADR-019 (Cognito for authentication; G2, G7, G9, G10) | None in principle | A second pool is a new Cognito resource (G7 owner approval); G9 consent gates child sign-in |
+| ADR-024 (Django validates bearer access tokens) | Extends | The child token is verified with the same checks, but only to open a session; the session cookie is a second non-bearer credential like ADR-036's |
+| ADR-036 (game cookie for the Android WebView) | Compatible | Reuses its pattern (opt-in authenticator, CSRF header, SameSite=Strict); the game cookie is unchanged |
+| ADR-040 (Cognito the sole authentication provider for application users) | Compatible | Children authenticate with Cognito (the child pool); Django still never verifies a password |
+| ADR-043 (recent sign-in, Proposed) | Depends | The management matrix in section 6 uses it |
+| `security-policy.md` section 5 "Child login: not decided, do not add" | Direct | Row rewritten to the owner's 2026-11-27 decision, with the child-pool and session rules; for owner review in the pull request |
+| `architecture-rules.md` sections 6 and 6.1 | Direct | Row moved out of "Not decided"; `ChildProfile` row updated; for owner review in the pull request |
 
-## 8. Dependency-ordered development plan
+ADR numbering: 074 went to LAI 07 (#117); by owner instruction this decision uses the next free
+number, 075, reserved through the registry pull request #118 (stacked on #117).
 
-```text
-AUTH-01  ADR + additive schema + domain rules + tests        (this branch)
-   |
-   +-- owner: accept ADR-NNN, reserve 074, OD-1..OD-13
-   |
-AUTH-03  child principal: authenticator, mixin, ChildScopedMixin rule, route allowlist test
-   |        (coordinate the opt-in route list with LAI 01-04, LAI 06; LAI 05 integration)
-   |
-AUTH-02  device APIs + React picker + hand-off      AUTH-06  PIN APIs/pad, remembered device, switch
-   \______________________________________________________/
-                     |
-AUTH-07 (part)  parent device/session management UI
-                     |
-AUTH-04  child pool CDK (no deploy) + verifier + exchange   [live use blocked: G7 pool, G9 consent]
-   |
-AUTH-05  credential management with a faked Cognito admin client
-   |
-AUTH-08  child sign-in UI and recovery copy
-   |
-AUTH-09  parity audit across realms and caches  ->  AUTH-10 security QA (merge readiness)
-```
+## 11. Agent coordination
 
-Mode A (AUTH-01, 03, 02, 06, part of 07) does not depend on any new AWS resource and can reach
-owner QA on its own. Mode B waits for G9.
+| Agent | Needs |
+|---|---|
+| LAI 04 (engine, gameplay) | Confirm web gameplay works with the child session (API client child mode); review co-op routes before they join the allowlist |
+| LAI 06 (scoring, progression) | Nothing changes in scoring; scoring reads are allowlisted read-only, resets are parent-only |
+| LAI 07 (assets) | `assets/` resolve is allowlisted read-only for the own child; child photos stay parent-only until LAI 07 reviews private-asset access for children |
+| LAI 05 (integration) | ADR reservation, migration `users/0009` (no collision), CDK stack is opt-in, eventual integration |
+| LAI 01, 02, 03 (realms) | Validate their realm routes are on the allowlist once the contract is stable |
 
-## 9. Required owner decisions
+## 12. Owner decisions
 
 | # | Decision | Recommendation |
 |---|---|---|
-| OD-1 | Accept ADR-NNN and reserve number 074 for it on `main` | Accept |
-| OD-2 | Child pool: separate or shared | Separate (section 3) |
-| OD-3 | Mode A hand-off: clear parent tokens from the device when family play starts | Yes |
-| OD-4 | Accept ADR-036 (Proposed) and ADR-043 (Proposed), which this design builds on; allow a second cookie credential under ADR-024 item 2 | Accept |
-| OD-5 | Lifetimes: device 30 days or 12 hours; child session 12 hours absolute, 2 hours idle; child pool refresh token as short as Cognito allows | As listed (bounded settings) |
-| OD-6 | PIN policy: optional, four digits, five tries then 15 minutes, parent reset | As listed |
-| OD-7 | Login name rules: 4 to 20 of `a-z 0-9 . _ -`, not the nickname, globally unique, it is the Cognito username | As listed |
-| OD-8 | Mode B recovery: parent sets a new permanent password (no temporary password a young child must replace) | Yes |
-| OD-9 | Consent (G9): what LAI-0308 must record before mode B is live | Consent per child for independent login, recorded by the parent with recent sign-in |
-| OD-10 | Live AWS: create the child pool and the Django IAM policy for it | Later, per action |
-| OD-11 | Amend `security-policy.md` section 5, `architecture-rules.md` section 6.1 and ADR-022 ("children never authenticate") once ADR-NNN is accepted | Yes, in the same branch after acceptance |
-| OD-12 | Retire the arithmetic `ParentGate` as the exit from child mode | Yes; a Cognito sign-in replaces it |
-| OD-13 | Move AUTH-02, 03 and 06 to Ready for Development after OD-1 to OD-6 | Yes |
+| OD-1 | Merge the reservation #118 (after #117) and accept ADR-075 | Accept |
+| OD-2 | Approve the consent text and set `LAI_CHILD_SIGN_IN_CONSENT_VERSION` (G9, LAI-0308) | Needed before any real child signs in |
+| OD-3 | Create the child pool and Django policy in dev, then prod (G7) | Dev first, per action |
+| OD-4 | Accept ADR-043 (recent sign-in) and ADR-036 (cookie pattern) | Accept |
+| OD-5 | Recent sign-in for granting actions only; protective actions immediate | As in section 6 |
+| OD-6 | Child password policy: 8 to 64 characters, no composition rules, not containing the login name | As listed |
+| OD-7 | Login name rules: 4 to 20 of `a-z 0-9 . _ -`, not the nickname, unique, changeable | As listed |
+| OD-8 | Lifetimes: session 12 h absolute, 2 h idle; remember me 30 days; sign-in freshness 5 min | As listed |
+| OD-9 | Is a restricted parent preview of the child view wanted? (no impersonation either way) | Not now |
+| OD-10 | Close R1 and R3: Cognito threat protection (paid) and/or a pre-token Lambda or server-side child sign-in | Decide with cost |
+| OD-11 | Approve the `security-policy.md` and `architecture-rules.md` edits in the pull request | Approve with ADR-075 |
+| OD-12 | Retire the arithmetic `ParentGate` (child mode no longer uses the parent's token) | Yes |
+| OD-13 | Mode A (family login) stays deferred | Yes |
 
-## 10. Safe development that can proceed now
+## 13. Risks and known limitations
 
-Done on this branch (inert: no route, authenticator or setting reads them outside the module):
-
-- Additive models and migration `users/0009` (create-only, verified by test).
-- `apps.users.family_auth`: PIN hashing and PostgreSQL lockout; device and session lifecycle;
-  every-use re-validation; sibling-switch revocation; credential suspend, resume, revoke and
-  reset with `tokens_valid_after`; login-name validation; fail-closed consent gate.
-- Bounded settings in `config/settings/base.py`.
-- 81 unit tests on PostgreSQL 18 (`apps/users/tests/test_family_auth.py`).
-
-Can proceed without further approval (still unwired):
-
-- A fake Cognito admin client interface for AUTH-05, mirroring `recent_auth`'s injectable client.
-- A second-issuer verifier in a new module, with locally generated keys, not registered as an
-  authenticator.
-- React pure validators and copy (PIN shape, login name), with Vitest.
-
-Must wait for owner decisions: any route, authenticator, `ChildScopedMixin` change, React flow,
-CDK child pool, live Cognito call, or edit to the standards documents named in OD-11.
+- **R1.** For the few minutes before the exchange, the child's own Cognito access token is in the
+  page's memory. With it, Cognito's self-service API lets that user change their own password or
+  delete their own pool user (the `aws.cognito.signin.user.admin` scope). Neither reaches parent
+  privileges, a sibling or another family; deletion only locks the child out. OD-10.
+- **R2.** Django throttles are per process until a shared cache exists.
+- **R3.** Cognito's built-in lockout after failed passwords is the brute-force control; it is not
+  tunable without threat protection (OD-10).
+- **R4.** Local development has no child-pool SRP endpoint: provisioning uses the in-memory fake,
+  and child sign-in is exercised by unit tests with locally signed tokens.
+- **R5.** Pool follow-ups after a protective change are best effort; Django's refusal holds
+  regardless, and removal retries via `provider_cleanup_pending`.
+- **R6.** Production settings checks (fake provider refused, pool and client separation) are not
+  covered by a unit test (settings modules are evaluated at import).

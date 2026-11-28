@@ -151,8 +151,12 @@ REST_FRAMEWORK = {
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
     "UNAUTHENTICATED_USER": None,
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
-    # Only the game launch routes declare a throttle (LAI-ANDROID-API-001); 429 `throttled`.
-    "DEFAULT_THROTTLE_RATES": {"game_launch": os.environ.get("LAI_GAME_LAUNCH_RATE", "30/min")},
+    # Only the game launch and child sign-in routes declare a throttle; 429 `throttled`.
+    "DEFAULT_THROTTLE_RATES": {
+        "game_launch": os.environ.get("LAI_GAME_LAUNCH_RATE", "30/min"),
+        "child_sign_in": os.environ.get("LAI_CHILD_SIGN_IN_RATE", "20/min"),
+        "child_account": os.environ.get("LAI_CHILD_ACCOUNT_RATE", "30/min"),
+    },
 }
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -509,10 +513,10 @@ if any(not origin.startswith("https://") for origin in LAI_GAME_ALLOWED_ORIGINS)
     raise ImproperlyConfigured("LAI_GAME_ALLOWED_ORIGINS must list https origins only.")
 
 
-# --- Family accounts and child sessions (LAI-AUTH-01, ADR-NNN) ---------------------------------
-# docs/platform/FAMILY_CHILD_AUTHENTICATION.md. Read by `apps.users.family_auth` only; no route
-# or authenticator uses these yet. Session expiry is a security control, never a play-time limit
-# (ADR-053): a family device reopens an expired child session without interrupting play.
+# --- Independent child sign-in (LAI-AUTH-02 to 07, ADR-075) ------------------------------------
+# docs/platform/FAMILY_CHILD_AUTHENTICATION.md. Read by `apps.users.child_auth` and
+# `apps.users.child_session`. Session expiry is a security control, never a play-time limit
+# (ADR-053): a remembered device reopens an expired child session without interrupting play.
 def _bounded_seconds(name: str, default: int, low: int, high: int) -> int:
     value = int(os.environ.get(name, str(default)))
     if not low <= value <= high:
@@ -520,24 +524,42 @@ def _bounded_seconds(name: str, default: int, low: int, high: int) -> int:
     return value
 
 
-LAI_FAMILY_DEVICE_REMEMBER_SECONDS = _bounded_seconds(
-    "LAI_FAMILY_DEVICE_REMEMBER_SECONDS", 30 * 86400, 86400, 90 * 86400
-)
-LAI_FAMILY_DEVICE_SESSION_SECONDS = _bounded_seconds(
-    "LAI_FAMILY_DEVICE_SESSION_SECONDS", 12 * 3600, 3600, 86400
-)
 LAI_CHILD_SESSION_IDLE_SECONDS = _bounded_seconds(
     "LAI_CHILD_SESSION_IDLE_SECONDS", 2 * 3600, 900, 4 * 3600
 )
 LAI_CHILD_SESSION_MAX_SECONDS = _bounded_seconds(
     "LAI_CHILD_SESSION_MAX_SECONDS", 12 * 3600, 3600, 86400
 )
-LAI_CHILD_PIN_MAX_ATTEMPTS = _bounded_seconds("LAI_CHILD_PIN_MAX_ATTEMPTS", 5, 3, 10)
-LAI_CHILD_PIN_LOCKOUT_SECONDS = _bounded_seconds("LAI_CHILD_PIN_LOCKOUT_SECONDS", 900, 60, 3600)
+# "Remember me": how long a remembered device may reopen a child's session without a password.
+LAI_CHILD_DEVICE_REMEMBER_SECONDS = _bounded_seconds(
+    "LAI_CHILD_DEVICE_REMEMBER_SECONDS", 30 * 86400, 86400, 90 * 86400
+)
+# A child-pool token is exchanged for a session only right after the child signed in.
+LAI_CHILD_SIGN_IN_MAX_AGE_SECONDS = _bounded_seconds(
+    "LAI_CHILD_SIGN_IN_MAX_AGE_SECONDS", 300, 60, 900
+)
 if LAI_CHILD_SESSION_IDLE_SECONDS > LAI_CHILD_SESSION_MAX_SECONDS:
     raise ImproperlyConfigured(
         "LAI_CHILD_SESSION_IDLE_SECONDS must not exceed LAI_CHILD_SESSION_MAX_SECONDS."
     )
+LAI_CHILD_SESSION_COOKIE_NAME = "lai_child_session"
+LAI_CHILD_SESSION_COOKIE_PATH = "/api/v1/"
+LAI_CHILD_DEVICE_COOKIE_NAME = "lai_child_device"
+LAI_CHILD_DEVICE_COOKIE_PATH = "/api/v1/child-auth/"
+LAI_CHILD_COOKIE_SECURE = env_bool("LAI_CHILD_COOKIE_SECURE", True)
+# The child Cognito pool (ADR-075): separate from the parent pool, username-only, no public
+# sign-up. Same region as the parent pool. No defaults: with the pool or client list empty,
+# every child token is refused (fail closed).
+COGNITO_CHILD_USER_POOL_ID = os.environ.get("COGNITO_CHILD_USER_POOL_ID", "").strip()
+COGNITO_CHILD_ALLOWED_CLIENT_IDS = env_list("COGNITO_CHILD_ALLOWED_CLIENT_IDS")
+# Who creates and manages child-pool users: `cognito` (the admin API, production), `fake`
+# (in memory, local development and tests), or `disabled` (every provisioning call refused).
+LAI_CHILD_IDENTITY_PROVIDER = os.environ.get("LAI_CHILD_IDENTITY_PROVIDER", "disabled").strip()
+if LAI_CHILD_IDENTITY_PROVIDER not in {"cognito", "fake", "disabled"}:
+    raise ImproperlyConfigured("LAI_CHILD_IDENTITY_PROVIDER must be cognito, fake or disabled.")
+# The approved consent text for independent child sign-in (gate G9, LAI-0308). Empty means no
+# text is approved: no parent can consent, so no child can sign in (fails closed).
+LAI_CHILD_SIGN_IN_CONSENT_VERSION = os.environ.get("LAI_CHILD_SIGN_IN_CONSENT_VERSION", "").strip()
 
 
 # --- AI Question Studio (Phase 28, ADR-046, docs/AI_QUESTION_STUDIO.md) -----------------------

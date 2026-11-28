@@ -12,6 +12,9 @@ The rule every child-data endpoint must follow:
    `child=self.child`. A nested record id from the URL is never looked up on its own.
 4. An `Admins` group claim changes none of this. Cross-family administration will be a separate,
    audited code path (LAI-0404), never these helpers.
+5. A child who signed in on their own (ADR-075) reaches only the routes and methods on
+   `apps.users.child_session.CHILD_SESSION_ROUTES`, and only for their own child: the mixin adds
+   the child-session authenticator on those routes alone, and any other child id is the same 404.
 
 Using the mixin does not secure an endpoint by itself: the handler must go through `self.child`,
 `self.scoped`, and `self.get_scoped_object`, and tests must prove the cross-parent cases (see
@@ -23,7 +26,7 @@ from uuid import UUID
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 
-from . import services
+from . import child_session, services
 from .models import ChildProfile, ParentAccount
 from .permissions import AccountNotProvisioned
 
@@ -39,6 +42,18 @@ class ChildScopedMixin:
 
     child: ChildProfile
 
+    def get_authenticators(self):
+        authenticators = super().get_authenticators()
+        # `self.request` is still Django's request here; its route is already resolved.
+        if child_session.child_session_allowed(self.request):
+            authenticators = [*authenticators, child_session.ChildSessionAuthentication()]
+        return authenticators
+
+    def get_permissions(self):
+        if child_session.grant_of(self.request) is not None:
+            return [child_session.IsChildSession()]
+        return super().get_permissions()
+
     def initial(self, request, *args, **kwargs):
         super().initial(request, *args, **kwargs)
         parent = request.user
@@ -48,6 +63,9 @@ class ChildScopedMixin:
             self.child = services.get_owned_child_profile(parent, kwargs.get(CHILD_URL_KWARG))
         except services.ChildProfileNotFound:
             raise NotFound from None
+        grant = child_session.grant_of(request)
+        if grant is not None and self.child.pk != grant.child_id:
+            raise NotFound  # a sibling is the same answer as a stranger
 
     def scoped(self, queryset):
         """Restrict a queryset of child-owned records (a `child` foreign key) to this child."""

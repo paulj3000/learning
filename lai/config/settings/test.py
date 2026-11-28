@@ -25,6 +25,8 @@ LAI_CHILD_PHOTO_STORAGE = "memory"
 LAI_AI_PROVIDER = "fake"
 LAI_SPEECH_PROVIDER = "fake"
 LAI_SPEECH_STORAGE = "memory"
+# Child-pool users are created by the in-memory fake (apps.users.child_identity), never Cognito.
+LAI_CHILD_IDENTITY_PROVIDER = "fake"
 
 if os.environ.get("POSTGRES_HOST", "127.0.0.1") not in LOOPBACK_HOSTS:
     raise RuntimeError("Test settings only connect to a loopback PostgreSQL.")

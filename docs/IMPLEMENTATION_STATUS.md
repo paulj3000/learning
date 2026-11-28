@@ -37,24 +37,28 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
-## LAI-AUTH-01 family and child authentication: proposed ADR, additive schema, domain rules (2026-11-27, `feature/family-child-authentication` from `main` `d812ad71`, Trello #98, parent #97); awaiting owner decisions, NOT merged
+## LAI-AUTH-01 to 10 independent child sign-in (2026-11-27, `feature/family-child-authentication` from `main` `d812ad71`, Trello #97 to #107); owner direction approved, ADR-075 Proposed, NOT merged
 
-- Design, audit, gap analysis, pool comparison, plan and owner decisions OD-1 to OD-13:
-  `docs/platform/FAMILY_CHILD_AUTHENTICATION.md`. Decision record: ADR-NNN (Proposed) at the end
-  of `docs/DECISIONS.md`; number 074 requested, not reserved on `main`.
-- Code, inert (no route, authenticator or React flow uses it): `FamilyDevice`, `ChildPin`,
-  `ChildCredential`, `ChildPlaySession` in `apps/users/models.py`; create-only migration
-  `users/0009`; `apps/users/family_auth.py`; bounded settings in `config/settings/base.py`.
-  `ParentAccount`, `ChildProfile` and every progress table are unchanged.
-- Not done and gated: child login stays prohibited by `security-policy.md` section 5 and
-  `architecture-rules.md` section 6.1 until ADR-NNN is accepted (conflict reported, OD-11).
-  Mode B is also blocked by gate G9 (consent check fails closed) and by approval to create the
-  child pool (G7). No Cognito or AWS resource was touched.
-- Tests (PostgreSQL 18.x, local container on 5468): `apps/users` + `test_game_launch.py` +
-  `test_api_conventions.py`, 503 passed (81 new in `test_family_auth.py`); baseline before the
-  change 388 passed. `makemigrations --check` clean; ruff check and format clean on changed
-  files; `npm run adr:check` and `make docs-check` passed. Not run: Vitest (no TypeScript
-  changed), full lint and format gates, browser tests (merge readiness).
+- Owner decision 2026-11-27: each child has their own parent-managed sign-in in a separate child
+  Cognito pool; parent-led family login (mode A, PIN, picker) deferred. Design:
+  `docs/platform/FAMILY_CHILD_AUTHENTICATION.md`. ADR-075 (Proposed) in `docs/DECISIONS.md`;
+  number reserved by registry PR #118 (stacked on #117).
+- Backend: `ChildCredential`, `ChildDevice`, `ChildPlaySession`, `ParentConsent`,
+  `ChildAccountEvent` (create-only migration `users/0009_child_sign_in`, replacing this branch's
+  unmerged earlier 0009); `apps/users/child_identity.py` (Cognito admin adapter, in-memory fake,
+  disabled by default); `child_auth.py` (provisioning, consent, sessions, devices, revocation);
+  `child_session.py` (cookie authenticator on a pinned gameplay allowlist via
+  `ChildScopedMixin`); `child_auth_views.py` (child sign-in and parent management routes);
+  `verify_child_access_token`; child deletion removes the pool user first.
+- Infra: `infra/lib/childIdentityStack.ts` with synth tests; opt-in `LAI_ENABLE_CHILD_POOL=1`.
+  Not deployed; no AWS call made.
+- Standards rows rewritten for owner review: `security-policy.md` section 5,
+  `architecture-rules.md` sections 6 and 6.1; ADR-022 amendment note.
+- Gated: G9 consent (sign-in closed until `LAI_CHILD_SIGN_IN_CONSENT_VERSION` names an approved
+  text), G7 pool creation, ADR-043 and ADR-036 acceptance, OD-1 to OD-13.
+- Tests (PostgreSQL 18, container on 5468): new `test_child_sign_in.py` 90 passed and
+  `test_child_session_routes.py` 4 passed; `test_tenant_isolation.py` 32 passed. The wider
+  regression run and the React work are reported in the pull request.
 
 ## LAI-07 MVP realm asset support: realm thumbnails, Treasure Rush audit, region catalog fix (2026-11-26, `feature/mvp-realm-asset-support`, `main` `41ee7320`)
 

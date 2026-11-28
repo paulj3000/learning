@@ -320,13 +320,20 @@ PARENT_SCOPED = {
 }
 # The game runtime's own routes: the game session cookie only, never a bearer token (ADR-036).
 GAME_RUNTIME = {"api/v1/game-session/", "api/v1/game-session/end/"}
+# Independent child sign-in (ADR-075): a child-pool token or the child cookies only, never a
+# parent bearer token; the child comes from the verified identity, never from the URL.
+CHILD_AUTH = {
+    "api/v1/child-auth/session/",
+    "api/v1/child-auth/session/restore/",
+    "api/v1/child-auth/session/end/",
+}
 
 
 def unscoped_routes(urlpatterns):
     """Routes that are neither explicitly public, parent-scoped, nor correctly child-scoped."""
     bad = []
     for route, callback in walk(urlpatterns):
-        if route in PUBLIC | PARENT_SCOPED | GAME_RUNTIME:
+        if route in PUBLIC | PARENT_SCOPED | GAME_RUNTIME | CHILD_AUTH:
             continue
         cls = getattr(callback, "cls", None)
         if "<uuid:child_id>" in route and cls and issubclass(cls, ChildScopedMixin):
@@ -369,7 +376,7 @@ def test_only_the_public_routes_allow_any_and_child_routes_keep_default_permissi
 
     for route, callback in walk(probe_urls.urlpatterns):
         names = [p.__name__ for p in callback.cls.permission_classes]
-        assert ("AllowAny" in names) == (route in PUBLIC), route
+        assert ("AllowAny" in names) == (route in PUBLIC | CHILD_AUTH), route
         if "<uuid:child_id>" in route:
             expected = (
                 "IsProvisionedParentOrGameRuntime"

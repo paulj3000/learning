@@ -41,6 +41,7 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 LAI_GAME_COOKIE_SECURE = True  # the game session cookie (ADR-036) is never sent over plain HTTP
+LAI_CHILD_COOKIE_SECURE = True  # child session and remembered-device cookies (ADR-075) likewise
 
 # Django Admin (LAI-0404, ADR-034). Every origin that serves the admin login form must be listed,
 # as https:// origins, so CSRF accepts its POSTs.
@@ -94,6 +95,21 @@ if not COGNITO_ALLOWED_CLIENT_IDS:
     raise ImproperlyConfigured("COGNITO_ALLOWED_CLIENT_IDS must list the allowed app client ids.")
 if not COGNITO_USER_POOL_ID.startswith(COGNITO_REGION + "_"):
     raise ImproperlyConfigured("COGNITO_USER_POOL_ID must belong to COGNITO_REGION.")
+# Independent child sign-in (ADR-075): off (`disabled`) until the owner approves the child pool.
+# The fake provider is never allowed here, and a configured child pool is never the parent pool.
+if LAI_CHILD_IDENTITY_PROVIDER == "fake":
+    raise ImproperlyConfigured("LAI_CHILD_IDENTITY_PROVIDER must be cognito or disabled.")
+if LAI_CHILD_IDENTITY_PROVIDER == "cognito":
+    COGNITO_CHILD_USER_POOL_ID = _required("COGNITO_CHILD_USER_POOL_ID")
+    if not COGNITO_CHILD_ALLOWED_CLIENT_IDS:
+        raise ImproperlyConfigured("COGNITO_CHILD_ALLOWED_CLIENT_IDS must list the child client.")
+if COGNITO_CHILD_USER_POOL_ID:
+    if COGNITO_CHILD_USER_POOL_ID == COGNITO_USER_POOL_ID:
+        raise ImproperlyConfigured("COGNITO_CHILD_USER_POOL_ID must not be the parent pool.")
+    if not COGNITO_CHILD_USER_POOL_ID.startswith(COGNITO_REGION + "_"):
+        raise ImproperlyConfigured("COGNITO_CHILD_USER_POOL_ID must belong to COGNITO_REGION.")
+    if set(COGNITO_CHILD_ALLOWED_CLIENT_IDS) & set(COGNITO_ALLOWED_CLIENT_IDS):
+        raise ImproperlyConfigured("Child and parent app clients must be different.")
 
 # AI (Phase 7, LAI-0704; docs/AI_SERVICE.md): fail closed. Unset means `disabled` (authored
 # fallback content only), so a release that reaches an environment before the Guardrail stack

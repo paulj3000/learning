@@ -101,7 +101,8 @@ for one adventure is not allowed.
 |---|---|---|---|
 | Cognito user pool used directly from the browser (`react/src/lib/cognito`) | Implemented (main) | Tokens stay in the browser storage keys the client uses today. | ADR-040 |
 | Django verifies Cognito access tokens (JWKS, issuer, client, `token_use`) | Implemented (main) | `lai/apps/users/authentication.py`, `jwks.py`. Fail closed. | ADR-024 |
-| Parent-owned accounts; `ChildProfile` is a managed profile with no email or login | Implemented (main) | Children never authenticate. Up to three child profiles per parent (CLAUDE.md section 11). | ADR-001, ADR-022, ADR-039 |
+| Parent-owned accounts; `ChildProfile` is a managed profile with no email | Implemented (main) | Up to three child profiles per parent (CLAUDE.md section 11). A child is never a Django user. | ADR-001, ADR-022, ADR-039 |
+| Independent child sign-in: parent-managed `ChildCredential` in a separate child Cognito pool, exchanged for a child session on allowlisted gameplay routes | Branch `feature/family-child-authentication`; owner direction 2026-11-27; ADR Proposed | `(issuer, sub)` is the identity, never the login name. Child routes only via `CHILD_SESSION_ROUTES`. Consent fails closed (G9). Parent-led family login and child PINs are deferred. | ADR-075, [FAMILY_CHILD_AUTHENTICATION.md](../platform/FAMILY_CHILD_AUTHENTICATION.md) |
 | Explicit authorization on every route | Implemented (main) | Section 5 rules plus [security-policy.md](security-policy.md). | ADR-024 |
 | Game session ticket and cookie for the game-only WebView | Implemented (main); ADR Proposed | One child, one region; owner acceptance pending. | ADR-036 |
 | Recent sign-in for sensitive actions | Implemented (main) in `lai/apps/users/recent_auth.py`; ADR Proposed | Owner acceptance and the live Cognito gate pending. | ADR-043, [RECENT_SIGN_IN.md](../platform/RECENT_SIGN_IN.md) |
@@ -112,7 +113,7 @@ None of these is implemented or approved. Do not build them.
 
 | Topic | State |
 |---|---|
-| Child login, child credentials, child PIN sign-in | Not decided. ADR-022 says children never authenticate. |
+| Child PIN sign-in, parent-authenticated family profile switching (mode A) | Deferred by the owner (2026-11-27). Independent child sign-in (section 6, ADR-075) is the model. |
 | Cognito pool ownership, detach and replacement | Open gate G2 |
 | `ParentConsent` design | Open gate G9 (LAI-0308) |
 | Android child-facing app | Open gate G3; ADR-036 Proposed |

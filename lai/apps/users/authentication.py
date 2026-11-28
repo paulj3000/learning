@@ -49,6 +49,9 @@ class VerifiedToken:
     issued_at: int | None = None
     origin_jti: str | None = None
     scopes: tuple[str, ...] = ()
+    # The pool's internal username (Cognito's `username` claim). Child tokens only use it, to
+    # confirm it is the credential's opaque `provider_username`; it is never an identity key.
+    username: str | None = None
 
 
 @dataclass(frozen=True)
@@ -83,10 +86,42 @@ def get_jwks_cache(issuer: str) -> JwksCache:
     return _cache_for(issuer)
 
 
+def _child_pool_settings() -> tuple[str, str, frozenset[str]] | None:
+    """The child Cognito pool (ADR-075): a different issuer and client list from the parent's."""
+    region = settings.COGNITO_REGION
+    pool_id = settings.COGNITO_CHILD_USER_POOL_ID
+    clients = frozenset(settings.COGNITO_CHILD_ALLOWED_CLIENT_IDS)
+    if not (region and pool_id and clients) or pool_id == settings.COGNITO_USER_POOL_ID:
+        return None
+    if clients & frozenset(settings.COGNITO_ALLOWED_CLIENT_IDS):
+        return None  # a shared client would let one pool's sign-in pass as the other's
+    return f"https://cognito-idp.{region}.amazonaws.com/{pool_id}", pool_id, clients
+
+
 @sensitive_variables()
 def verify_access_token(token: str) -> VerifiedToken:
-    """Verify a Cognito access token; raises AuthenticationFailed or AuthenticationUnavailable."""
-    configured = _cognito_settings()
+    """Verify a parent-pool token; raises AuthenticationFailed or AuthenticationUnavailable."""
+    return _verify(token, _cognito_settings())
+
+
+@sensitive_variables()
+def verify_child_access_token(token: str) -> tuple[str, VerifiedToken]:
+    """Verify a child-pool access token (independent child sign-in, ADR-075).
+
+    The same checks as a parent token (RS256 signature from the pool's JWKS, issuer, expiry,
+    `token_use=access`, allowed client), against the child pool only, so a parent token can never
+    pass here and a child token can never pass `CognitoJWTAuthentication`. Returns the issuer
+    with the claims. A child token authenticates nothing by itself: `apps.users.child_auth`
+    exchanges it for a child session, once, right after sign-in.
+    """
+    configured = _child_pool_settings()
+    if configured is None:
+        raise _reject("not_configured")
+    return configured[0], _verify(token, configured)
+
+
+@sensitive_variables()
+def _verify(token: str, configured: tuple[str, str, frozenset[str]] | None) -> VerifiedToken:
     if configured is None:
         raise _reject("not_configured")
     issuer, _pool, allowed_clients = configured
@@ -142,6 +177,7 @@ def verify_access_token(token: str) -> VerifiedToken:
     issued_at = claims.get("iat")
     origin_jti = claims.get("origin_jti")
     scope = claims.get("scope")
+    username = claims.get("username")
     return VerifiedToken(
         sub=sub,
         client_id=client_id,
@@ -151,6 +187,7 @@ def verify_access_token(token: str) -> VerifiedToken:
         issued_at=_whole_seconds(issued_at),
         origin_jti=origin_jti if isinstance(origin_jti, str) and origin_jti else None,
         scopes=tuple(scope.split()) if isinstance(scope, str) else (),
+        username=username if isinstance(username, str) else None,
     )
 
 
