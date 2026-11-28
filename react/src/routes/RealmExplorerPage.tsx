@@ -174,11 +174,9 @@ function placeCopy(place: RealmPlace): { displayTitle?: string; displayTagline?:
         displayTitle: "Storykeeper's Castle",
         displayTagline: 'Explore stories and solve mysteries.',
       };
+    // Keeps Django's title: "Heart of Firepeak" is the firepeak-heart Place's own name.
     case 'firepeak-volcano':
-      return {
-        displayTitle: 'Heart of Firepeak',
-        displayTagline: 'Discover the secrets of the volcano.',
-      };
+      return { displayTagline: 'Discover the secrets of the volcano.' };
     default:
       return {};
   }

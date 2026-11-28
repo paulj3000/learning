@@ -95,7 +95,7 @@ describe('RealmExplorerPage (AP-03)', () => {
     ).toBeInTheDocument();
     expect(await screen.findByRole('article', { name: 'Treasure Rush' })).toBeVisible();
     expect(card("Storykeeper's Castle")).toBeInTheDocument();
-    expect(card('Heart of Firepeak')).toBeInTheDocument();
+    expect(card('Firepeak Volcano')).toBeInTheDocument();
     expect(card('Creature Care Cove')).toBeInTheDocument();
     expect(
       screen.queryByRole('article', { name: 'Learning Adventure Island' }),
@@ -133,8 +133,8 @@ describe('RealmExplorerPage (AP-03)', () => {
       }),
     ).toHaveAttribute('href', '/island/child-1/locations/storykeeper-castle');
     expect(
-      within(card('Heart of Firepeak')).getByRole('link', {
-        name: 'Explore Heart of Firepeak in 3D',
+      within(card('Firepeak Volcano')).getByRole('link', {
+        name: 'Explore Firepeak Volcano in 3D',
       }),
     ).toHaveAttribute('href', '/island/child-1/explore/firepeak-volcano');
     expect(screen.queryByRole('article', { name: 'django-only-meadow' })).not.toBeInTheDocument();
@@ -168,7 +168,7 @@ describe('RealmExplorerPage (AP-03)', () => {
     ).toEqual([
       'Treasure Rush',
       "Storykeeper's Castle",
-      'Heart of Firepeak',
+      'Firepeak Volcano',
       'North Pole',
       'Creature Care Cove',
     ]);
@@ -248,7 +248,7 @@ describe('RealmExplorerPage (AP-03)', () => {
       islands: testCatalog().islands.filter((island) => island.isHome),
     });
     renderAt('/island/child-1/realms?subject=SCIENCE&age=SPROUT');
-    expect(await screen.findByRole('article', { name: 'Heart of Firepeak' })).toBeInTheDocument();
+    expect(await screen.findByRole('article', { name: 'Firepeak Volcano' })).toBeInTheDocument();
     renderAt('/island/child-1/realms?subject=MATH&age=UNKNOWN');
     expect((await screen.findAllByText('Showing 1 of 3 destinations')).length).toBeGreaterThan(0);
   });
@@ -461,6 +461,23 @@ describe('entering North Pole and Firepeak from Realms (#98, #100)', () => {
       await screen.findByText('New places are on their way. Come back soon.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Start Exploring' })).not.toBeInTheDocument();
+  });
+
+  it('gives each Firepeak Place its own card, title and 3D entry on the Realm Explorer', async () => {
+    mocks.getIslandsFor.mockResolvedValue(catalogWith());
+    renderAt('/island/child-1/realms');
+    const volcano = await screen.findByRole('article', { name: 'Firepeak Volcano' });
+    const heart = card('Heart of Firepeak');
+    expect(
+      within(volcano).getByRole('link', { name: 'Explore Firepeak Volcano in 3D' }),
+    ).toHaveAttribute('href', '/island/child-1/explore/firepeak-volcano');
+    expect(
+      within(heart).getByRole('link', { name: 'Explore Heart of Firepeak in 3D' }),
+    ).toHaveAttribute('href', '/island/child-1/explore/firepeak-heart');
+    const titles = screen
+      .getAllByRole('article')
+      .map((article) => within(article).getByRole('heading').textContent);
+    expect(new Set(titles).size).toBe(titles.length);
   });
 
   it('enters the Heart of Firepeak from the home Realm preview', async () => {
