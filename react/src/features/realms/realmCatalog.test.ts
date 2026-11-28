@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LOCKED_HINT, buildRealms, type Realm } from './realmCatalog';
-import { testCatalog, testIsland, testPlace } from './testCatalog';
+import {
+  firepeakTestPlaces,
+  northPoleTestIsland,
+  testCatalog,
+  testIsland,
+  testPlace,
+} from './testCatalog';
 
 const CHILD = 'child-1';
 
@@ -110,5 +116,60 @@ describe('buildRealms (AP-03)', () => {
   it('encodes the child id in every link', () => {
     const [home] = buildRealms('a/b', testCatalog());
     expect(home.detailHref).toBe('/island/a%2Fb/realms/learning-adventure-island');
+  });
+
+  describe('a Realm Django alone serves (#98, #100)', () => {
+    const view = (...islands: ReturnType<typeof testIsland>[]) => ({
+      autoSelectIslandId: null,
+      islands,
+    });
+
+    it('enters North Pole straight into North Pole Village, not a client hub that has none', () => {
+      const realm = bySlug(buildRealms(CHILD, view(northPoleTestIsland())), 'north-pole');
+      expect(realm.state).toBe('AVAILABLE');
+      expect(realm.startHref).toBe('/island/child-1/explore/north-pole-village');
+      expect(realm.places.map((place) => [place.slug, place.href, place.area?.href])).toEqual([
+        ['north-pole-village', null, '/island/child-1/explore/north-pole-village'],
+      ]);
+      expect(realm.continueHref).toBeNull();
+    });
+
+    it('continues North Pole Village when its session is still open (re-entry)', () => {
+      const realm = bySlug(
+        buildRealms(CHILD, view(northPoleTestIsland({ resume: true }))),
+        'north-pole',
+      );
+      expect(realm.continueHref).toBe('/island/child-1/explore/north-pole-village');
+    });
+
+    it('has no start link, never a dead one, when nothing in it is open for this child', () => {
+      const realm = bySlug(
+        buildRealms(CHILD, view(northPoleTestIsland({ available: false }))),
+        'north-pole',
+      );
+      expect(realm).toMatchObject({ state: 'UNAVAILABLE', startHref: null, continueHref: null });
+      expect(realm.places).toEqual([]);
+    });
+
+    it('keeps a locked Django-only Realm shut, whatever its Areas say', () => {
+      const realm = bySlug(
+        buildRealms(CHILD, view({ ...northPoleTestIsland(), unlocked: false })),
+        'north-pole',
+      );
+      expect(realm).toMatchObject({ state: 'LOCKED', startHref: null, places: [] });
+    });
+
+    it('links both Firepeak Places on the home Realm to their 3D Areas', () => {
+      const home = testIsland('learning-adventure-island', {
+        isHome: true,
+        places: firepeakTestPlaces(),
+      });
+      const realm = bySlug(buildRealms(CHILD, view(home)), 'learning-adventure-island');
+      expect(realm.places.map((place) => [place.slug, place.area?.href])).toEqual([
+        ['firepeak-volcano', '/island/child-1/explore/firepeak-volcano'],
+        ['firepeak-heart', '/island/child-1/explore/firepeak-heart'],
+      ]);
+      expect(realm.startHref).toBe('/island/child-1/explore/firepeak-volcano');
+    });
   });
 });

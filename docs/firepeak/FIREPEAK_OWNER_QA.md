@@ -7,6 +7,9 @@ Every check is for the owner. FPV-24 is never marked Complete without the owner'
 Each line has an id, what to do, and what passes. Record pass, fail or skip with a note per id.
 "Both bands" means once as a Pathfinder and once as an Explorer.
 
+Entry from Realms was broken until #98 and #100 (2026-11-26): run the entry checks in
+`docs/qa/FIREPEAK_NORTH_POLE_ENTRY_QA.md` first, then this checklist.
+
 ## 1. Launch locally (about 10 minutes)
 
 Prerequisites, Cognito settings and the Django Admin account: `docs/TREASURE_RUSH_LOCAL_DEV.md`

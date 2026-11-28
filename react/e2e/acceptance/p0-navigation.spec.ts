@@ -188,16 +188,27 @@ test.describe.serial('P0: Home -> Realms -> Treasure Cove and Storykeeper Castle
       .toBeGreaterThan(5);
   });
 
-  test('Storykeeper Castle opens its walk-around world from its Place page', async ({
+  test('a Pathfinder enters the 3D castle from Realms -> Storykeeper Castle', async ({
     page,
     problems,
   }) => {
+    // #99/#106: "Enter the castle" is the castle's front door for Pathfinders and Explorers.
     void problems;
     await page.setViewportSize({ width: 1280, height: 900 });
     await signInAs(page, parent);
-    await page.goto(`/island/${childId}/locations/storykeeper-castle`);
-    await page.getByRole('link', { name: 'Try exploring the castle (new!)' }).click();
-    await expect(page).toHaveURL(new RegExp(`/island/${childId}/world/storykeeper-castle$`));
+    await page.goto(`/island/${childId}/realms/learning-adventure-island`);
+    await page
+      .getByRole('region', { name: 'Places in Learning Adventure Island' })
+      .getByRole('article', { name: 'Storykeeper Castle' })
+      .getByRole('link', { name: 'Visit Storykeeper Castle' })
+      .click();
+    await expect(page).toHaveURL(new RegExp(`/island/${childId}/locations/storykeeper-castle$`));
+    // The old preview link is a Sprout-only second option now.
+    await expect(page.getByRole('link', { name: 'Try exploring the castle (new!)' })).toHaveCount(
+      0,
+    );
+    await page.getByRole('link', { name: 'Enter the castle' }).click();
+    await expect(page).toHaveURL(new RegExp(`/island/${childId}/explore/storykeeper-castle$`));
     await expect(page.locator('canvas').first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole('alert')).toHaveCount(0);
   });
@@ -236,5 +247,43 @@ test.describe.serial('P0: Home -> Realms -> Treasure Cove and Storykeeper Castle
     await page.unroute(`**/api/v1/children/${childId}/islands/`);
     await page.getByRole('button', { name: 'Try again' }).click();
     await expect(page.getByRole('article', { name: 'Learning Adventure Island' })).toBeVisible();
+  });
+});
+
+test.describe("P0: a Sprout's Storykeeper Castle keeps the card adventure first", () => {
+  let parent: Parent;
+  let childId: string;
+
+  test.beforeAll(async ({ request }) => {
+    ({ parent, childId } = await parentWithChild(request, 'p0-castle-sprout', {
+      nickname: 'Pip',
+      ageBand: 'SPROUT',
+    }));
+  });
+
+  test('the card adventure comes first and the 3D castle is a plainly worded second option', async ({
+    page,
+    problems,
+  }) => {
+    // C-10, ADR-008: first-person navigation is not a Sprout's primary route yet.
+    void problems;
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await signInAs(page, parent);
+    await page.goto(`/island/${childId}/realms/learning-adventure-island`);
+    await page.getByRole('link', { name: 'Visit Storykeeper Castle' }).click();
+    await expect(page).toHaveURL(new RegExp(`/island/${childId}/locations/storykeeper-castle$`));
+    await expect(page.getByRole('link', { name: 'Enter the castle' })).toHaveCount(0);
+
+    const entries = page.getByRole('link', {
+      name: /^(Start: Quill's Picture Story|Walk inside the castle)$/,
+    });
+    await expect(entries).toHaveCount(2);
+    await expect(entries.first()).toHaveText("Start: Quill's Picture Story");
+    await expect(entries.nth(1)).toHaveText('Walk inside the castle');
+
+    await entries.nth(1).click();
+    await expect(page).toHaveURL(new RegExp(`/island/${childId}/explore/storykeeper-castle$`));
+    await expect(page.locator('canvas').first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('alert')).toHaveCount(0);
   });
 });
