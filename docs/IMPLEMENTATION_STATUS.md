@@ -65,9 +65,27 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 - Not done:
   - KTX2 for standalone images (ADR-070 gates).
   - A local runner for image conversion (D-2).
-  - Licence as a publish gate (D-3).
+  - A global licence publish gate (D-3 limits it to environmental assets; legacy remediation is #283).
 - Tests: `apps/assets/tests/test_environment_assets.py`, plus 6 existing assertions updated for
   the two new metadata fields. Final results are in PR #116.
+
+## LAI-07 asset intake checklist: one sourcing list for missing audio and models (2026-11-27, `docs/asset-intake-checklist`, `main` `d812ad71`)
+
+Docs only; no code, seed or asset changed. Trello #244, #246, #247.
+
+- New `docs/ASSET_INTAKE_CHECKLIST.md`: 92 audio files (Treasure Rush 30, Storykeeper Castle 18,
+  Firepeak 19, North Pole 25) and 84 model or image definitions (Firepeak 38, North Pole 46),
+  none present in any environment. Each row gives the asset id, type, format and limits, realm,
+  required or optional, licence rules and the upload, seed and publish recipe. Ids were checked
+  against `CueSpec.asset_id` and the seed tables, not only the realm docs.
+- There is no command-line upload for a single new file; Django Admin is the upload path, and the
+  realm's seed command then wires it in (section 2).
+- Reported, not resolved: the realms disagree on audio format (MP3 or Ogg) and loudness targets
+  (section 1.3); `docs/ASSET_LICENCES.md` has no audio section yet; `FIREPEAK_AUDIO_INVENTORY.md`
+  still says `puzzleComplete` and `restoration` are never raised, but on `main` they are
+  (`puzzleSolveCues`); `north_pole_cues.py` marks `fragment` and `star_restored` `wired=False`
+  although the client raises both, and `crystalCollect` fires on every North Pole pickup.
+- Checks: `make docs-check`. No tests apply (no code).
 
 ## Backend test suite speed: module content baseline and parallel pytest (2026-11-28, `ccr-7ec57d09-gp9p2c`, base `e13e03b`, `main` `7ba5425` merged in, no Trello card; owner-directed, owner authorized the merge)
 
