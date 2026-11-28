@@ -52,8 +52,9 @@ four cores:
 - **Parallel full runs** (pytest-xdist, owner-approved 2026-11-28). `make py-test` and
   `make py-test-db` use one worker per CPU (`PYTEST_WORKERS=2` on a busy machine,
   `PYTEST_WORKERS=0` for serial), each worker with its own test database, with
-  `--dist loadgroup` groups that keep a module on one worker and its transactional tests after the
-  ordinary ones. Parametrized test ids must be the same on every collection (no `uuid4()` in a
+  `--dist loadgroup --no-loadscope-reorder`: groups keep a module on one worker, and handing them
+  out in collection order runs each worker's transactional tests (which flush its database) after
+  the ordinary ones. A database test that would run after a flush fails at once with the reason. Parametrized test ids must be the same on every collection (no `uuid4()` in a
   parametrize list), or the workers refuse to start. Development runs by path stay serial.
 
 ## End-to-end tests

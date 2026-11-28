@@ -305,8 +305,9 @@ def _group_for_parallel_workers(items):
 
     A module's transactional tests (and its `without_module_content` tests) form a separate group.
     A transactional test flushes the worker's database, migration-seeded rows included; serially
-    pytest-django runs them after every other test, and a separate group, scheduled in collection
-    order, keeps them after the ordinary groups on each worker too.
+    pytest-django runs them after every other test. With `--no-loadscope-reorder` xdist hands out
+    groups in that same collection order, so each worker runs its ordinary groups first.
+    `pytest_runtest_setup` fails a database test that would run after a flush.
     """
     for item in items:
         path = item.nodeid.split("::", 1)[0]
@@ -323,9 +324,31 @@ def _group_for_parallel_workers(items):
 def pytest_runtest_setup(item):
     """Runs before the item's fixtures: close the baselines a transactional test cannot share."""
     _setting_up["item"] = item
-    if _open_baselines and (_is_transactional(item) or _opts_out(item)):
+    transactional = _is_transactional(item)
+    if _open_baselines and (transactional or _opts_out(item)):
         for baseline in reversed(list(_open_baselines)):
             baseline.close()
+    if transactional:
+        _flushed_by.setdefault("test", item.nodeid)
+    elif "test" in _flushed_by and _uses_db(item):
+        # A transactional test's teardown flushes the database, migration-seeded rows included,
+        # so a database test after it would fail somewhere far from the cause.
+        pytest.fail(
+            f"{_flushed_by['test']} already flushed this test database, so this test would run "
+            "without the rows migrations seed. Transactional tests must run after the others: "
+            "run the full suite with `make py-test` or `make py-test-db` (parallel runs need "
+            "`--dist loadgroup --no-loadscope-reorder`).",
+            pytrace=False,
+        )
+
+
+_flushed_by = {}
+
+
+def _uses_db(item):
+    return item.get_closest_marker("django_db") is not None or "db" in getattr(
+        item, "fixturenames", ()
+    )
 
 
 class ModuleContent:

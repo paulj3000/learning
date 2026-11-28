@@ -52,8 +52,15 @@ Status: Development Complete; merged to `main` on the owner's direct instruction
   `test_firepeak_heart_play`, `test_puzzle_evidence`); 17 modules opted in; five tests that need
   the content absent marked. Test fixtures only; no application code changed.
 - pytest-xdist 3.8.0 and execnet 2.1.2 (MIT, owner-approved 2026-11-28) in
-  `requirements-dev.txt`; `make py-test` and `make py-test-db` run `-n auto --dist loadgroup`
-  (`PYTEST_WORKERS`). Three parametrize lists that put `uuid4()` in test ids now use fixed ids.
+  `requirements-dev.txt`; `make py-test` and `make py-test-db` run
+  `-n auto --dist loadgroup --no-loadscope-reorder` (`PYTEST_WORKERS`). Without the last flag
+  xdist schedules large groups first, so a transactional group could flush a worker's database
+  (migration-seeded rows included) before another module's tests ran there; a guard in
+  `lai/conftest.py` now fails any database test that would run after a flush, with the reason.
+- Order-dependent tests that parallel runs exposed, fixed: three parametrize lists put `uuid4()`
+  in test ids (now fixed ids); `jobs/tests/test_jobs_admin_settings.py` left settings modules
+  built from its environment in `sys.modules`, which failed `ai/tests/test_ai_settings.py` when
+  it ran later in the same process (pre-existing; serially `ai` always ran first).
 - Measured (`make py-test-db`, 4 CPUs, a local PostgreSQL 16 because Docker was unavailable):
   68 min before; 23 min serial (`PYTEST_WORKERS=0`) and 6 min with 4 workers after; 9,238 passed
   each way. The one failure in every run, before and after, is
