@@ -128,7 +128,7 @@ only through the bridge (`react/src/features/game-engine/bridge/engineBridge.ts`
 | Jumping, platforming | Coyote 120 ms, buffer 150 ms, validator rejects jump-only routes | No per-child jump assist (needs owner proposal and ADR per the jumping and accessibility standards); age-band assist only in SDK profiles; GE-L5 geometry-versus-difficulty check absent | Medium-High |
 | Swimming, climbing | `SWIMMING`/`CLIMBING` states, water and ladder volumes | No content uses them; no swim/climb clips live | Low |
 | Character animation | Engine state machine, blending, root motion | Live game uses `three/playerAnimation.ts`/`playerAvatar.ts` (GE-076 item 7) | Medium |
-| Camera, input profiles | First/third person, collision rig, gamepad | **No Sprouts guided tap-to-move profile** (GE-035 deferred to LAI-2104); `guidedSteering` is inert; no input-profile type; no remapping | **High (blocks LAI-2303)** |
+| Camera, input profiles | First/third person, collision rig, gamepad; **partly closed**: Sprouts guided tap-to-move (B1, [guided-movement.md](guided-movement.md)): `guidedSteering` now selects it, assisted third-person camera, no free look | B2 terrain height waits for GE-L14; no input-profile type; no remapping; owner playtest LAI-2303 | Medium (LAI-2303 gate) |
 | Collision, clearance | GE-L16 clearance, step height, slopes | AABB only; turntable collider unrotated; live terrain `groundHeightAt` (GE-L14) | Low-Medium |
 | Checkpoints, recovery | `CheckpointsService`, hazards | GE-L13 fixed here (section 8); castle checkpoints not on engine | Low |
 | NPC interactions | `NpcManagerPort` and a fake | No engine NPC component (proximity, facing); behaviour stays in React NPC Manager | Medium |
@@ -174,7 +174,7 @@ not done). Each entry names its commits.
 | LAI-2205 | Dragon's Sanctuary gaps: egg interaction, exit, `entryRequirements` unlock guard | **LAI 04** (owner, 2026-11-27) | P1 | none (but touches manifests: after MVP) | Direct URL refused before unlock; ids present |
 | LAI-2206 | Fossil Ridge Camp Three.js region (3 interactions, unlock) | **LAI 03** (owner, 2026-11-27); LAI 07 assets | P2 | LAI-2201 hub link | Manifest, parity test, jumping decision (LAI-JMP-01b) |
 | LAI-2208 | Bolt's Workshop Three.js region with Bolt (`metBolt`, quest stage) | **No owner yet**; stays in Backlog until MVP acceptance (owner, 2026-11-27); LAI 07 assets; NPC Manager owner | P1 (quest) | LAI-2201, MVP acceptance | Bolt talk sets `metBolt` in 3D; quest stage 1 reachable |
-| LAI-2104S | Sprouts guided profile in the engine: tap-to-move, assisted camera, no free look, large targets | LAI 04 | P0 for retirement | owner decision O6 (options in section 10). **Not started**; groundwork `movementSpecForProfile` built | Controller tests; profile applied by age band; no realm edits |
+| LAI-2104S | Sprouts guided profile in the engine: tap-to-move, assisted camera, no free look, large targets | LAI 04 | P0 for retirement | owner chose B (2026-11-28). **B1 built; B2 pending GE-L14** (section 10, [guided-movement.md](guided-movement.md)); groundwork `movementSpecForProfile` built | Controller tests; profile applied by age band; no realm edits |
 | LAI-2303 | Sprouts playtest (human, APPROVAL) | Owner | P0 | LAI-2104S, 2201, 2202 | Owner record |
 | R7 | Rename `IslandWorldView.module.css` to a neutral name | LAI 04 | P2 | MVP merged (it edits that file) | Imports updated; ratchet list emptied |
 | LAI-2304 | Remove Phaser (APPROVAL) | LAI 04, LAI 05 integrates | after all | every world G1 to G5 | Ratchet inventory empty; package gone |
@@ -207,7 +207,7 @@ Handoffs:
 **Safe now** (touch no file the MVP candidate changes; owner, 2026-11-27): this audit and its
 ratchet tests; engine defects in `game/src` (GE-L12, GE-L13 done); LAI-2301R (done); Sprouts
 groundwork that does not depend on O6 (`movementSpecForProfile`, done); Trello and docs.
-LAI-2104S itself waits for the owner's O6 choice.
+LAI-2104S: the owner chose B (2026-11-28); B1 is built, B2 waits for GE-L14.
 
 **Wait for MVP acceptance:** anything in `IslandLocationPage.tsx`, `ThreeLocationWorldView.tsx`,
 `WorldStage`, `GameplayMenus`, `IslandWorldView.module.css`, the `*Parity.test.tsx` files or
@@ -224,6 +224,7 @@ default switches.
 | LAI-2301R: Phaser-table parity | `react/src/test/phaserParity.test.ts` | 20 tests pass; listing a covered interaction as a gap fails (shrink-only check) |
 | Sprouts groundwork: `movementSpecForProfile` | `game/src/sdk/profiles.ts`, `sdk/profiles.test.ts` (7 tests) | game 714 passed; game tsc clean. Not wired to any location |
 | Tracker reconciliation | `tasks/TASK_TRACKER.md` LAI-2101 to 2103 | Section 5 |
+| LAI-2104S B1: Sprouts guided tap-to-move on flat ground | `game/src/navigation/` (walk grid, A*, reachability helper, guided steering, assisted camera), `game/src/input/pointerControls.ts` (opt-in `freeLook`, `onTap`, `shapeInput`), `runtime/createLocationEngine.ts`, `guidedWalk.ts`, `manifestWalkability.ts`, `ThreeLocationWorldView.tsx` (`ageBand`), `docs/engineering/game-engine/guided-movement.md` | game 742 passed (28 new in `navigation.test.ts`); React `island-map`, `game-engine` and `src/test` 2897 passed (26 new); `npm run typecheck` clean. Flat ground only; owner playtest LAI-2303 pending |
 
 ## 9. Recommended sequence
 
@@ -240,7 +241,7 @@ default switches.
 
 ## 10. O6: Sprouts guided tap-to-move, options for the owner
 
-Status: **awaiting the owner's choice**. LAI-2104S does not start until one is picked. Common to
+Status: **owner chose B (2026-11-28); B1 built** (static colliders, platforms and hazard areas on flat ground; B2 terrain height pending GE-L14; see [guided-movement.md](guided-movement.md)). Not owner accepted. The options below are kept as the record. Common to
 all three: no free look; an assisted third-person camera that turns behind the child; large
 interaction targets with a confirm button (no aiming); reduced motion honoured; the existing
 joystick and keyboard stay available. Sprouts difficulty is unchanged (`sdk/profiles.ts`:

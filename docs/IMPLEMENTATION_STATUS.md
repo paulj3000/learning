@@ -37,6 +37,28 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-2104S B1: Sprouts guided tap-to-move, static colliders, platforms and hazards (2026-11-28, `feature/LAI-2104S-sprouts-guided-move`)
+
+Owner chose option B (2026-11-28); this is step B1. B2 (terrain height) waits for a host `groundHeightAt` (GE-L14).
+
+- Engine (`game/src/navigation/`, exported as `@lai/game-engine/navigation`): walk grid from
+  colliders, platforms and hazard areas (0.2 m cells, 0.39 m wall margin, flat ground), 8-neighbour A*
+  with string pulling, nearest-reachable fallback, guided steering into the existing controller's
+  `MoveInput`, assisted camera yaw with reduced motion, `isGuidedBand`. `guidedSteering: true` (Sprouts)
+  now selects the mode. A path never uses a jump; joystick and keys cancel it.
+- Reachability helper for realm tests: `isReachable`, `unreachableTargets`, and
+  `manifestWalkability(manifest, worldState)`. All ten Wonderwild Forest interactions are reachable from
+  the spawn (LAI 03's WF-10 check); the Pirate Bay far shore is correctly shut until the bridge is mended.
+- Live: `createLocationEngine` takes `ageBand`; `ThreeLocationWorldView` passes it and turns the action
+  prompt and Interact button on for the guided band. Other bands unchanged. No realm or manifest edits,
+  no Phaser files.
+- Docs: `docs/engineering/game-engine/guided-movement.md`; audit sections 4, 6, 8 and 10.
+- Tests: `game/` 742 passed; React `features/island-map`, `features/game-engine` and `src/test` 2897
+  passed; `npm run typecheck` clean. Deferred: lint, format gate, build, browser, Playwright, a real
+  touch device.
+- Not owner accepted. Open: hazards an extension owns (engine bridge) are not on the grid; Sprouts
+  playtest LAI-2303 is the owner gate.
+
 ## LAI 04 Phaser retirement audit, Phase 2 (2026-11-27, `feature/threejs-phaser-retirement`, `main` `41ee7320`)
 
 - Audit and plan: `docs/engineering/game-engine/phaser-retirement-audit.md`. Migration measured at

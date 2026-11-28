@@ -23,6 +23,7 @@ import { listQuestStates } from '../../../quests/api';
 import { getQuestDefinition } from '../../../quests/content';
 import { getCompanionProfile } from '../../../island/api';
 import type { AgeBandValue } from '../../../child-profile/constants';
+import { isGuidedBand } from '@lai/game-engine/navigation';
 import {
   createLocationEngine,
   DEFAULT_LOCATION_ENGINE_DEPS,
@@ -314,6 +315,8 @@ export function ThreeLocationWorldView({
   }, [childId, regionId, repository]);
 
   const manifest = manifestState.status === 'ready' ? manifestState.manifest : null;
+  // LAI-2104S: the guided mode offers its action prompt and Interact button, as `interactionAssist` does.
+  const interactionAssist = manifest?.interactionAssist === true || isGuidedBand(ageBand);
 
   const refreshWorld = useCallback(async () => {
     const loaded = await loadWorldSnapshot(childId);
@@ -366,7 +369,7 @@ export function ThreeLocationWorldView({
         bus.emit('NpcStateChanged', { entityId, metByChild: true });
       }),
       bus.on('InteractableFocused', ({ entityId }) => {
-        if (manifest.interactionAssist) {
+        if (interactionAssist) {
           const prompt = focusPrompt(manifest, entityId);
           setFocusedLabel(prompt?.label ?? null);
           setFocusedAction(prompt?.action ?? null);
@@ -447,7 +450,7 @@ export function ThreeLocationWorldView({
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
-  }, [bus, childId, manifest, openInteractionFor, pendingWrites, refreshWorld]);
+  }, [bus, childId, interactionAssist, manifest, openInteractionFor, pendingWrites, refreshWorld]);
 
   // LAI-JMP-02/03: a world change recorded during the visit (a riddle solved) raises its platform
   // signal at once, so a bridge it unlocks appears without leaving the location.
@@ -703,6 +706,8 @@ export function ThreeLocationWorldView({
                 worldState: snapshot.context,
                 quality: chooseRenderQuality(deviceHintsFromNavigator()),
                 reducedMotion: prefersReducedMotion(),
+                // LAI-2104S: the band's profile selects the guided tap-to-move mode (Sprouts).
+                ageBand,
                 cameraMode: savedCameraMode ?? undefined,
                 sprintMode,
                 avatarKey,
@@ -725,7 +730,7 @@ export function ThreeLocationWorldView({
           focusedLabel={reticleSuppressed ? null : focusedLabel}
           toastMessage={toast}
           backpackItems={snapshot.backpackItems}
-          {...(manifest.interactionAssist
+          {...(interactionAssist
             ? {
                 focusAction: focusedAction,
                 onInteract: () => engineRef.current?.interact(),
