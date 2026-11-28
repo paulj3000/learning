@@ -97,7 +97,9 @@ def test_a_texture_upload_is_stored_validated_and_described(texture, storage):
     assert version.status == VersionStatus.VALIDATED and version.family == "image"
     assert version.storage_key == f"assets/images/brick-wall/{version.version_id}/image.png"
     assert version.content_type == "image/png" and version.file_name == "image.png"
-    assert version.metadata == {"width": 8, "height": 4} and version.clips == []
+    # LAI-ENV-02: transparency and colour model are recorded too.
+    assert version.metadata == {"width": 8, "height": 4, "hasAlpha": False, "colourModel": "rgb"}
+    assert version.clips == []
     assert storage.exists(version.storage_key)
 
 
@@ -338,7 +340,8 @@ def test_resolver_describes_images_and_audio_and_serves_hardened_files(
     found = {e["id"]: e for e in response.json()["assets"]}
     image, audio = found["brick-wall"], found["splash"]
     assert image["family"] == "image" and image["format"] == "png"
-    assert image["media"] == {"width": 8, "height": 8} and image["url"].endswith("/image.png")
+    assert image["media"] == {"width": 8, "height": 8, "hasAlpha": False, "colourModel": "rgb"}
+    assert image["url"].endswith("/image.png")
     assert audio["family"] == "audio" and audio["contentType"] == "audio/wav"
     assert audio["media"]["durationSeconds"] == 2.0 and audio["url"].endswith("/audio.wav")
     for entry in (image, audio):

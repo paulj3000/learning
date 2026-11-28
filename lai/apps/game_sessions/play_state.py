@@ -358,7 +358,11 @@ def region_catalog(region: WorldRegion) -> dict:
     # keys were read, so an id used only as `layout.scenery` (North Pole's pines, lanterns and
     # candy canes) was never sent and the client refused the Area with UNKNOWN_ASSET.
     ids.update(scene_asset_ids(scene))
-    assets = ContentAsset.objects.filter(asset_id__in=ids).order_by("asset_id")
+    assets = (
+        ContentAsset.objects.filter(asset_id__in=ids)
+        .select_related("material_definition")
+        .order_by("asset_id")
+    )
     return {
         "worldSlug": region.location.world.slug,
         "assets": [
@@ -366,8 +370,18 @@ def region_catalog(region: WorldRegion) -> dict:
                 "assetId": asset.asset_id,
                 "kind": asset.kind,
                 "clips": list(asset.clips),
-                "deliverable": bool(asset.default_version_id or asset.bundled_path),
+                "deliverable": _deliverable(asset),
             }
             for asset in assets
         ],
     }
+
+
+def _deliverable(asset: ContentAsset) -> bool:
+    """A file asset can be delivered with a default version or a bundled file. A material
+    (LAI-ENV-02, `docs/ENVIRONMENT_ASSETS.md` E-10) holds no file: it can be delivered once its
+    content has a published revision. Its textures are resolved through the material entry."""
+    if asset.kind == "material":
+        definition = getattr(asset, "material_definition", None)
+        return definition is not None and definition.published_revision_id is not None
+    return bool(asset.default_version_id or asset.bundled_path)

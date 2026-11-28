@@ -31,9 +31,21 @@ def codes(result):
 @pytest.mark.parametrize(
     ("data", "fmt", "meta"),
     [
-        (png_bytes(4, 8), "png", {"width": 4, "height": 8}),
-        (jpeg_bytes(16, 8), "jpeg", {"width": 16, "height": 8}),
-        (webp_bytes(32, 16), "webp", {"width": 32, "height": 16}),
+        (
+            png_bytes(4, 8),
+            "png",
+            {"width": 4, "height": 8, "hasAlpha": False, "colourModel": "rgb"},
+        ),
+        (
+            jpeg_bytes(16, 8),
+            "jpeg",
+            {"width": 16, "height": 8, "hasAlpha": False, "colourModel": "grey"},
+        ),
+        (
+            webp_bytes(32, 16),
+            "webp",
+            {"width": 32, "height": 16, "hasAlpha": False, "colourModel": "rgb"},
+        ),
     ],
 )
 def test_valid_images_report_their_format_and_size(data, fmt, meta):

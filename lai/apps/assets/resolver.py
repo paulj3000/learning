@@ -13,6 +13,7 @@ from django.db.models import Q
 
 from apps.catalog.models import AssetStatus, ContentAsset
 
+from . import image_profiles, materials
 from .collision import profile_for, runtime_collision
 from .delivery import deliver, ttl
 from .formats import KIND_FAMILY, MODEL
@@ -50,8 +51,9 @@ def resolve(references: list[tuple[str, str, int | None]]) -> list[dict]:
         asset.asset_id: asset
         for asset in ContentAsset.objects.filter(asset_id__in=ids)
         .select_related("default_version")
-        .prefetch_related("collision_profiles")
+        .prefetch_related("collision_profiles", "image_profiles")
     }
+    _add_material_maps(assets)
     pins = {(asset_id, n) for _ref, asset_id, n in references if n is not None}
     pinned: dict[tuple[str, int], AssetVersion] = {}
     if pins:
@@ -61,9 +63,47 @@ def resolve(references: list[tuple[str, str, int | None]]) -> list[dict]:
         ).select_related("asset"):
             pinned[(version.asset.asset_id, version.number)] = version
     return [
-        _entry(ref, asset_id, number, assets.get(asset_id), pinned)
+        _material_entry(ref, assets[asset_id], assets)
+        if asset_id in assets and assets[asset_id].kind == materials.KIND
+        else _entry(ref, asset_id, number, assets.get(asset_id), pinned)
         for ref, asset_id, number in references
     ]
+
+
+def _add_material_maps(assets: dict) -> None:
+    """Load the texture assets the requested materials name, so their entries can be inlined
+    (LAI-ENV-02). One query for the definitions, one for the textures."""
+    wanted = [asset for asset in assets.values() if asset.kind == materials.KIND]
+    if not wanted:
+        return
+    from .models import MaterialDefinition
+
+    definitions = {
+        row.asset_id: row
+        for row in MaterialDefinition.objects.filter(asset__in=wanted).select_related(
+            "published_revision"
+        )
+    }
+    textures = {tid for row in definitions.values() for tid in row.texture_asset_ids}
+    missing = textures - set(assets)
+    for asset in (
+        ContentAsset.objects.filter(asset_id__in=missing)
+        .select_related("default_version")
+        .prefetch_related("collision_profiles", "image_profiles")
+    ):
+        assets[asset.asset_id] = asset
+    for asset in wanted:
+        asset._material = definitions.get(asset.pk)
+
+
+def _material_entry(ref: str, asset, assets: dict) -> dict:
+    definition = getattr(asset, "_material", None)
+    images = {}
+    for texture_id in getattr(definition, "texture_asset_ids", None) or []:
+        texture = assets.get(texture_id)
+        if texture is not None and texture.kind != materials.KIND:
+            images[texture_id] = _entry(texture_id, texture_id, None, texture, {})
+    return materials.resolved_entry(ref, asset, definition, images)
 
 
 def _entry(ref, asset_id, number, asset, pinned) -> dict:
@@ -131,12 +171,18 @@ def _delivery_entry(ref, asset_id, number, asset, pinned) -> dict:
     }
     if version.family != "model":
         entry["media"] = _media(version)
+    if version.family == "image":
+        profile = image_profiles.profile_for(asset, version)
+        if profile is not None:
+            entry["render"] = image_profiles.render_block(profile, version)
     return entry
 
 
 # The public facts a client needs to use an image or a sound; nothing else from the metadata.
 _MEDIA_FIELDS = {
-    "image": ("width", "height"),
+    # `hasAlpha` and `colourModel` (LAI-ENV-02) are null for versions uploaded before they were
+    # recorded; published metadata is never rewritten.
+    "image": ("width", "height", "hasAlpha", "colourModel"),
     "audio": ("durationSeconds", "sampleRate", "channels"),
 }
 

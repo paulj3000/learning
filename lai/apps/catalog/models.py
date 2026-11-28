@@ -494,7 +494,8 @@ class AssetCategory(models.TextChoices):
 
 # Runtime kinds. The first four are the engine's model kinds (`manifest.ts` `AssetKind`,
 # `asset_refs.AssetKind`); texture, image, sprite and audio are the non-model kinds (AM-13). The
-# kind decides which family of file a definition accepts (`apps.assets.formats.KIND_FAMILY`).
+# kind decides which family of file a definition accepts (`apps.assets.formats.KIND_FAMILY`);
+# `material` accepts none (`formats.FILELESS_KINDS`).
 ASSET_KINDS = (
     "character",
     "prop",
@@ -504,6 +505,9 @@ ASSET_KINDS = (
     "image",
     "sprite",
     "audio",
+    # LAI-ENV-02: a reusable material over textures. It holds no file; its content is an
+    # ADR-047 authorable `assets.MaterialDefinition` (`docs/ENVIRONMENT_ASSETS.md` s.4).
+    "material",
 )
 
 # The kinds an Island or Place picture (`artAssetId`, AP-03) may name: a single still image.
@@ -519,6 +523,7 @@ KIND_CATEGORIES = {
     "image": {"image", "other"},
     "sprite": {"image", "other"},
     "audio": {"sound", "music", "other"},
+    "material": {"texture", "scenery", "other"},
 }
 
 
