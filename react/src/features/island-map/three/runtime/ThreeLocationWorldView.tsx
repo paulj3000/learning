@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import styles from '../../IslandWorldView.module.css';
 import { ThreeGameContainer } from '../ThreeGameContainer';
 import { WorldStage } from '../WorldStage';
+import { GameplayMenus, type GameplayMenu } from '../GameplayMenus';
 import { WorldHud, type WorldHudBackpackItem } from '../WorldHud';
 import { WorldEngineEventBus } from '../worldEngineEvents';
 import {
@@ -565,6 +566,115 @@ export function ThreeLocationWorldView({
     (binding) => viewExtensions.get(binding.extensionId)?.ownsBackpack === true,
   );
 
+  // GE-101: settings and the exploration list are stage menus, closed by default, not panels
+  // below the stage, so full screen gives the whole viewport to the game.
+  const cameraSetting =
+    cameraMode && engine?.camera?.allowModeSwitch ? (
+      <fieldset className={styles.cameraSetting}>
+        <legend>Camera view</legend>
+        {(
+          [
+            ['third-person', 'Behind my explorer'],
+            ['first-person', 'Through my eyes'],
+          ] as const
+        ).map(([mode, label]) => (
+          <label key={mode} className={styles.cameraSettingOption}>
+            <input
+              type="radio"
+              name="camera-view"
+              value={mode}
+              checked={cameraMode === mode}
+              onChange={() => engineRef.current?.setCameraMode?.(mode)}
+            />
+            {label}
+          </label>
+        ))}
+      </fieldset>
+    ) : null;
+  const sprintSetting = engine?.locomotion?.sprintEnabled ? (
+    <fieldset className={styles.cameraSetting}>
+      <legend>Sprint with Shift</legend>
+      {(
+        [
+          ['hold', 'Hold Shift'],
+          ['toggle', 'Tap Shift to switch'],
+        ] as const
+      ).map(([mode, label]) => (
+        <label key={mode} className={styles.cameraSettingOption}>
+          <input
+            type="radio"
+            name="sprint-mode"
+            value={mode}
+            checked={sprintMode === mode}
+            onChange={() => chooseSprintMode(mode)}
+          />
+          {label}
+        </label>
+      ))}
+    </fieldset>
+  ) : null;
+  const gameplayMenus: GameplayMenu[] = [
+    {
+      id: 'explore',
+      label: 'Things to do',
+      icon: '🧭',
+      title: 'Things to do here',
+      content: (close) => (
+        <>
+          <ul className={styles.thingsToDoList}>
+            {thingsToDo.map((interaction) => (
+              <li key={interaction.id}>
+                <button
+                  type="button"
+                  className={styles.thingsToDoButton}
+                  onClick={() => {
+                    close();
+                    openInteractionFor(interaction);
+                  }}
+                >
+                  {interaction.title}
+                </button>
+              </li>
+            ))}
+            <li>
+              <button
+                type="button"
+                className={styles.thingsToDoButton}
+                onClick={() => {
+                  close();
+                  engineRef.current?.interact();
+                }}
+              >
+                Interact with what you're looking at
+              </button>
+            </li>
+          </ul>
+          {thingsToDoNotes.map((note) => (
+            <p key={note} className={styles.status}>
+              {note}
+            </p>
+          ))}
+        </>
+      ),
+    },
+    ...(cameraSetting || sprintSetting
+      ? [
+          {
+            id: 'settings',
+            label: 'Settings',
+            icon: '⚙️',
+            title: 'Settings',
+            content: (
+              <>
+                {cameraSetting}
+                {sprintSetting}
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className={styles.wrapper}>
       <p className={styles.instructions}>{manifest.copy.instructions}</p>
@@ -572,7 +682,14 @@ export function ThreeLocationWorldView({
         <p className={styles.status}>{manifest.copy.progressUnavailable}</p>
       ) : null}
       {statusLine ? <p className={styles.status}>{statusLine}</p> : null}
-      <WorldStage>
+      <WorldStage
+        menus={
+          <GameplayMenus
+            menus={gameplayMenus}
+            suspended={Boolean(openInteraction ?? claimed ?? openExtension)}
+          />
+        }
+      >
         <ThreeGameContainer
           instanceKey={`${childId}:${manifest.regionId}`}
           createEngine={(parent) =>
@@ -667,80 +784,6 @@ export function ThreeLocationWorldView({
           regionId={manifest.regionId}
         />
       ) : null}
-      {cameraMode && engine?.camera?.allowModeSwitch ? (
-        <fieldset className={styles.cameraSetting}>
-          <legend>Camera view</legend>
-          {(
-            [
-              ['third-person', 'Behind my explorer'],
-              ['first-person', 'Through my eyes'],
-            ] as const
-          ).map(([mode, label]) => (
-            <label key={mode} className={styles.cameraSettingOption}>
-              <input
-                type="radio"
-                name="camera-view"
-                value={mode}
-                checked={cameraMode === mode}
-                onChange={() => engineRef.current?.setCameraMode?.(mode)}
-              />
-              {label}
-            </label>
-          ))}
-        </fieldset>
-      ) : null}
-      {engine?.locomotion?.sprintEnabled ? (
-        <fieldset className={styles.cameraSetting}>
-          <legend>Sprint with Shift</legend>
-          {(
-            [
-              ['hold', 'Hold Shift'],
-              ['toggle', 'Tap Shift to switch'],
-            ] as const
-          ).map(([mode, label]) => (
-            <label key={mode} className={styles.cameraSettingOption}>
-              <input
-                type="radio"
-                name="sprint-mode"
-                value={mode}
-                checked={sprintMode === mode}
-                onChange={() => chooseSprintMode(mode)}
-              />
-              {label}
-            </label>
-          ))}
-        </fieldset>
-      ) : null}
-      <details className={styles.thingsToDo}>
-        <summary>Things to do here</summary>
-        <ul className={styles.thingsToDoList}>
-          {thingsToDo.map((interaction) => (
-            <li key={interaction.id}>
-              <button
-                type="button"
-                className={styles.thingsToDoButton}
-                onClick={() => openInteractionFor(interaction)}
-              >
-                {interaction.title}
-              </button>
-            </li>
-          ))}
-          <li>
-            <button
-              type="button"
-              className={styles.thingsToDoButton}
-              onClick={() => engineRef.current?.interact()}
-            >
-              Interact with what you're looking at
-            </button>
-          </li>
-        </ul>
-        {thingsToDoNotes.map((note) => (
-          <p key={note} className={styles.status}>
-            {note}
-          </p>
-        ))}
-      </details>
       <Link className={styles.altNavLink} to={altNavPath}>
         {manifest.copy.altNav.label}
       </Link>

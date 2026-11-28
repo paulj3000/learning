@@ -15,8 +15,8 @@ import { test } from '@playwright/test';
 
 test.describe('Firepeak Volcano: The Volcano Awakens', () => {
   test.fixme('1. a child enters Firepeak from the Place page', async () => {
-    // Travel deck > Firepeak Volcano > "Explore Firepeak Volcano"; expect the canvas and the
-    // "Things to do here" list, with Professor Ember in it.
+    // Travel deck > Firepeak Volcano > "Explore Firepeak Volcano"; expect the canvas; open the
+    // "Things to do" menu (GE-101) and expect Professor Ember in "Things to do here".
   });
 
   test.fixme('2. the child meets Professor Ember and accepts the quest', async () => {
@@ -63,6 +63,6 @@ test.describe('Firepeak Volcano: The Volcano Awakens', () => {
 
   test.fixme('11. it works with touch controls', async () => {
     // Use a touch device profile: move with the left half, look with the right half, and use the
-    // "Things to do here" list and the panels for every interaction above.
+    // "Things to do" menu and the panels for every interaction above.
   });
 });

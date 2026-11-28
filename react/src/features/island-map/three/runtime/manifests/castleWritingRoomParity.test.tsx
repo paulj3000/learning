@@ -63,6 +63,7 @@ import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../../../d
 import { getInventory } from '../../../../rewards/api';
 import { listQuestStates } from '../../../../quests/api';
 import { getCompanionProfile } from '../../../../island/api';
+import { openThingsToDo } from '../../../../../test/gameplayMenus';
 
 /** A child who finished the Secret Door arc: they keep everything it gave them. */
 const HOLDER = [{ changeKey: 'THE_CASTLES_SECRET_DOOR_COMPLETE' }] as never;
@@ -158,6 +159,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
 
   it('lists every always-available interaction by the same titles as the Phaser room', async () => {
     await renderUnlocked();
+    await openThingsToDo();
     expect(screen.getByRole('button', { name: 'The writing desk' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Shelves of empty books' })).toBeInTheDocument();
     expect(
@@ -167,6 +169,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
 
   it('also lists the open book and Keeper Quill, which the Phaser room does not have', async () => {
     await renderUnlocked();
+    await openThingsToDo();
     expect(
       screen.getByRole('button', { name: 'Write a story in the open book' }),
     ).toBeInTheDocument();
@@ -176,6 +179,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
   it('opens the write-your-story page from the open book, for every band, and never requires it', async () => {
     const user = userEvent.setup();
     await renderUnlocked('SPROUT');
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: 'Write a story in the open book' }));
     const link = await screen.findByRole('link', { name: 'Go there' });
     expect(link).toHaveAttribute('href', '/island/child-1/locations/castle-writing-room/write');
@@ -187,6 +191,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
   it('opens the existing NPC conversation when the child talks to Keeper Quill', async () => {
     const user = userEvent.setup();
     await renderUnlocked();
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: 'Keeper Quill' }));
     expect(await screen.findByText('conversation with keeper-quill')).toBeInTheDocument();
   });
@@ -200,6 +205,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
   it('shows the desk message, plain, when the desk is tapped in the list', async () => {
     const user = userEvent.setup();
     await renderUnlocked();
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: 'The writing desk' }));
     expect(await screen.findByText(/yours to use/i)).toBeInTheDocument();
   });
@@ -245,6 +251,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
   it('offers a way to interact without a mouse look', async () => {
     const user = userEvent.setup();
     await renderUnlocked();
+    await user.click(await screen.findByRole('button', { name: 'Things to do' }));
     await user.click(screen.getByRole('button', { name: "Interact with what you're looking at" }));
     expect(engine.interact).toHaveBeenCalledTimes(1);
   });
@@ -260,8 +267,11 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
   it('records no world change, however the room is used', async () => {
     const user = userEvent.setup();
     await renderUnlocked();
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: 'The writing desk' }));
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: 'Shelves of empty books' }));
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: 'Write a story in the open book' }));
     await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'writing-room-castle-exit' }));
     await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'castle-writing-room:entry' }));
