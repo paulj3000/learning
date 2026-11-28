@@ -281,6 +281,8 @@ number, 075, reserved through the registry pull request #118 (stacked on #117).
 | OD-11 | Approve the `security-policy.md` and `architecture-rules.md` edits in the pull request | Approve with ADR-075 |
 | OD-12 | Retire the arithmetic `ParentGate` (child mode no longer uses the parent's token) | Yes |
 | OD-13 | Mode A (family login) stays deferred | Yes |
+| OD-14 | May a child session read the child's own photo (`photo/content/` GET)? | Parent-only for now (LAI 07 agrees: personal data, no child feature needs it). If allowed later: GET of the own photo only, per-child scoping tests, private no-store caching, nothing logged |
+| OD-15 | Co-op sessions for signed-in children | Off for now (401). LAI 04's proposed rule if allowed: creating stays parent-only; a child may read and act on a co-op session only while seated in it (views must check participation) |
 
 ## 13. Risks and known limitations
 
