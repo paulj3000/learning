@@ -37,6 +37,21 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-2201 Welcome Harbor 3D hub parity (2026-11-28, `feature/LAI-2201-welcome-harbor-hub`, from `fd3d3974`); Development Complete, NOT merged, NOT owner accepted
+
+- The 3D harbor (`manifests/welcomeHarbor.ts`) now carries all 12 Phaser harbor interactions, imported
+  from `WELCOME_HARBOR_INTERACTIONS` so ids, actions and requirements are identical (`JSON.stringify`
+  checked), plus Pip. Props: Chatty, dock sign, palm tree, harbor door. Walk-in zones: bridge, forest,
+  castle, mountain, fossil ridge, Bolt's workshop and the hidden tide pool. Exits still navigate to
+  the Phaser routes (GE-077 retargets them).
+- `BRIDGE_REPAIRED` renders: broken stubs and a fallen plank, or the repaired deck; the gap collider
+  exists only while broken. The span is not a jump route.
+- `harbor-door` and `harbor-tide-pool` claim in 3D through the shared `DiscoveryAction` (same server
+  write, same `exploration.discovery.found` claim); tests pin both.
+- `GAPS` (12) and `STATE_GAPS` (1) for the harbor are removed from `phaserParity.test.ts`. No Phaser,
+  route or Django change. No new assets: procedural scenery and existing kit pieces (LAI 07 models later).
+- Audit sections 2, 3, 6 and 8 updated; section 1 not recomputed.
+
 ## LAI 04 Phaser retirement audit, Phase 2 (2026-11-27, `feature/threejs-phaser-retirement`, `main` `41ee7320`)
 
 - Audit and plan: `docs/engineering/game-engine/phaser-retirement-audit.md`. Migration measured at

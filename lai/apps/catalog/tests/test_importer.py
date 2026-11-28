@@ -230,7 +230,7 @@ def test_the_shipped_export_imports_cleanly():
     assert Quest.objects.count() == counts["quests"]
     assert ContentAsset.objects.count() == counts["assets"]
     assert report.skipped == [
-        "location assets 'welcome-harbor': region has no Location record (11 assets)"
+        "location assets 'welcome-harbor': region has no Location record (15 assets)"
     ]
     assert (
         LocationAsset.objects.values("location").distinct().count() == counts["locationAssets"] - 1

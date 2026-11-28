@@ -161,6 +161,9 @@ describe('triggerVolumes', () => {
     expect(triggerVolumes(WELCOME_HARBOR_MANIFEST, []).map((volume) => volume.kind)).toEqual([
       'INTERIOR',
       'INTERIOR',
+      // LAI-2201: the seven walk-in zones (bridge, forest, castle, mountain, fossil ridge,
+      // Bolt's workshop, tide pool).
+      ...Array<string>(7).fill('ZONE'),
     ]);
   });
 });
