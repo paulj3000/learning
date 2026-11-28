@@ -97,3 +97,24 @@ def test_the_snapshot_the_frontend_reads_is_the_seed():
     assert json.loads(stages.SNAPSHOT_PATH.read_text()) == json.loads(
         json.dumps(stages.snapshot())
     ), "run `python -m apps.regions.treasure_cove_stages` from lai/"
+
+
+@pytest.mark.postgres
+@pytest.mark.django_db
+def test_every_published_cove_skill_is_a_catalog_objective(treasure):
+    """`puzzle_skill_report --strict` stays clean for the cove: every band and variant skill,
+    `position-and-direction` included, is in the imported catalog (#102)."""
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from apps.core.content_status import ContentStatus
+    from apps.education import services
+    from apps.regions.models import AreaPuzzle
+    from apps.regions.treasure_rush_seed import REGION_ID
+
+    cove = AreaPuzzle.objects.filter(region__region_id=REGION_ID)
+    assert cove.exists()
+    cove.update(status=ContentStatus.PUBLISHED)  # the report reads published puzzles only
+    assert [row for row in services.puzzle_skill_report() if row["region"] == REGION_ID] == []
+    call_command("puzzle_skill_report", "--strict", stdout=StringIO())
