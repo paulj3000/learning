@@ -96,8 +96,16 @@ describe('manifestBindings', () => {
   });
 
   it('lists only interactions available right now', () => {
-    expect(
-      availableInteractions(WITH_GATED_ZONE, EMPTY).map((interaction) => interaction.id),
-    ).toEqual(['harbor-say-hello-to-pip']);
+    const now = availableInteractions(WITH_GATED_ZONE, EMPTY).map((interaction) => interaction.id);
+    expect(now).toContain('harbor-say-hello-to-pip');
+    // Gated interactions stay out until their requirements are met (LAI-2201 harbor hub).
+    expect(now).not.toContain('pier-boat');
+    expect(now).not.toContain('moonlight-bridge-crossing');
+    const repaired = availableInteractions(WITH_GATED_ZONE, {
+      ...EMPTY,
+      worldChangeKeys: ['BRIDGE_REPAIRED'],
+    }).map((interaction) => interaction.id);
+    expect(repaired).toContain('pier-boat');
+    expect(repaired).toContain('moonlight-bridge-crossing');
   });
 });
