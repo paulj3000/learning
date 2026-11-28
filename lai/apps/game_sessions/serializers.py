@@ -7,7 +7,10 @@ not something silently ignored.
 
 from rest_framework import serializers
 
+from apps.catalog.models import LearningObjective
 from apps.education.challenges import public_challenge
+from apps.education.models import SkillEvidence
+from apps.regions.puzzles import MAX_HINTS as MAX_PUZZLE_HINTS
 from apps.users.serializers import ChildProfileSerializer
 
 
@@ -52,9 +55,17 @@ class EmptyRequest(ClosedSerializer):
 
 
 class PuzzleSubmissionRequest(ClosedSerializer):
-    """`{submission: {...}}`. The shape inside is checked by the puzzle kind's grader."""
+    """`{submission: {...}, hintsUsed?}`. The shape inside is checked by the puzzle kind's grader.
+
+    `hintsUsed` (issue #102) is how many of the band's hints the child opened before answering;
+    absent means unknown (an older client), matching `learning.answer.submitted.hintsUsed?` in
+    the gameplay event contract. It can only mark the evidence as supported; it never changes
+    correctness, rewards or XP, so a child is never paid less for asking for help."""
 
     submission = serializers.DictField()
+    hintsUsed = serializers.IntegerField(
+        min_value=0, max_value=MAX_PUZZLE_HINTS, required=False, source="hints_used"
+    )
 
 
 # --- Responses ------------------------------------------------------------------------------
@@ -602,6 +613,17 @@ def island_entry(entry) -> dict:
     }
 
 
+def _skill_practiced(attempt) -> dict | None:
+    if attempt is None:
+        return None
+    evidence = SkillEvidence.objects.filter(puzzle_attempt=attempt).first()
+    if evidence is None:
+        return None
+    code = evidence.learning_objective_code
+    title = LearningObjective.objects.filter(code=code).values_list("title", flat=True).first()
+    return {"code": code, "title": title or code}
+
+
 class PuzzleOutcomeSerializer(serializers.Serializer):
     """The answer to a puzzle submission (LAI-0812). A code for feedback, never copy."""
 
@@ -616,6 +638,10 @@ class PuzzleOutcomeSerializer(serializers.Serializer):
             "alreadySolved": outcome.already_solved,
             "practice": outcome.practice,
             "failedAttempts": outcome.failed_attempts,
+            # Issue #102: the skill this attempt was evidence for, for the puzzle panel's result
+            # step ("You practised sorting"). None for an accomplishment with no skill, and for
+            # practice replay, which records nothing. Support level stays a parent-only view.
+            "skillPracticed": _skill_practiced(outcome.attempt),
             "newItems": [
                 item for item in self.context.get("items", []) if item["itemId"] in new_items
             ],

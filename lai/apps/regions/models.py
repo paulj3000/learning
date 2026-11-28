@@ -523,6 +523,9 @@ class PuzzleKind(models.TextChoices):
     RETURN_TO_NPC = "RETURN_TO_NPC", "Return to a character"
     CHOOSE_ANSWER = "CHOOSE_ANSWER", "Choose the answer (one of a few options)"
     ORDER_SEQUENCE = "ORDER_SEQUENCE", "Put in order (a sequence of items)"
+    NAVIGATE_ROUTE = "NAVIGATE_ROUTE", "Navigate a route (directions on a map)"
+    SORT_ITEMS = "SORT_ITEMS", "Sort items (each into its group)"
+    SHARE_ITEMS = "SHARE_ITEMS", "Share items (an amount into each container)"
 
 
 class AreaPuzzle(Authorable, models.Model):
