@@ -286,6 +286,12 @@ def test_only_the_health_route_is_public(settings):
     assert public == [
         "api/v1/health/",
         "api/v1/health/ready/",
+        # Independent child sign-in (ADR-075): no parent bearer token by design. The exchange
+        # needs a verified child-pool token; restore and end need the child's own HttpOnly
+        # cookies and a same-origin header (apps/users/tests/test_child_sign_in.py).
+        "api/v1/child-auth/session/",
+        "api/v1/child-auth/session/restore/",
+        "api/v1/child-auth/session/end/",
         "api/v1/asset-files/<str:token>/<str:filename>",
         "api/v1/speech-files/<str:token>/speech.mp3",
         # Browsers request /favicon.ico on any page without an icon link (Trello IIGt0JWT); it

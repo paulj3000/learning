@@ -301,12 +301,26 @@ def test_no_sensitive_endpoints_exist_yet():
         "health/",
         "health/ready/",  # readiness probe (ADR-037): fixed words only, no data
     ]
+    # Independent child sign-in (ADR-075) adds `child-auth/` (the child's own routes: a child-pool
+    # token or the child cookies, never a parent bearer token), `sign-in/` and
+    # `consents/child-sign-in/` (parent management; test_child_sign_in.py).
     assert sorted(str(p.pattern) for p in urls.urlpatterns[1].url_patterns) == [
+        "child-auth/session/",
+        "child-auth/session/end/",
+        "child-auth/session/restore/",
         "children/",
         "children/<uuid:child_id>/",
         "children/<uuid:child_id>/companion/",
+        "children/<uuid:child_id>/consents/child-sign-in/",
         "children/<uuid:child_id>/photo/",
         "children/<uuid:child_id>/photo/content/",
+        "children/<uuid:child_id>/sign-in/",
+        "children/<uuid:child_id>/sign-in/devices/",
+        "children/<uuid:child_id>/sign-in/devices/<uuid:device_id>/",
+        "children/<uuid:child_id>/sign-in/password/",
+        "children/<uuid:child_id>/sign-in/resume/",
+        "children/<uuid:child_id>/sign-in/sign-out-everywhere/",
+        "children/<uuid:child_id>/sign-in/suspend/",
         "me/",
     ]
 
