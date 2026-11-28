@@ -134,7 +134,7 @@ describe("Dragon's Sanctuary manifest", () => {
 
 describe("Dragon's Sanctuary egg, harbor exit and unlock guard (LAI-2205)", () => {
   it.each(['dragons-sanctuary-egg', 'dragons-sanctuary-harbor-exit'])(
-    'carries Phaser\'s %s with the same action and requirements',
+    "carries Phaser's %s with the same action and requirements",
     (id) => {
       const three = MANIFEST.interactions.find((interaction) => interaction.id === id);
       const phaser = DRAGONS_SANCTUARY_INTERACTIONS.find((interaction) => interaction.id === id);
