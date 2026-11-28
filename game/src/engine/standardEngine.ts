@@ -179,7 +179,7 @@ function toInput(input: StandardInput | MovementInputSource): StandardInput {
 
 /**
  * Creates, starts and wires a standard engine. Rejects (and disposes) when the requests are
- * invalid. The returned runtime is `running`; the host drives it with `runtime.tick(seconds)`.
+ * invalid, and rejects when the runtime is disposed during setup. The returned runtime is `running`; the host drives it with `runtime.tick(seconds)`.
  */
 export async function createStandardEngine(
   options: StandardEngineOptions,
@@ -213,8 +213,10 @@ export async function createStandardEngine(
     handle = wireStandardGameplay(rt, { ...options, physics, settings });
     await options.setup?.(handle);
   });
-  if (!handle) {
-    // A dispose during start wins (the runtime is already disposed).
+  // A dispose during start wins (GE-L12): the runtime is already disposed and its resources are
+  // released, so the caller gets a rejection, never a handle to a dead runtime. `runtime.start`
+  // resolves normally after a dispose during setup, so `handle` may be set here.
+  if (!handle || runtime.state === 'disposed') {
     throw new Error(`Engine "${options.id}" was disposed while starting`);
   }
   return handle;

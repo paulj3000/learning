@@ -4,8 +4,10 @@ import {
   JUMP_LIMIT_RANGES,
   defaultMovementProfile,
   isAgeBand,
+  movementSpecForProfile,
   resolveProfile,
 } from './profiles';
+import { validateMovementSpec } from '../movement/jumpConfiguration';
 
 describe('band profiles', () => {
   it.each(AGE_BANDS)('%s defaults sit inside the jumping standard limits', (band) => {
@@ -124,5 +126,39 @@ describe('band profiles', () => {
   it('knows age bands', () => {
     expect(isAgeBand('SPROUT')).toBe(true);
     expect(isAgeBand('sprouts')).toBe(false);
+  });
+});
+
+describe('movementSpecForProfile (LAI-2104S groundwork)', () => {
+  it.each(AGE_BANDS)('%s maps to a movement spec the controller validator accepts', (band) => {
+    const spec = movementSpecForProfile(resolveProfile(band));
+    expect(validateMovementSpec(spec)).toEqual([]);
+    expect(spec.jump).toEqual(defaultMovementProfile(band).jump);
+    expect(spec.locomotion?.walkSpeed).toBe(defaultMovementProfile(band).walkSpeed);
+  });
+
+  it('never makes running or sprinting slower than walking', () => {
+    const spec = movementSpecForProfile(resolveProfile('EXPLORER', { movement: { walkSpeed: 6 } }));
+    expect(spec.locomotion).toEqual({ walkSpeed: 6, runSpeed: 6, sprintSpeed: 6.5 });
+  });
+
+  it('keeps what resolveProfile clamped clamped', () => {
+    const resolved = resolveProfile('SPROUT', { movement: { walkSpeed: 99 } });
+    expect(resolved.issues.map((issue) => issue.path)).toContain('movement.walkSpeed');
+    const spec = movementSpecForProfile(resolved);
+    expect(spec.locomotion?.walkSpeed).toBe(resolved.movement.walkSpeed);
+    expect(validateMovementSpec(spec)).toEqual([]);
+  });
+
+  it('does not carry guided steering, which waits on owner decision O6', () => {
+    const spec = movementSpecForProfile(resolveProfile('SPROUT'));
+    expect(Object.keys(spec).sort()).toEqual(['jump', 'locomotion']);
+  });
+
+  it('returns a copy, so changing the spec never changes the profile', () => {
+    const resolved = resolveProfile('PATHFINDER');
+    const spec = movementSpecForProfile(resolved);
+    spec.jump!.jumpHeight = 0;
+    expect(resolved.movement.jump.jumpHeight).toBe(1.0);
   });
 });

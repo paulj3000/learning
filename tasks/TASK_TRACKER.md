@@ -193,15 +193,18 @@ Deferred and excluded (not reactivated by this plan):
 
 ## Phase 20 — Engine discovery and architecture (docs only)
 
+> Track B status, the 27% completion measure, the eight-world parity matrix and the Phase 2
+> task list: `docs/engineering/game-engine/phaser-retirement-audit.md` (LAI 04, 2026-11-27).
+
 - [ ] **LAI-2001** Phaser experience inventory (verify and complete the 8-world inventory) (depends: none)
 - [ ] **LAI-2002** Existing Three.js capability assessment (depends: none)
 - [ ] **LAI-2003** Shared engine architecture (APPROVAL) (depends: 2001, 2002)
 
 ## Phase 21 — Engine extraction into `game/`
 
-- [ ] **LAI-2101** `game/` package skeleton and boundary guard (depends: 0201, 2003)
-- [ ] **LAI-2102** Extract pure engine modules (depends: 2101)
-- [ ] **LAI-2103** Shared scene lifecycle and world loading (depends: 2102)
+- [x] **LAI-2101** `game/` package skeleton and boundary guard (depends: 0201, 2003). DONE as GE-002 (`f10e3a1e`, `0b4c68c3`): npm workspace `@lai/game-engine` in `game/`, deny-by-default guard `game/src/boundary.test.ts`; on `main`, Engine 1.0 owner-accepted 2026-11-22 (GE-090). Reconciled 2026-11-27 (LAI 04); LAI-2003's formal APPROVAL of the build wiring is still listed open on GE-001
+- [x] **LAI-2102** Extract pure engine modules (depends: 2101). DONE as GE-020 to GE-028 (movement, `c8385700`, `3f9fc423`), GE-030 to GE-034 (camera, animation, character, `aa502cb8`, `1ad00461`) and GE-S1 (last 8 re-export shims removed, PR #57); on `main`. Not pure, so not part of this task: the live location runtime (`createLocationEngine`, `platformSystem`, `atmosphere`, `playerAvatar`), tracked as GE-076 items 3 to 7. Reconciled 2026-11-27 (LAI 04)
+- [~] **LAI-2103** Shared scene lifecycle and world loading (depends: 2102). IN_PROGRESS. Built on `main`: GE-003 core runtime (`f10e3a1e`), GE-050 to GE-056 Realm and Adventure SDK and lifecycle, GE-075 every 3D location declared as validated engine data (`dab68c00`). Not done: the runtime swap. Live play still loads through `createLocationEngine` and `createStandardEngine` has no production consumer (GE-076 item 7). Reconciled 2026-11-27 (LAI 04)
 - [ ] **LAI-2104** Player controls and interaction standardisation (depends: 2103)
 - [ ] **LAI-2105** Performance harness and budgets (depends: 2103)
 - [x] **LAI-2106** Asset loader reliability: skeleton-safe cloning, failed-load eviction, load events (depends: none; in place, before 2102). DONE locally: jsdom-verified; no browser or WebGL run

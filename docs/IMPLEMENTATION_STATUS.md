@@ -37,6 +37,32 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI 04 Phaser retirement audit, Phase 2 (2026-11-27, `feature/threejs-phaser-retirement`, `main` `41ee7320`)
+
+- Audit and plan: `docs/engineering/game-engine/phaser-retirement-audit.md`. Migration measured at
+  27% (13 of 48 per-world gates). Seven Phaser routes still mount; 10 files import `phaser`.
+  Welcome Harbor's 3D region has none of the 12 Phaser harbor interactions; two discoveries
+  (`harbor-tide-pool`, `harbor-keepers-door`) and Bolt's `metBolt` quest flag are granted only in
+  Phaser; every 3D exit to "the harbor" lands in the Phaser harbor. Fossil Ridge Camp and Bolt's
+  Workshop have no Three.js region. Nothing was removed.
+- Ratchet: `react/src/test/phaserRetirement.test.ts` pins the Phaser importers, the
+  Phaser-mounting routes and each world's replacement, and keeps Phaser-only modules out of
+  Three.js code.
+- Engine fixes: GE-L12 (`createStandardEngine` rejects when disposed during setup) and GE-L13
+  (checkpoint recovery never moves backwards within a course).
+- LAI-2301R: `react/src/test/phaserParity.test.ts` checks the six converted worlds against their
+  Phaser tables (id, action, requirements) and world changes; remaining gaps are listed by ticket
+  and may only shrink. Measure now 35% (17 of 48 gates).
+- Sprouts groundwork independent of O6: `movementSpecForProfile` in `game/src/sdk/profiles.ts`
+  (not wired). O6 options in the audit section 10; LAI-2104S waits for the owner.
+- Owners recorded (owner, 2026-11-27): LAI 04 LAI-2201, LAI-2205, GE-077; LAI 01 Pirate Builder
+  Bay; LAI 03 Wonderwild Forest and Fossil Ridge Camp; Bolt's Workshop unowned until MVP
+  acceptance. `tasks/TASK_TRACKER.md` LAI-2101 to 2103 reconciled with GE-002 to GE-075.
+- Tests: `phaserRetirement` 8 and `phaserParity` 20 passed; `game/` 714 passed; React
+  `features/game-engine` 134 passed; `npm run typecheck` clean. Deferred: full suites, lint,
+  format, browser, Playwright.
+- Not owner accepted. No Phaser removal is authorized; LAI-2303 and LAI-2304 stay owner gates.
+
 ## LAI-07 asset intake checklist: one sourcing list for missing audio and models (2026-11-27, `docs/asset-intake-checklist`, `main` `d812ad71`)
 
 Docs only; no code, seed or asset changed. Trello #244, #246, #247.

@@ -265,13 +265,16 @@ describe('standard engine disposal', () => {
       expect(counts(captured)).toEqual(ZERO);
     });
 
-    it('settles (an already-disposed handle or a rejection), never hangs and never yields a live handle', async () => {
-      const { result } = await disposeDuringSetup(fakeView());
-      if (result.ok) {
-        expect(result.h.runtime.state).toBe('disposed');
-      } else {
+    it('rejects (GE-L12): never hangs and never resolves with a handle, live or disposed', async () => {
+      const { captured, result } = await disposeDuringSetup(fakeView());
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
         expect(result.e).toBeInstanceOf(Error);
+        expect((result.e as Error).message).toBe(
+          'Engine "dispose-during-start" was disposed while starting',
+        );
       }
+      expect(captured.state).toBe('disposed');
     });
   });
 });
