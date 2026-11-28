@@ -50,7 +50,7 @@ stones, torches). Collecting a coin or answering a counting question is never th
 
 | Stage | Sprouts (3 to 4) | Pathfinders (5 to 6) | Explorers (7 to 8) | Skill evidence |
 |---|---|---|---|---|
-| 1 Map (sign) | Match the star on the map to the star on a sign; find the palm trees | Read a landmark clue; "the sun goes down in the west"; rule out places | Multi-part directions; compass (north-west); three-clue elimination | `observation`, `following-instructions`, `reading-comprehension` |
+| 1 Map (sign) | Match the star on the map to the star on a sign; find the palm trees | Read a landmark clue; "the sun goes down in the west"; rule out places | Multi-part directions; compass (north-west); three-clue elimination | `observation`, `position-and-direction`, `following-instructions`, `reading-comprehension` |
 | 2 Creek | Count 1, 2, 3 dots; order by size (small, middle, big fish) | Order numbers; count by twos; count back | Add 3 each time; order two-digit numbers; count back by 5; doubling | `counting-sets`, `comparing-lengths`, `comparing-and-ordering-numbers`, `patterns` |
 | 3 Dock | Find the crate with 3; the most fish; which has food | Share 6 equally between 2; 4 + 3; what is missing from 8; only fruit | Balance 9 against 5; share 12 among 3; 3 barrels of 4; tools, not food | `number-recognition`, `counting-sets`, `classification`, `equal-sharing`, `addition-within-ten`, `subtraction-within-ten`, `multiplication-facts` |
 | 4 Cave | Press in order of dots; most to fewest | The same, plus "the moon goes first, then fewest to most" | Two-step riddles; "the star is last and the moon is not first" | `observation`, `reading-comprehension` |

@@ -19,7 +19,7 @@ from .test_puzzles import PLATFORMS, VALVES, puzzle_body, session_for, solve
 ROUTE = {
     "presentation": "MAP",
     "subject": "MATHEMATICS",
-    "skill": "following-instructions",
+    "skill": "position-and-direction",
     "variants": [
         {
             "id": "v1",
@@ -283,7 +283,7 @@ class TestGraders:
 class TestSkills:
     def test_new_kinds_name_the_band_or_variant_skill(self):
         assert puzzles.skill_for(PuzzleKind.NAVIGATE_ROUTE, ROUTE, RIGHT_ROUTE) == (
-            "following-instructions"
+            "position-and-direction"
         )
         assert (
             puzzles.skill_for(PuzzleKind.NAVIGATE_ROUTE, ROUTE, {"variantId": "v2", "moves": []})
@@ -364,7 +364,7 @@ def interactive(treasure):
 
 
 CASES = [
-    ("navigate-route", RIGHT_ROUTE, WRONG_ROUTE, "following-instructions"),
+    ("navigate-route", RIGHT_ROUTE, WRONG_ROUTE, "position-and-direction"),
     ("sort-items", RIGHT_SORT, WRONG_SORT, "classification"),
     ("share-items", RIGHT_SHARE, WRONG_SHARE, "equal-sharing"),
 ]

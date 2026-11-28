@@ -164,7 +164,7 @@ describe('preservation of the existing content', () => {
       islands: 3, // + North Pole
       locations: 13, // + Heart of Firepeak
       adventures: 29, // + the Writing Room's three per-band stories (SC-final-B)
-      learningObjectives: 32, // + 12 for Area puzzle skills (FPV-D10)
+      learningObjectives: 33, // + 12 for Area puzzle skills (FPV-D10) + position-and-direction (#102)
       wonderWallQuestions: 4,
       stories: 5,
       quests: 24, // 9 + the three Great Storybook quests (SC-R04) + the Pathfinder follow-up + Pirate's Leap (LAI-JMP-03) + Firepeak and North Pole

@@ -89,8 +89,8 @@ Status: Development Complete; merged to `main` on the owner's direct instruction
 
 ## LAI-06 #102 interactive learning scoring (2026-11-26, `feature/interactive-learning-scoring`, base `41ee7320`)
 
-Status: **Development Complete on its branch**, not merged, not owner-accepted (GitHub #102, Trello
-#258). Design and compatibility notes: [scoring/INTERACTIVE_LEARNING.md](scoring/INTERACTIVE_LEARNING.md).
+Status: **merged to `main`** by the owner as `1e4d5e40` (PR #111, 2026-11-28), not owner-accepted
+(GitHub #102, Trello #258). Design and compatibility notes: [scoring/INTERACTIVE_LEARNING.md](scoring/INTERACTIVE_LEARNING.md).
 
 - Three new graded 3D Area puzzle kinds reuse the AreaPuzzle, PuzzleAttempt, SkillEvidence and
   mastery pipeline: `NAVIGATE_ROUTE` (directions on a grid map, BFS-checked route), `SORT_ITEMS`
@@ -114,9 +114,18 @@ Status: **Development Complete on its branch**, not merged, not owner-accepted (
   `game_sessions`, `education`, `scoring`, `quests`, `inventory` and `progression`: 1846 passed,
   2 skipped, 0 failed.
 - Deferred to merge readiness: full lint and format, full suites, browser and Playwright checks.
-- Owner decisions open: a new `position-and-direction` objective (interim
-  `following-instructions`); LAI 04's optional `hintsUsed` gameplay-event field; 3D scenes for the
-  new kinds (a separate LAI 01 and LAI 04 ticket).
+- Owner decisions (2026-11-27), all made:
+  - The new `position-and-direction` objective, "Using directions and positions on a map"
+    (numeracy), was meant for #111. #111 merged before it was pushed, so it is a follow-up
+    branch, `feature/position-and-direction-objective`: `learningObjectives.ts`, the content
+    export (33 objectives) and the count test. `NAVIGATE_ROUTE` and the cove map's compass clues (`cove-treasure-map` p2, e1, e2,
+    e4) name it. The snapshot `treasure_cove_stages.json` is regenerated.
+  - LAI 04's optional `hintsUsed` event field is PR #114, with Django's validator in lockstep. The
+    host wiring is LAI 06's follow-up PR, after this one.
+  - The 3D scenes for the new kinds are #112 (Trello #260, LAI 01 and LAI 04).
+  - The two migrations are approved.
+- `main` `e13e03bd` (#109) was merged into #111 with a merge commit (`68de9cd5`). The only
+  conflict was this file, and both sides' entries are kept.
 
 ## LAI-01 Treasure Rush gameplay redesign (#102, Trello #258; 2026-11-26, `feature/treasure-rush-gameplay-redesign`, `main` `41ee7320`, merged `d812ad71` 2026-11-27)
 

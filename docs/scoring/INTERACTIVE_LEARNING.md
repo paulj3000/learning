@@ -72,10 +72,11 @@ mathematics mastery.
   capped at the band's hint count, and null means not counted.
 - LAI 04 agreed an additive optional v1 event field,
   `learning.answer.submitted.hintsUsed?: number`, where absent means unknown. Golden vectors:
-  valid with 0, with 2 and with the field absent; invalid with -1, 1.5, "2" and null. It is
-  LAI 04's change to make, once the owner gives them the go-ahead, and Django's
-  `engine_events.py` and the golden file follow in lockstep against that SHA. **Not on this
-  branch**: the solve route field does not depend on it.
+  valid with 0, with 2 and with the field absent; invalid with -1, 1.5, "2" and null. The owner
+  approved it on 2026-11-27. It is LAI 04's PR #114, which carries the engine type, the golden
+  file and Django's `engine_events.py` validator together, because the parity test needs all
+  three. **Not on this branch**: the solve route field does not depend on it. Connecting the host's
+  hint count to the solve request is LAI 06's follow-up PR, after this one.
 - The value is reported by the client, like the chest's `hintLevel`. It can only mark evidence as
   supported, so a client that under-reports gains independent credit and nothing else: no reward,
   XP or world change depends on it.
@@ -162,17 +163,17 @@ clean for them:
 
 | Stage | Mechanic | Objectives |
 |---|---|---|
-| Pirate Landing | waymarker route (`CHOOSE_ANSWER` `PATHS`, later `NAVIGATE_ROUTE`) | `observation`, `following-instructions` |
+| Pirate Landing | waymarker route (`CHOOSE_ANSWER` `PATHS`, later `NAVIGATE_ROUTE`) | `observation`, `position-and-direction` (compass clues), `following-instructions` (elimination), `reading-comprehension` |
 | Crocodile Creek | stepping stones in number or pattern order | `counting-sets`, `comparing-and-ordering-numbers`, `patterns` |
 | Supply Dock | cargo crates (later `SORT_ITEMS`, `SHARE_ITEMS`) | `counting-sets`, `equal-sharing`, `addition-within-ten`, later `classification` |
 | Forgotten Cave | rune order from symbols or a riddle | `observation`, `reading-comprehension`, `patterns` |
 | Finale | torches in journey order | `sequencing` |
 
-**Known partial match (owner decision needed).** No objective covers positions and directions.
-LAI 03 recommends adding `position-and-direction`, "Using directions and positions on a map", in
-the geometry domain, because a grid route of N, E, S and W moves around obstacles is spatial
-reasoning. Until the owner approves that code, routes map to `following-instructions`, which LAI
-03 accepts as an interim partial match: it covers the ordered-steps half only, as FPV-D10 did
-with `cause-and-effect`. Adding the code is a curriculum change in three places
-(`learningObjectives.ts`, the content export and the `contentExport` count test). It is not on
-this branch.
+**Position and direction (owner-approved 2026-11-27).** `position-and-direction`, "Using
+directions and positions on a map", is in the catalog (numeracy, next to `shapes-and-geometry`).
+A grid route of N, E, S and W moves around obstacles is spatial reasoning, so `NAVIGATE_ROUTE`
+names it. The cove map's compass variants name it too (Pathfinder p2; Explorer e1, e2 and e4).
+Landmark matching stays `observation`, and "not by the sand, not by the stones" (p3) stays
+`following-instructions`. The objective reaches Django through the content export and
+`manage.py load_content`, like every catalog objective, so an environment that has not loaded
+the new export logs a solve under it as an unmapped code rather than recording evidence.
