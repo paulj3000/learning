@@ -94,7 +94,7 @@ test.describe.serial('Realm Explorer (AP-03)', () => {
       const nav = await page.getByRole('navigation', { name: 'Island' }).boundingBox();
       const banner = await page.getByRole('banner').boundingBox();
       const hero = await page
-        .getByRole('heading', { level: 1, name: 'Realm Explorer' })
+        .getByRole('heading', { level: 1, name: 'Explore the Realms' })
         .boundingBox();
       expect(nav && banner && hero).toBeTruthy();
       if (nav && banner && hero) {
