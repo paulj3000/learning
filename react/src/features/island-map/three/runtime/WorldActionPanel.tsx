@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import styles from '../../IslandWorldView.module.css';
+import styles from '../../WorldView.module.css';
 import { DiscoveryAction } from '../../DiscoveryAction';
 import { NpcConversation } from '../../NpcConversation';
 import type { WorldAction, WorldInteraction } from '../../worldObjects';

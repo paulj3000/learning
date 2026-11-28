@@ -37,6 +37,19 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI 04 R7: the shared world-view stylesheet gets a neutral name (2026-11-28, `feature/GE-R7-neutral-world-stylesheet`, on `feature/threejs-phaser-retirement` `fd3d3974`)
+
+- `react/src/features/island-map/IslandWorldView.module.css` (named after the Phaser harbor view)
+  is renamed `WorldView.module.css`. All 17 importers (8 Phaser views, 9 Three.js modules) and
+  `childNavInsets.test.ts` are updated; no rule changed.
+- Ratchet: `phaserRetirement.test.ts` now treats a stylesheet named after a Phaser view as
+  Phaser-only, so Three.js code importing one fails the Phaser-only-module check. The shrink-only
+  importer list is gone (empty). Mutation check: pointing `WorldActionPanel.tsx` back at
+  `IslandWorldView.module.css` fails that test.
+- Tests: `phaserRetirement` 7, `childNavInsets` and every `features/island-map/three` test:
+  194 files, 2404 passed; `npm run typecheck` clean. Deferred: full suites, lint, browser.
+- Not owner accepted.
+
 ## LAI 04 Phaser retirement audit, Phase 2 (2026-11-27, `feature/threejs-phaser-retirement`, `main` `41ee7320`)
 
 - Audit and plan: `docs/engineering/game-engine/phaser-retirement-audit.md`. Migration measured at

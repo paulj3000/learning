@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import styles from '../../../IslandWorldView.module.css';
+import styles from '../../../WorldView.module.css';
 
 /**
  * What a castle story panel shows before its session is ready (SC-R12 child-facing states): a

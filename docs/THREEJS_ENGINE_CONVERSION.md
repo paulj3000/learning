@@ -94,9 +94,9 @@ not, but that is unconfirmed). Do not infer progression rules from this table.
 ### 2.4 Phaser coupling that removal must handle
 
 - Ten files import `phaser`. Deleting them is mechanical; the risk is shared files.
-- `three/PirateBuilderBayWorldView.tsx`, `WelcomeHarborWorldView.tsx` and
-  `ThreeSandboxWorldView.tsx` import `../IslandWorldView.module.css`. That stylesheet must be
-  moved to a neutral name **before** `IslandWorldView.tsx` is deleted.
+- The shared world-view stylesheet was `IslandWorldView.module.css`, named after the Phaser
+  harbor view. R7 renamed it to `WorldView.module.css` (2026-11-28), so deleting
+  `IslandWorldView.tsx` no longer touches the Three.js views that use it.
 - The 3D views import `../worldObjects` (shared interaction tables), `../DiscoveryAction`,
   `../NpcConversation`, `../useExplorableWorld`. These are shared and survive.
 - The 3D code does **not** import the 2D `tilemap`, `*Zones`, or `*Decor` modules [repo], so
@@ -279,7 +279,7 @@ says so.
 | R4 | `game/` extraction touches many import paths; engine imports feature data | Do extraction after LAI-0201 (once), move files without behaviour change, invert the checkpoint import, keep tests green per step |
 | R5 | `game/` outside `react/` needs a build story (workspace or path alias) and a place for the `three` dependency | LAI-2003 decides and records it; any new tooling is a recorded decision, not a silent dependency |
 | R6 | (Deferred by the owner.) Owner's diagram says "multiplayer-ready sessions". Today co-op is two children sharing adventure state, not shared 3D presence (assessment section 9). Real-time shared worlds would conflict with CLAUDE.md section 12 unless approved | `networking/` is **not** built. The engine only keeps state serialisable and ID-keyed. Any shared-space feature needs its own approved ADR |
-| R7 | Shared CSS and components used by both stacks (`IslandWorldView.module.css`) | Relocate before deletion (section 2.4) |
+| R7 | Shared CSS and components used by both stacks (`IslandWorldView.module.css`) | Done 2026-11-28: renamed to `WorldView.module.css` (section 2.4) |
 | R8 | Content drift while the same gameplay exists twice | Interaction tables stay single-source in `worldObjects.ts`; both renderers read them; no new Phaser features (ADR-020) |
 | R9 | Python port of rules (Migration A) and engine extraction (Migration B) both move `src/` | Sequence: LAI-0201 first, then game extraction; never in one task (section 9) |
 | R10 | Art cost: stylised 3D characters and props for five new worlds | Procedural asset generator and kit conventions exist; third-party kit decision stays deferred per the Castle roadmap |

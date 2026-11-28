@@ -4,7 +4,7 @@ import { worldSignal } from '../platforms/platformSystem';
 import { manifestForBand } from './manifestForBand';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import styles from '../../IslandWorldView.module.css';
+import styles from '../../WorldView.module.css';
 import { ThreeGameContainer } from '../ThreeGameContainer';
 import { WorldStage } from '../WorldStage';
 import { GameplayMenus, type GameplayMenu } from '../GameplayMenus';

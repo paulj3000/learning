@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styles from '../../../IslandWorldView.module.css';
+import styles from '../../../WorldView.module.css';
 import { listAllWorldChanges, resumeOrStartSession } from '../../../../adventures/api';
 import { getAdventureTemplate } from '../../../../adventures/content';
 import { adventureStartErrorMessage } from '../../../../catalog/availabilityApi';

@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import styles from '../IslandWorldView.module.css';
+import styles from '../WorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
 import { WorldStage } from './WorldStage';
 import { GameplayMenus } from './GameplayMenus';
