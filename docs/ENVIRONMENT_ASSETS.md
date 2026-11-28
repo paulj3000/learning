@@ -7,8 +7,8 @@ takes effect with PR #116. LAI 07 wrote it on 2026-11-27, on branch
 2026-11-28).
 
 - The owner decided D-1 to D-4 on 2026-11-28 (section 9). The design is approved.
-- The ADR number 074 is reserved by registry-only PR #117. The draft decision text is in section
-  13; its final text is written once LAI 04 agrees the interface.
+- The decision is ADR-074 (`docs/DECISIONS.md`). Its number was reserved by PR #117, which the
+  owner merged on 2026-11-28.
 - The Django side (sections 3 to 7) is implemented on this branch. It is not merged.
 - The runtime side belongs to LAI 04. Nothing in `react/` or `game/` was changed.
 - The interface is agreed (section 8). Any change to it now needs both owners and a new schema
@@ -462,51 +462,6 @@ check. It is not started; it waits for #116 to merge and for the owner to schedu
 Every file needs a confirmed licence that ADR-028 allows, before it is published. None is
 sourced yet. Treasure Rush gameplay and layouts are not changed by this work.
 
-## 13. Decision record, final text (number 074, reserved by PR #117)
+## 13. Decision record
 
-This is the final text, written after LAI 04 agreed the interface on 2026-11-28. It uses the
-placeholder `ADR-NNN` because the registry check refuses a number until its reservation is on
-`main`. Once the owner merges PR #117, this text moves into `docs/DECISIONS.md` as ADR 074, and
-its registry row replaces the `Reserved` one. That move is a commit on this branch; `main` is
-never edited directly.
-
-```text
-## ADR-NNN: Environmental image assets and materials in the Asset Library
-
-Status: Proposed for acceptance (design approved by the owner, D-1, 2026-11-28; interface
-agreed by LAI 07 and LAI 04 on 2026-11-28, Trello #273). Accepted when the owner merges it.
-
-Context. Realms need image-based environment detail (surfaces, sprites, decals, skies,
-particles) and reusable materials, not a model for every detail. The Asset Library already
-stores, validates, versions, delivers and protects image files; ADR-047 already versions
-authored JSON; ADR-068 already converts images off the web server.
-
-Decision.
-1. Images stay ContentAsset + AssetVersion (kinds texture, sprite, image). How an image is drawn
-   is an ImageProfile (asset default plus optional per-version override, the CollisionProfile
-   pattern): role, colour space, alpha, sampling, sprite/decal/particle sizing, sheets, sky
-   layout, and normal convention (OpenGL only). Profiles never produce collision. Image space
-   has its origin at the top left; the default sprite anchor is [0.5, 1.0].
-2. A material is a ContentAsset of kind material that holds no file, with an ADR-047
-   authorable MaterialDefinition (kind "material") whose published body names texture asset
-   ids by slot (glTF and Three.js channels: occlusion R, roughness G, metalness B, opacity G)
-   plus factors and UV defaults. A material's cache key covers its body only; each map is
-   cached by its own image key.
-3. Delivery is additive to the child-scoped resolver (contract env-assets/1): image entries
-   gain media.hasAlpha, media.colourModel and a render block; material entries inline their
-   maps' image entries. Colour images are sRGB; data maps are linear and never colour-managed
-   (the runtime uses NoColorSpace for them).
-4. Scenes reference these by ids under keys ending in AssetId / AssetIds, so the existing
-   regions dependency provider protects them (bare assetId keys too); the region catalog marks a
-   material deliverable once published; a new authoritative materials provider protects
-   textures used by published materials and reports the 3D Areas reached through them.
-5. New environmental assets need a verified, permitted licence (CC0-1.0, original,
-   proprietary; attribution licences barred by ADR-028) before published content uses them;
-   existing images are unaffected.
-6. No new storage prefix, IAM grant, dependency or runtime-specific type; KTX2 for standalone
-   images waits for ADR-070's gates.
-
-Consequences. One catalog, one storage path and one versioning model serve every asset family;
-runtimes (Three.js now, a possible Unity adapter later) read the same plain-unit answer. LAI 04
-owns rendering, scene fields and the client parser for material entries.
-```
+ADR-074 in `docs/DECISIONS.md`, after the number was reserved by PR #117 (merged 2026-11-28).

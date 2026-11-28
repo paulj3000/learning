@@ -42,8 +42,7 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 - 2026-11-28:
   - The owner approved D-1 to D-4. The D-3 licence gate applies to environmental images and
     materials only (`licences.py`); the legacy follow-up is Trello #283.
-  - ADR number 074 is reserved by PR #117. The final decision text is in ENVIRONMENT_ASSETS.md
-    section 13, under a placeholder number until #117 merges.
+  - ADR-074 records the decision (number reserved by PR #117, which the owner merged).
   - LAI 04 agreed the contract on Trello #273, with amendments A1 to A4 applied.
   - `region_catalog` treats published materials as deliverable.
 

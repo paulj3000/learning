@@ -97,7 +97,7 @@ This file is the single authoritative ADR log. The registry below lists every id
 | ADR-071 | Compatibility-gated processing release and production processing infrastructure as code (no deployment) | Accepted (owner, 2026-11-18) for RELEASE and PRODUCTION (code only) | `feature/serverless-processing-completion` (not merged; owner-review PRs), LAI-LAMBDA-012 | Body: `docs/processing/adr/ADR-071-processing-release-and-production.md`. Open: O1 to O14 incl. every deployment, budget amount, concurrency, Lambda Insights |
 | ADR-072 | Engineering governance: CLAUDE.md and AGENTS.md are the agent entry points, docs/engineering and docs/adventures hold the standards, and multi-agent work stays owner-gated | Accepted | `feature/engineering-standards` | Accepted 2026-11-18 |
 | ADR-073 | The Heart of Firepeak is a new Place with one seven-zone 3D Area, built from generic multi-instance puzzle kinds | Accepted (architecture; owner approval in principle 2026-11-23, effective when the owner merges `docs/adr-073-080-081-acceptance`) | `feature/firepeak-volcano-adventure` (FPV-02), on `main` since PR #44 | Renumbered from ADR-070 by owner decision 2026-11-19 (collision with the GLB optimization policy). Heading and row on `main`, so no reservation is needed. Validated against `main` `1b0a50a3` with one amendment (hazards moved to the engine bridge). Gameplay owner acceptance is separate: FPV-24, pending |
-| ADR-074 | Environmental image assets and materials in the Asset Library (contract env-assets/1) | Reserved | `feature/environmental-image-assets` (LAI 07, PR #116; Trello #273) | Owner approved the design (D-1) on 2026-11-28; the decision text lands with PR #116 after LAI 04 agrees the interface |
+| ADR-074 | Environmental image assets and materials in the Asset Library (contract env-assets/1) | Accepted (architecture; owner approval D-1 2026-11-28, interface agreed with LAI 04 2026-11-28, effective when the owner merges PR #116) | `feature/environmental-image-assets` (LAI 07, PR #116; Trello #273) | Reserved by PR #117 (merged); this row replaces the `Reserved` row. Detail and contract: `docs/ENVIRONMENT_ASSETS.md` |
 | ADR-080 | North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes | Accepted (architecture; owner approval in principle 2026-11-23, effective when the owner merges `docs/adr-073-080-081-acceptance`) | `feature/north-pole-adventure` (SEA-04), on `main` | Reserved 2026-11-18 by the engineering-governance audit. Validated against `main` `1b0a50a3` with stale text corrected (amendment). Gameplay owner acceptance is separate: SEA-04 owner QA, pending |
 | ADR-081 | Seasonal events are Django content in their own app; availability never removes progress | Accepted (architecture; owner approval in principle 2026-11-23, effective when the owner merges `docs/adr-073-080-081-acceptance`) | `feature/north-pole-adventure` (SEA-04), on `main` | Reserved 2026-11-18 by the engineering-governance audit. Validated against `main` `1b0a50a3`; the amendment records the UTC date boundary (owner decision open) and server-side gating. Gameplay owner acceptance is separate: SEA-04 owner QA, pending |
 
@@ -4806,6 +4806,56 @@ any approved behaviour:
   (FPV-D10, owned by LAI 06). Ten of Firepeak's eleven puzzle skill ids are not learning
   objectives (`docs/firepeak/CURRICULUM_AUDIT.md`).
 
+
+## ADR-074: Environmental image assets and materials in the Asset Library (contract env-assets/1)
+
+Status: Accepted (architecture). The owner approved the design (D-1) on 2026-11-28, and LAI 07 and
+LAI 04 agreed the interface on 2026-11-28 (Trello #273, amendments A1 to A4). The acceptance takes
+effect when the owner merges PR #116. Runtime rendering is LAI 04's later work (Trello #276).
+Builds on ADR-028 (asset licences), ADR-030 and ADR-035 (one asset catalog), ADR-047 (versioned
+content), ADR-064 and ADR-068 (canonical processing, the Pillow image function) and ADR-070 (KTX2
+gates). Full detail, the audit and the contract: `docs/ENVIRONMENT_ASSETS.md`.
+
+**Context.** Realms need image-based environment detail (surfaces, sprites, decals, skies,
+particles) and reusable materials, not a model for every detail. The Asset Library already
+stores, validates, versions, delivers and protects image files. ADR-047 already versions authored
+JSON. ADR-068 already converts images away from the web server.
+
+**Decision.**
+
+1. Images stay `ContentAsset` plus `AssetVersion` (kinds `texture`, `sprite`, `image`).
+   - How an image is drawn is an `ImageProfile`: an asset default plus an optional per-version
+     override, the CollisionProfile pattern.
+   - A profile holds the role, colour space, alpha, sampling, sprite, decal and particle sizing,
+     sheets, sky layout and normal convention (OpenGL only).
+   - Image space has its origin at the top left; the default sprite anchor is `[0.5, 1.0]`.
+   - Profiles never produce collision.
+2. A material is a `ContentAsset` of kind `material` that holds no file, with an ADR-047
+   authorable `MaterialDefinition` (kind `material`).
+   - Its published body names texture asset ids by slot, plus factors and UV defaults.
+   - Channels follow glTF and Three.js: occlusion R, roughness G, metalness B, opacity G.
+   - A material's cache key covers its body only; each map is cached by its own image key.
+3. Delivery is additive to the child-scoped resolver (contract `env-assets/1`).
+   - Image entries gain `media.hasAlpha`, `media.colourModel` and a `render` block.
+   - Material entries inline their maps' image entries.
+   - Colour images are sRGB. Data maps are linear and are never colour-managed (the runtime uses
+     `NoColorSpace` for them).
+4. Scenes name these by id, under keys ending in `AssetId` or `AssetIds`.
+   - The regions dependency provider protects them, bare `assetId` keys included.
+   - The region catalog marks a material deliverable once it is published.
+   - A new authoritative `materials` provider protects textures used by published materials and
+     reports the 3D Areas reached through those materials.
+5. New environmental assets need a verified, permitted licence before published content uses
+   them: CC0-1.0, original or proprietary. Attribution licences are barred by ADR-028. Images
+   without an image profile are unaffected; legacy remediation is Trello #283.
+6. No new storage prefix, IAM grant, dependency or runtime-specific type is added. Pillow stays
+   out of Django. Standalone KTX2 waits for ADR-070's gates, and the 4096 px a side and 16 Mpx
+   limits stay.
+
+**Consequences.** One catalog, one storage path and one versioning model serve every asset
+family. Runtimes (Three.js now, possibly a Unity adapter later) read the same plain-unit answer.
+LAI 04 owns rendering, the scene fields and the client parser for material entries. LAI 01 owns
+the Treasure Rush pilot.
 
 ## ADR-080: North Pole is a Realm with one Place, one large 3D Area and nine quests, gated by world changes
 
