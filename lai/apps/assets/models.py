@@ -716,6 +716,11 @@ class DataChannel(models.TextChoices):
     HEIGHT = "HEIGHT", "Height"
 
 
+class NormalConvention(models.TextChoices):
+    OPENGL = "OPENGL", "OpenGL (+Y up; required)"
+    DIRECTX = "DIRECTX", "DirectX (-Y; refused, flip the green channel)"
+
+
 class AlphaMode(models.TextChoices):
     OPAQUE = "OPAQUE", "Opaque"
     MASK = "MASK", "Cut-out (alpha below the cutoff is invisible)"
@@ -779,6 +784,14 @@ class ImageProfile(models.Model):
     data_channel = models.CharField(
         max_length=12, choices=DataChannel.choices, blank=True, help_text="Material maps only."
     )
+    normal_convention = models.CharField(
+        max_length=8,
+        choices=NormalConvention.choices,
+        blank=True,
+        help_text="Normal maps only: confirm the map is OpenGL (+Y up, green points up), which "
+        "Three.js expects. A DirectX map (green points down) is refused: flip its green channel "
+        "and upload it again.",
+    )
     alpha_mode = models.CharField(max_length=8, choices=AlphaMode.choices, default=AlphaMode.OPAQUE)
     alpha_cutoff = _optional_float("Cut-out only: 0 to 1 (default 0.5).")
     seamless = models.BooleanField(
@@ -800,7 +813,10 @@ class ImageProfile(models.Model):
         "Default height in the world, metres. Empty: from the width and the image proportions."
     )
     anchor_x = _optional_float("Pivot across the image, 0 (left) to 1 (right). Default 0.5.")
-    anchor_y = _optional_float("Pivot up the image, 0 (bottom) to 1 (top). Default 0.")
+    anchor_y = _optional_float(
+        "Pivot down the image, 0 (top) to 1 (bottom); image space has its origin at the top left "
+        "(env-assets/1 E-1). Default 1, so the default anchor [0.5, 1.0] is bottom centre."
+    )
     placement = models.CharField(max_length=12, choices=SpritePlacement.choices, blank=True)
     decal_depth_m = _optional_float("Decals: how deep the projection reaches, metres (0.25).")
     opacity = _optional_float("Decals, particles, backdrops: 0 to 1 (default 1).")

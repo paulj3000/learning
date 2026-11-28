@@ -1,6 +1,8 @@
 # Environmental image assets and materials (LAI-ENV-01 to 03)
 
-Status: **Proposed contract `env-assets/1` (draft)**. LAI 07 wrote it on 2026-11-27, on branch
+Status: **Contract `env-assets/1` agreed by LAI 07 and LAI 04 on 2026-11-28** (LAI 04's answers
+and amendments A1 to A4 are on Trello #273, and are applied here). It is not yet in effect: it
+takes effect with PR #116. LAI 07 wrote it on 2026-11-27, on branch
 `feature/environmental-image-assets` from `main` `d812ad71` (merged up to `c14392b0` on
 2026-11-28).
 
@@ -9,7 +11,8 @@ Status: **Proposed contract `env-assets/1` (draft)**. LAI 07 wrote it on 2026-11
   13; its final text is written once LAI 04 agrees the interface.
 - The Django side (sections 3 to 7) is implemented on this branch. It is not merged.
 - The runtime side belongs to LAI 04. Nothing in `react/` or `game/` was changed.
-- The contract freezes only after LAI 04 answers the decisions in section 8.
+- The interface is agreed (section 8). Any change to it now needs both owners and a new schema
+  version.
 
 Trello: parent #272 (LAI-ENV-00); #273 (01, audit and contract), #274 (02, Asset Library) and #275
 (03, optimization and delivery). Downstream cards are #276 to #282.
@@ -123,7 +126,8 @@ block and the client keeps today's behaviour.
 |---|---|---|
 | `role` | all | Section 3.1 |
 | `colour_space` | all | `SRGB` (colour) or `LINEAR` (data). `MATERIAL_MAP` must be `LINEAR`; the other roles must be `SRGB` |
-| `data_channel` | MATERIAL_MAP | `NORMAL`, `ROUGHNESS`, `METALNESS`, `OCCLUSION`, `ORM` (R occlusion, G roughness, B metalness, the glTF packing), `OPACITY`, `HEIGHT` |
+| `data_channel` | MATERIAL_MAP | `NORMAL`, `ROUGHNESS`, `METALNESS`, `OCCLUSION`, `ORM` (R occlusion, G roughness, B metalness, the glTF packing), `OPACITY` (read from G, A2), `HEIGHT` (accepted; ignored by the web runtime in v1) |
+| `normal_convention` | MATERIAL_MAP, NORMAL only | Required and must be `OPENGL` (+Y up, which Three.js expects). `DIRECTX` is refused: flip the green channel and upload again (A1). Sent as `render.normalConvention` |
 | `alpha_mode` | all | `OPAQUE`, `MASK` (cut-out at `alpha_cutoff`) or `BLEND`. `MASK` and `BLEND` need an image with alpha |
 | `alpha_cutoff` | MASK | 0 to 1, default 0.5 |
 | `seamless` | SURFACE, MATERIAL_MAP | Staff confirm the image tiles without seams |
@@ -132,13 +136,13 @@ block and the client keeps today's behaviour.
 | `repeat_u`, `repeat_v` | SURFACE, MATERIAL_MAP | Default repeat count when `metres_per_repeat` is empty |
 | `rotation_degrees` | SURFACE, MATERIAL_MAP, DECAL | Texture orientation, 0 to 359 |
 | `world_width_m`, `world_height_m` | SPRITE, DECAL, PARTICLE, BACKDROP | Default world size. One may be empty and comes from the aspect ratio (of a frame, for a sheet) |
-| `anchor_x`, `anchor_y` | SPRITE, BACKDROP | Pivot in image space, 0 to 1. The default (0.5, 0) is bottom centre, standing on the ground |
+| `anchor_x`, `anchor_y` | SPRITE, BACKDROP | Pivot in image space, origin top left, 0 to 1. The default `[0.5, 1.0]` is bottom centre, standing on the ground (E-1, E-2) |
 | `placement` | SPRITE, BACKDROP | `GROUND` (flat on the ground), `UPRIGHT` (fixed vertical card), `BILLBOARD` (faces the camera), `BILLBOARD_Y` (turns about the vertical only) |
 | `decal_depth_m` | DECAL | Projection depth into the surface. Default 0.25 |
 | `opacity` | DECAL, PARTICLE, BACKDROP | 0 to 1, default 1 |
 | `sheet_columns`, `sheet_rows`, `frame_count`, `frames_per_second`, `loop` | SPRITE, PARTICLE, DECAL | Sprite sheet. Frames run left to right, top to bottom. 1 x 1 means no sheet |
 | `blending` | PARTICLE | `NORMAL` or `ADDITIVE` |
-| `sky_layout` | SKY | `EQUIRECTANGULAR` (2:1), `CUBE_STRIP` (6:1, faces +X, -X, +Y, -Y, +Z, -Z) or `CUBE_GRID` (3:2, the same faces row by row) |
+| `sky_layout` | SKY | `EQUIRECTANGULAR` (2:1), `CUBE_STRIP` (6:1, faces left to right +X, -X, +Y, -Y, +Z, -Z) or `CUBE_GRID` (3:2: row 1 is +X, -X, +Y; row 2 is -Y, +Z, -Z; A3) |
 | `recommended_usage`, `notes` | all | Staff text, never sent to children |
 
 ### 3.3 Validation (`ImageProfile.clean`, every rule a finding staff can read)
@@ -203,6 +207,9 @@ never rewritten (published metadata is immutable).
   - `normal`, `roughness`, `metalness`, `occlusion`, `orm`, `opacity` and `height` are data and
     need `MATERIAL_MAP` with the matching `data_channel` (linear).
   - `orm` excludes separate `roughness`, `metalness` and `occlusion`.
+  - Channels follow glTF and Three.js: occlusion R, roughness G, metalness B, opacity G (A2).
+    A grey map works either way. `height` is accepted and ignored by the web runtime in v1.
+  - A normal map must be OpenGL (A1).
   - A referenced texture must be an active `texture` asset. A texture without a profile is
     accepted for `baseColor` only (it defaults to sRGB). A data slot needs a profile, so a normal
     map is never sampled as colour.
@@ -225,7 +232,7 @@ new, and existing clients ignore them.
 ```json
 "render": {
   "schema": "env-assets/1",
-  "role": "SURFACE", "colourSpace": "srgb", "dataChannel": null,
+  "role": "SURFACE", "colourSpace": "srgb", "dataChannel": null, "normalConvention": null,
   "alphaMode": "OPAQUE", "alphaCutoff": 0.5,
   "sampling": {"wrap": "REPEAT", "seamless": true, "metresPerRepeat": 1.5,
                "repeat": [1, 1], "rotationDegrees": 0},
@@ -257,6 +264,11 @@ Each block is filled only for roles that use it:
 - A material with no published revision answers `unavailable`; a retired one answers `retired`.
 - Materials have no URL. Their texture URLs carry the usual expiry, and a client re-resolves the
   material id for fresh ones.
+- **Cache (A4).** A material's `cache.key` is `material@revision`, and `immutable` covers only the
+  material body: factors, uv, alpha and which map ids fill which slots. It does not cover the
+  resolved map entries. A map's texture can get a new default version without a new material
+  revision, so the runtime caches each map by that map entry's own image `cache.key`, never by
+  the material key.
 
 **Fallbacks** (who does what):
 
@@ -295,7 +307,7 @@ scene names a material.
     resolving; nothing is unpublished.
   - Images without a profile (every existing image) publish and resolve exactly as before, and
     only warn.
-- **Legacy remediation** is a separate task (Trello card LAI-ENV-02a):
+- **Legacy remediation** is a separate task (Trello #283, LAI-ENV-02a):
   - a read-only report of image versions without verified provenance;
   - back-filling provenance as new versions (published metadata is immutable);
   - then an owner decision on enforcing the licence globally.
@@ -341,14 +353,35 @@ KTX2 stays off:
   - ADR-070's open gates closed: browser transcode, tablet acceptance and ETC1S quality.
 - Until then, WebP is the compressed delivery format for environment images (section 8, E-6).
 
-## 8. Decisions LAI 04 must agree before the contract freezes
+## 8. Interface decisions with LAI 04 (agreed 2026-11-28)
 
-| # | Question | LAI 07 proposal |
+LAI 04 agreed all ten on Trello #273 (2026-11-28), reviewing `26b69273` against the engine code
+on `main`. It made four amendments, applied in sections 3 to 5:
+
+- **A1:** normal maps must be OpenGL, and `render.normalConvention` is sent.
+- **A2:** an opacity map is read from G.
+- **A3:** the 3:2 grid's cell order is fixed.
+- **A4:** cache scope (section 5).
+
+Notes from LAI 04, recorded as part of the agreement:
+
+- **E-1:** rotation is about the texture centre. The runtime computes repeat per mesh as size /
+  `metresPerRepeat`.
+- **E-2:** the default anchor is written `[0.5, 1.0]`.
+- **E-5:** v1 decals are ground quads with polygon offset. `depthM` is used only by projected
+  decals, which come later.
+- **E-7:** bare `assetId` keys are tracked too (tested).
+- **E-10:** the client will check kind per field when materials land.
+
+The runtime loader, parser and material builder are LAI 04's, proposed as their own card. They
+are not started and wait for the owner to schedule them.
+
+| # | Question | Agreed |
 |---|---|---|
 | E-1 | Field names and units in `render` and `material` (section 5) | As written: metres, degrees, 0 to 1 anchors, image-space origin top left |
-| E-2 | Sprite placement modes and default anchor | `GROUND`, `UPRIGHT`, `BILLBOARD`, `BILLBOARD_Y`; bottom centre |
-| E-3 | Cube map layouts and face order | Equirectangular plus 6:1 strip and 3:2 grid, in the order +X, -X, +Y, -Y, +Z, -Z |
-| E-4 | Single roughness or metalness maps: which channel is read | G for roughness, B for metalness, R for occlusion (glTF). Grey images work either way |
+| E-2 | Sprite placement modes and default anchor | `GROUND`, `UPRIGHT`, `BILLBOARD`, `BILLBOARD_Y`; default anchor `[0.5, 1.0]` (bottom centre, top-left image space) |
+| E-3 | Cube map layouts and face order | Equirectangular plus 6:1 strip and 3:2 grid, in the order +X, -X, +Y, -Y, +Z, -Z. **A3:** 3:2 grid row 1 +X, -X, +Y; row 2 -Y, +Z, -Z; the strip runs left to right |
+| E-4 | Single roughness or metalness maps: which channel is read | G for roughness, B for metalness, R for occlusion (glTF). Grey images work either way. **A2:** opacity is read from G. **A1:** normal maps must be OpenGL, sent as `render.normalConvention`. Height is accepted and ignored in v1 |
 | E-5 | Decal projection (mesh decal, projected box, or a ground quad for flat ground) | Runtime choice; the library sends size, depth, opacity and rotation only |
 | E-6 | KTX2 for environment images | Not before ADR-070's gates. WebP until then |
 | E-7 | How scenes reference these (field names in `ThreeLocationManifest` and Django `scene`) | Use `...AssetId` names (`materialAssetId`, `skyAssetId`, `spriteAssetIds`), so the regions dependency provider tracks them with no change |
@@ -428,16 +461,19 @@ KTX2 stays off:
 Every file needs a confirmed licence that ADR-028 allows, before it is published. None is
 sourced yet. Treasure Rush gameplay and layouts are not changed by this work.
 
-## 13. Draft decision record (number 074 reserved by PR #117; final text after LAI 04 agrees)
+## 13. Decision record, final text (number 074, reserved by PR #117)
 
-Written with the placeholder `ADR-NNN`, because the registry check refuses a number before its
-reservation is on `main`. When PR #117 is merged and LAI 04 has answered section 8, this text
-moves into `docs/DECISIONS.md` as that ADR, with its registry row replacing the `Reserved` one.
+This is the final text, written after LAI 04 agreed the interface on 2026-11-28. It uses the
+placeholder `ADR-NNN` because the registry check refuses a number until its reservation is on
+`main`. Once the owner merges PR #117, this text moves into `docs/DECISIONS.md` as ADR 074, and
+its registry row replaces the `Reserved` one. That move is a commit on this branch; `main` is
+never edited directly.
 
 ```text
 ## ADR-NNN: Environmental image assets and materials in the Asset Library
 
-Status: Proposed (design approved by the owner, D-1, 2026-11-28; interface pending LAI 04)
+Status: Proposed for acceptance (design approved by the owner, D-1, 2026-11-28; interface
+agreed by LAI 07 and LAI 04 on 2026-11-28, Trello #273). Accepted when the owner merges it.
 
 Context. Realms need image-based environment detail (surfaces, sprites, decals, skies,
 particles) and reusable materials, not a model for every detail. The Asset Library already
@@ -448,15 +484,20 @@ Decision.
 1. Images stay ContentAsset + AssetVersion (kinds texture, sprite, image). How an image is drawn
    is an ImageProfile (asset default plus optional per-version override, the CollisionProfile
    pattern): role, colour space, alpha, sampling, sprite/decal/particle sizing, sheets, sky
-   layout. Profiles never produce collision.
+   layout, and normal convention (OpenGL only). Profiles never produce collision. Image space
+   has its origin at the top left; the default sprite anchor is [0.5, 1.0].
 2. A material is a ContentAsset of kind material that holds no file, with an ADR-047
    authorable MaterialDefinition (kind "material") whose published body names texture asset
-   ids by slot (glTF metal-rough channel conventions) plus factors and UV defaults.
+   ids by slot (glTF and Three.js channels: occlusion R, roughness G, metalness B, opacity G)
+   plus factors and UV defaults. A material's cache key covers its body only; each map is
+   cached by its own image key.
 3. Delivery is additive to the child-scoped resolver (contract env-assets/1): image entries
    gain media.hasAlpha, media.colourModel and a render block; material entries inline their
-   maps' image entries. Colour images are sRGB; data maps are linear and never colour-managed.
+   maps' image entries. Colour images are sRGB; data maps are linear and never colour-managed
+   (the runtime uses NoColorSpace for them).
 4. Scenes reference these by ids under keys ending in AssetId / AssetIds, so the existing
-   regions dependency provider protects them; a new authoritative materials provider protects
+   regions dependency provider protects them (bare assetId keys too); the region catalog marks a
+   material deliverable once published; a new authoritative materials provider protects
    textures used by published materials and reports the 3D Areas reached through them.
 5. New environmental assets need a verified, permitted licence (CC0-1.0, original,
    proprietary; attribution licences barred by ADR-028) before published content uses them;

@@ -145,6 +145,19 @@ def profile_problems(profile) -> tuple[dict[str, list[str]], list[str]]:
         error("data_channel", "Choose what the map holds (normal, roughness, ORM...).")
     if role != MATERIAL_MAP and profile.data_channel:
         error("data_channel", "Only a material map has a data channel.")
+    # LAI 04 amendment A1 (2026-11-28): Three.js expects OpenGL tangent-space normals.
+    convention = getattr(profile, "normal_convention", "")
+    if role == MATERIAL_MAP and profile.data_channel == "NORMAL":
+        if convention == "DIRECTX":
+            error(
+                "normal_convention",
+                "DirectX normal maps are not accepted: flip the green "
+                "channel to make it OpenGL (+Y up) and upload it again.",
+            )
+        elif convention != "OPENGL":
+            error("normal_convention", "Confirm that this normal map is OpenGL (+Y up).")
+    elif convention:
+        error("normal_convention", "Only a normal map has a normal convention.")
 
     version = profile_version(profile)
     if profile.alpha_mode in ("MASK", "BLEND"):
@@ -293,6 +306,8 @@ def render_block(profile, version) -> dict:
         "role": role,
         "colourSpace": profile.colour_space.lower(),
         "dataChannel": profile.data_channel or None,
+        # A1: always OPENGL for a normal map (the only convention accepted); null otherwise.
+        "normalConvention": profile.normal_convention or None,
         "alphaMode": profile.alpha_mode,
         "alphaCutoff": profile.alpha_cutoff if profile.alpha_cutoff is not None else 0.5,
         "sampling": None,
@@ -317,7 +332,7 @@ def render_block(profile, version) -> dict:
             "heightM": height,
             "anchor": [
                 profile.anchor_x if profile.anchor_x is not None else 0.5,
-                profile.anchor_y if profile.anchor_y is not None else 0.0,
+                profile.anchor_y if profile.anchor_y is not None else 1.0,
             ],
             "placement": profile.placement,
         }

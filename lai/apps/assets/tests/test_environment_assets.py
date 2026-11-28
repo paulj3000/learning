@@ -214,12 +214,18 @@ def test_a_role_must_suit_the_kind(storage):
 def test_a_material_map_is_linear_and_names_its_channel(storage):
     normal = texture("tr-rock-normal")
     with pytest.raises(ValidationError) as error:
-        profile(normal, image_profiles.MATERIAL_MAP, colour_space="SRGB", data_channel="NORMAL")
+        profile(
+            normal,
+            image_profiles.MATERIAL_MAP,
+            colour_space="SRGB",
+            data_channel="NORMAL",
+            normal_convention="OPENGL",
+        )
     assert "colour_space" in error.value.message_dict
     with pytest.raises(ValidationError) as error:
         profile(normal, image_profiles.MATERIAL_MAP)
     assert "data_channel" in error.value.message_dict
-    profile(normal, image_profiles.MATERIAL_MAP, data_channel="NORMAL")
+    profile(normal, image_profiles.MATERIAL_MAP, data_channel="NORMAL", normal_convention="OPENGL")
 
 
 def test_the_database_refuses_an_srgb_material_map(storage):
@@ -380,7 +386,7 @@ def test_a_sprite_sheet_block_derives_height_from_the_frame(storage):
     assert block["sprite"] == {
         "widthM": 0.5,
         "heightM": 0.5,
-        "anchor": [0.5, 0.0],
+        "anchor": [0.5, 1.0],  # bottom centre, top-left image space (E-1, E-2)
         "placement": "BILLBOARD",
     }
     assert block["sheet"]["frameWidth"] == 16 and block["sheet"]["frameCount"] == 8
@@ -398,7 +404,7 @@ def test_a_cube_sky_block_has_its_face_size(storage):
 
 def test_a_material_map_render_block_is_linear_data(storage):
     normal = texture("tr-normal")
-    row = profile(normal, "MATERIAL_MAP", data_channel="NORMAL")
+    row = profile(normal, "MATERIAL_MAP", data_channel="NORMAL", normal_convention="OPENGL")
     block = image_profiles.render_block(row, normal.default_version)
     assert block["colourSpace"] == "linear" and block["dataChannel"] == "NORMAL"
 
@@ -444,7 +450,7 @@ def dock_textures(storage):
     albedo = texture("tr-dock-albedo")
     profile(albedo, "SURFACE", seamless=True)
     normal = texture("tr-dock-normal")
-    profile(normal, "MATERIAL_MAP", data_channel="NORMAL")
+    profile(normal, "MATERIAL_MAP", data_channel="NORMAL", normal_convention="OPENGL")
     orm = texture("tr-dock-orm")
     profile(orm, "MATERIAL_MAP", data_channel="ORM")
     return {"albedo": albedo, "normal": normal, "orm": orm}
@@ -821,7 +827,7 @@ def test_a_material_is_created_in_admin_and_edited_through_content_versions(role
 
 def test_a_material_maps_conversion_defaults_to_data(storage):
     normal = texture("tr-conv-normal")
-    profile(normal, "MATERIAL_MAP", data_channel="NORMAL")
+    profile(normal, "MATERIAL_MAP", data_channel="NORMAL", normal_convention="OPENGL")
     assert _initial_settings(normal.default_version) == {"purpose": "data", "lossless": True}
     sand = texture("tr-conv-sand")
     assert _initial_settings(sand.default_version) == {}
@@ -1049,3 +1055,59 @@ def test_the_profile_admin_warns_about_an_unlicensed_default(roles, storage):
     assert any(m.startswith("licence_required") for m in shown), shown
     legacy.refresh_from_db()
     assert legacy.default_version.status == VersionStatus.PUBLISHED  # nothing is unpublished
+
+
+# --- LAI 04 amendments (Trello #273, 2026-11-28) ------------------------------------------------
+
+
+@pytest.mark.parametrize(("convention", "ok"), [("OPENGL", True), ("DIRECTX", False), ("", False)])
+def test_a_normal_map_must_be_confirmed_opengl(storage, convention, ok):
+    """A1: Three.js expects OpenGL tangent space (+Y up)."""
+    normal = texture("tr-a1-normal")
+    row = ImageProfile(
+        asset=normal,
+        role="MATERIAL_MAP",
+        colour_space="LINEAR",
+        data_channel="NORMAL",
+        normal_convention=convention,
+    )
+    errors, _ = image_profiles.profile_problems(row)
+    assert ("normal_convention" not in errors) is ok
+
+
+def test_only_normal_maps_have_a_convention(storage):
+    orm = texture("tr-a1-orm")
+    row = ImageProfile(
+        asset=orm,
+        role="MATERIAL_MAP",
+        colour_space="LINEAR",
+        data_channel="ORM",
+        normal_convention="OPENGL",
+    )
+    assert "normal_convention" in image_profiles.profile_problems(row)[0]
+
+
+def test_the_render_block_sends_the_normal_convention(storage):
+    normal = texture("tr-a1-render")
+    row = profile(normal, "MATERIAL_MAP", data_channel="NORMAL", normal_convention="OPENGL")
+    assert image_profiles.render_block(row, normal.default_version)["normalConvention"] == "OPENGL"
+    sand = texture("tr-a1-sand")
+    plain = profile(sand, "SURFACE")
+    assert image_profiles.render_block(plain, sand.default_version)["normalConvention"] is None
+
+
+def test_bare_asset_id_keys_are_tracked_too():
+    """E-7 (LAI 04 note): `effects.backdrop.assetId`, `props[].assetId`, `procedural[].assetId`."""
+    from apps.regions.dependencies import scene_asset_ids
+
+    scene = {
+        "effects": {"backdrop": {"assetId": "fp-volcano"}},
+        "layout": {"props": [{"assetId": "crate"}, {"assetId": "barrel"}]},
+        "procedural": [{"assetId": "rock", "count": 3}],
+    }
+    assert scene_asset_ids(scene) == {
+        "fp-volcano": ["effects.backdrop.assetId"],
+        "crate": ["layout.props[0].assetId"],
+        "barrel": ["layout.props[1].assetId"],
+        "rock": ["procedural[0].assetId"],
+    }

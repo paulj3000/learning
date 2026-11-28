@@ -37,7 +37,15 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
-## LAI-07 environmental image assets and materials, LAI-ENV-01 to 03 (2026-11-27, `feature/environmental-image-assets`, `main` `d812ad71`); Development Complete for the Django side, NOT merged
+## LAI-07 environmental image assets and materials, LAI-ENV-01 to 03 (2026-11-27 to 28, `feature/environmental-image-assets`, `main` `c14392b0` merged in); Development Complete for the Django side, NOT merged
+
+- 2026-11-28:
+  - The owner approved D-1 to D-4. The D-3 licence gate applies to environmental images and
+    materials only (`licences.py`); the legacy follow-up is Trello #283.
+  - ADR number 074 is reserved by PR #117. The final decision text is in ENVIRONMENT_ASSETS.md
+    section 13, under a placeholder number until #117 merges.
+  - LAI 04 agreed the contract on Trello #273, with amendments A1 to A4 applied.
+  - `region_catalog` treats published materials as deliverable.
 
 - Design, audit and capability matrix, contract `env-assets/1` (draft), LAI 04 decisions E-1 to
   E-10, owner decisions D-1 to D-4, staff guide and the Treasure Rush pilot list:
@@ -59,8 +67,8 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
   - KTX2 for standalone images (ADR-070 gates).
   - A local runner for image conversion (D-2).
   - Licence as a publish gate (D-3).
-- Tests: `apps/assets/tests/test_environment_assets.py`, plus 5 existing assertions updated for
-  the two new metadata fields. Results are in the PR.
+- Tests: `apps/assets/tests/test_environment_assets.py`, plus 6 existing assertions updated for
+  the two new metadata fields. Final results are in PR #116.
 
 ## LAI 02 #99: Storykeeper Castle can be entered from the child UI (2026-11-26, `feature/storykeeper-playability-fixes` from `main` `41ee7320`, Trello #255); Development Complete, NOT merged, NOT owner accepted
 

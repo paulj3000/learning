@@ -98,7 +98,14 @@ class ImageProfileAdmin(admin.ModelAdmin):
         (None, {"fields": ("asset", "version", "role"), "description": PROFILE_HELP}),
         (
             "Colour and transparency",
-            {"fields": ("colour_space", "data_channel", ("alpha_mode", "alpha_cutoff"))},
+            {
+                "fields": (
+                    "colour_space",
+                    "data_channel",
+                    "normal_convention",
+                    ("alpha_mode", "alpha_cutoff"),
+                )
+            },
         ),
         (
             "Tiling (surfaces and material maps)",

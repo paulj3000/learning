@@ -1632,6 +1632,8 @@ changed in the library.
     per-version override.
   - Roles: surface, material map, sprite, decal, particle, backdrop, sky and picture. They carry
     colour space, alpha, tiling, size and anchor, placement, sprite sheet and sky layout.
+  - Normal maps must be confirmed OpenGL (+Y up). Anchors use top-left image space (default
+    `[0.5, 1.0]`).
   - Images never get collision.
 - **Materials** (`material` kind, `MaterialDefinition`, `materials.py`).
   - The asset holds the identity and accepts no file (`no_files_for_kind`).
