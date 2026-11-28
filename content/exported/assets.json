@@ -841,12 +841,16 @@
         "roof",
         "door",
         "ground-tile",
+        "bridge-plank-repaired",
+        "bridge-plank",
         "rock",
         "foliage-tree",
         "foliage-tree-lod1",
         "foliage-bush",
         "fence",
         "npc-pip",
+        "companion-chatty",
+        "signpost",
         "collectible-gem"
       ],
       "regionSlug": "welcome-harbor"
