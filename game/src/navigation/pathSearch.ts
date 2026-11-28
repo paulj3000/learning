@@ -167,7 +167,13 @@ export function findWalkPath(
   const stopWithin = Math.max(0, options.stopWithin ?? 0);
   const startCell = nearestFreeCell(grid, from.x, from.z);
   if (!startCell) {
-    return { status: 'NONE', points: [from], goal: from, goalDistance: Math.hypot(to.x - from.x, to.z - from.z), length: 0 };
+    return {
+      status: 'NONE',
+      points: [from],
+      goal: from,
+      goalDistance: Math.hypot(to.x - from.x, to.z - from.z),
+      length: 0,
+    };
   }
   const { cols, rows, cellSize } = grid;
   const count = cols * rows;
@@ -196,7 +202,10 @@ export function findWalkPath(
     if (closed[current] === 1) continue;
     closed[current] = 1;
     const dist = distToTarget(current);
-    if (dist < bestDistance - 1e-9 || (Math.abs(dist - bestDistance) <= 1e-9 && g[current] < g[bestIndex])) {
+    if (
+      dist < bestDistance - 1e-9 ||
+      (Math.abs(dist - bestDistance) <= 1e-9 && g[current] < g[bestIndex])
+    ) {
       bestDistance = dist;
       bestIndex = current;
     }
@@ -211,7 +220,12 @@ export function findWalkPath(
       const nr = row + dr;
       if (!grid.isFreeCell(nc, nr)) continue;
       // No corner cutting: a diagonal needs both orthogonal cells free.
-      if (dc !== 0 && dr !== 0 && (!grid.isFreeCell(col + dc, row) || !grid.isFreeCell(col, row + dr))) continue;
+      if (
+        dc !== 0 &&
+        dr !== 0 &&
+        (!grid.isFreeCell(col + dc, row) || !grid.isFreeCell(col, row + dr))
+      )
+        continue;
       const ni = nr * cols + nc;
       if (closed[ni] === 1) continue;
       const tentative = g[current] + cost;
@@ -272,7 +286,12 @@ export function floodReachable(grid: WalkGrid, start: GroundXZ): Uint8Array {
       const nc = col + dc;
       const nr = row + dr;
       if (!grid.isFreeCell(nc, nr)) continue;
-      if (dc !== 0 && dr !== 0 && (!grid.isFreeCell(col + dc, row) || !grid.isFreeCell(col, row + dr))) continue;
+      if (
+        dc !== 0 &&
+        dr !== 0 &&
+        (!grid.isFreeCell(col + dc, row) || !grid.isFreeCell(col, row + dr))
+      )
+        continue;
       const ni = nr * cols + nc;
       if (reached[ni] === 1) continue;
       reached[ni] = 1;

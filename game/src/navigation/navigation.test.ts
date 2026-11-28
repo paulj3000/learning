@@ -77,9 +77,7 @@ describe('walkable grid', () => {
 
   it('refuses a grid it cannot size, and a collider with min above max', () => {
     expect(() => buildWalkGrid({ colliders: [] })).toThrow();
-    expect(() =>
-      buildWalkGrid({ bounds: YARD, colliders: [box('bad', 2, 0, 1, 1)] }),
-    ).toThrow();
+    expect(() => buildWalkGrid({ bounds: YARD, colliders: [box('bad', 2, 0, 1, 1)] })).toThrow();
     expect(() =>
       buildWalkGrid({ bounds: { minX: 0, maxX: 5000, minZ: 0, maxZ: 5000 }, colliders: [] }),
     ).toThrow();
@@ -145,7 +143,11 @@ describe('path search', () => {
     }
     // A hazard with a gap goes round it.
     const dam = { id: 'dam', minX: -10, maxX: 5, minZ: -1, maxZ: 1 };
-    const around = findWalkPath(buildWalkGrid({ bounds: YARD, colliders: [], hazards: [dam] }), { x: 0, z: -6 }, { x: 0, z: 6 });
+    const around = findWalkPath(
+      buildWalkGrid({ bounds: YARD, colliders: [], hazards: [dam] }),
+      { x: 0, z: -6 },
+      { x: 0, z: 6 },
+    );
     expect(around.status).toBe('REACHED');
     expect(around.points.some((p) => p.x > 5)).toBe(true);
   });
@@ -158,7 +160,12 @@ describe('path search', () => {
       max: { x: 1, y: 0.1, z: 1.5 },
       fixed: true,
     };
-    const open = buildWalkGrid({ bounds: YARD, colliders: [], hazards: [river], platforms: [bridge] });
+    const open = buildWalkGrid({
+      bounds: YARD,
+      colliders: [],
+      hazards: [river],
+      platforms: [bridge],
+    });
     expect(findWalkPath(open, { x: 0, z: -6 }, { x: 0, z: 6 }).status).toBe('REACHED');
     const moving = buildWalkGrid({
       bounds: YARD,
@@ -209,7 +216,11 @@ describe('path search', () => {
     ];
     const tight = buildWalkGrid({ bounds: YARD, colliders: wall(0.7) });
     expect(findWalkPath(tight, { x: 0, z: -5 }, { x: 0, z: 5 }).status).toBe('NEAREST');
-    expect(floodReachable(tight, { x: 0, z: -5 })[tight.cellOf(0, 5).row * tight.cols + tight.cellOf(0, 5).col]).toBe(0);
+    expect(
+      floodReachable(tight, { x: 0, z: -5 })[
+        tight.cellOf(0, 5).row * tight.cols + tight.cellOf(0, 5).col
+      ],
+    ).toBe(0);
     const door = buildWalkGrid({ bounds: YARD, colliders: wall(1) });
     expect(findWalkPath(door, { x: 0, z: -5 }, { x: 0, z: 5 }).status).toBe('REACHED');
     expect(door.guaranteedGap).toBeLessThanOrEqual(1.0 + 1e-6);
@@ -370,7 +381,8 @@ describe('guided steering', () => {
     const walls = [box('arm', -0.3, -8, 0.3, 4), box('foot', -0.3, 3.7, 5, 4.3)];
     const grid = buildWalkGrid({ bounds: YARD, colliders: walls });
     const boxes = walls.map(
-      (w) => new Box3(new Vector3(w.min.x, w.min.y, w.min.z), new Vector3(w.max.x, w.max.y, w.max.z)),
+      (w) =>
+        new Box3(new Vector3(w.min.x, w.min.y, w.min.z), new Vector3(w.max.x, w.max.y, w.max.z)),
     );
     const controller = new FirstPersonController({ colliders: boxes });
     controller.position.set(-4, 0, 0);
@@ -391,7 +403,9 @@ describe('guided steering', () => {
     }
     expect(steering.active).toBe(false);
     expect(jumped).toBe(false);
-    expect(Math.hypot(controller.position.x - goal.x, controller.position.z - goal.z)).toBeLessThan(0.5);
+    expect(Math.hypot(controller.position.x - goal.x, controller.position.z - goal.z)).toBeLessThan(
+      0.5,
+    );
   });
 
   it('a joystick push mid-walk takes over the real controller at once', () => {
@@ -403,7 +417,14 @@ describe('guided steering', () => {
       { x: 0, z: 9 },
     ]);
     for (let i = 0; i < 30; i += 1) {
-      controller.update(1 / 60, steering.steer({ x: controller.position.x, z: controller.position.z }, controller.yaw, 1 / 60).input);
+      controller.update(
+        1 / 60,
+        steering.steer(
+          { x: controller.position.x, z: controller.position.z },
+          controller.yaw,
+          1 / 60,
+        ).input,
+      );
     }
     expect(controller.position.z).toBeGreaterThan(0.1);
     const manual = { forward: 0, strafe: 1, analog: true };

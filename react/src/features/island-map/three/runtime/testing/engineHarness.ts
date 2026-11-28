@@ -22,6 +22,7 @@ import type { RendererInfoLike } from '../diagnostics';
 import type { RenderQuality } from '../visual/renderQuality';
 import type { FirstPersonController } from '@lai/game-engine/movement';
 import type { WorldInteractionContext } from '../../../worldObjects';
+import type { AgeBandValue } from '../../../../child-profile/constants';
 import { WorldEngineEventBus, type WorldEngineEventMap } from '../../worldEngineEvents';
 
 /**
@@ -55,6 +56,8 @@ export interface Harness {
     dispose: Mock<() => void>;
   };
   stopFitting: Mock<() => void>;
+  /** What the runtime handed `attachControls` (LAI-2104S: `freeLook`, `onTap`, `shapeInput`). */
+  attached: Parameters<LocationEngineDeps<FakeRenderer>['attachControls']>[2] | null;
   events: { name: keyof WorldEngineEventMap; detail: unknown }[];
   runFrames(count: number, milliseconds?: number): void;
   setDrive(drive: Drive): void;
@@ -104,6 +107,8 @@ export function mount(
     collisionProfiles?: LocationEngineDeps<FakeRenderer>['assets']['collisionProfiles'];
     /** Development collision view (`collisionDebug.ts`). */
     collisionDebug?: boolean;
+    /** LAI-2104S: the child's age band (Sprouts select the guided tap-to-move mode). */
+    ageBand?: AgeBandValue;
   } = {},
 ): Harness {
   const parent = options.parent ?? document.createElement('div');
@@ -114,6 +119,7 @@ export function mount(
   let onInteract: () => void = () => undefined;
   let onToggleCamera: () => void = () => undefined;
   let controller: FirstPersonController | null = null;
+  let attached: Harness['attached'] = null;
 
   const renderer: FakeRenderer = {
     domElement: document.createElement('canvas'),
@@ -140,8 +146,9 @@ export function mount(
       ...(options.collisionProfiles ? { collisionProfiles: options.collisionProfiles } : {}),
       ...(options.attachRenderer ? { attachRenderer: options.attachRenderer } : {}),
     },
-    attachControls: (_renderer, attached, attachOptions) => {
-      controller = attached;
+    attachControls: (_renderer, attachedController, attachOptions) => {
+      controller = attachedController;
+      attached = attachOptions;
       onInteract = attachOptions.onInteract;
       onToggleCamera = attachOptions.onToggleCamera ?? (() => undefined);
       return controls;
@@ -203,6 +210,7 @@ export function mount(
       publishedAvatar: options.publishedAvatar,
       loadAvatarModel: options.loadAvatarModel,
       ...(options.collisionDebug !== undefined ? { collisionDebug: options.collisionDebug } : {}),
+      ...(options.ageBand !== undefined ? { ageBand: options.ageBand } : {}),
     },
     deps,
   );
@@ -220,6 +228,9 @@ export function mount(
     renderer,
     controls,
     stopFitting,
+    get attached() {
+      return attached;
+    },
     events,
     runFrames(count, milliseconds = 16) {
       for (let index = 0; index < count; index += 1) {

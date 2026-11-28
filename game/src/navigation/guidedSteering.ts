@@ -164,9 +164,7 @@ export class GuidedSteering {
       );
     }
     const push =
-      left >= this.o.easeDistance
-        ? 1
-        : Math.max(this.o.minPush, left / this.o.easeDistance);
+      left >= this.o.easeDistance ? 1 : Math.max(this.o.minPush, left / this.o.easeDistance);
 
     const ux = dx / distance;
     const uz = dz / distance;

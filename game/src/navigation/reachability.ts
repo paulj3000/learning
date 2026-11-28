@@ -28,9 +28,7 @@ import {
 
 /** What to reach: a named target from `input.targets`, a point (with a range), or a rectangle. */
 export type ReachabilityGoal =
-  | { id: string }
-  | { x: number; z: number; approachRange?: number }
-  | { rect: WalkBounds };
+  { id: string } | { x: number; z: number; approachRange?: number } | { rect: WalkBounds };
 
 export interface ReachabilityResult {
   reachable: boolean;

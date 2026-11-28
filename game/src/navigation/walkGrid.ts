@@ -77,8 +77,7 @@ export interface WalkHazard {
 
 /** A place the child may want to reach: an interaction target, a zone, a checkpoint. */
 export type WalkTarget =
-  | { id: string; x: number; z: number; approachRange?: number }
-  | { id: string; rect: WalkBounds };
+  { id: string; x: number; z: number; approachRange?: number } | { id: string; rect: WalkBounds };
 
 export interface WalkabilityInput {
   colliders: readonly WalkCollider[];
@@ -188,9 +187,7 @@ function blocksWalking(
   body: { height: number; step: number; clearance: number },
 ): boolean {
   if (jumpable) {
-    return (
-      box.max.y > body.step + EPSILON && box.min.y < body.height - EPSILON
-    );
+    return box.max.y > body.step + EPSILON && box.min.y < body.height - EPSILON;
   }
   const cls = classifySolidBox(box, 0, body.clearance);
   if (cls === 'BELOW_GROUND') return false;
@@ -286,7 +283,8 @@ export function buildWalkGrid(input: WalkabilityInput, options: WalkGridOptions 
     );
   }
   for (const value of [bounds.minX, bounds.maxX, bounds.minZ, bounds.maxZ]) {
-    if (!finite(value)) throw new EngineError('VALIDATION_FAILED', 'Walk grid bounds must be finite');
+    if (!finite(value))
+      throw new EngineError('VALIDATION_FAILED', 'Walk grid bounds must be finite');
   }
 
   const maxCells = options.maxCells ?? NAV_MAX_CELLS;
@@ -339,9 +337,7 @@ export function buildWalkGrid(input: WalkabilityInput, options: WalkGridOptions 
 
   const isFreeAt = (x: number, z: number): boolean => {
     if (x < bounds.minX || x > bounds.maxX || z < bounds.minZ || z > bounds.maxZ) return false;
-    const entry = buckets.get(
-      bucketKey(bucketOf(x, originX), bucketOf(z, originZ)),
-    );
+    const entry = buckets.get(bucketKey(bucketOf(x, originX), bucketOf(z, originZ)));
     if (!entry) return true;
     for (const index of entry.walls) {
       if (rectDistance(walls[index], x, z) < wallInflation - EPSILON) return false;
@@ -376,7 +372,8 @@ export function buildWalkGrid(input: WalkabilityInput, options: WalkGridOptions 
     guaranteedGap: 2 * wallInflation + cellSize,
     blocked,
     inBounds: (col, row) => col >= 0 && row >= 0 && col < cols && row < rows,
-    isFreeCell: (col, row) => col >= 0 && row >= 0 && col < cols && row < rows && blocked[row * cols + col] === 0,
+    isFreeCell: (col, row) =>
+      col >= 0 && row >= 0 && col < cols && row < rows && blocked[row * cols + col] === 0,
     cellOf: (x, z) => ({
       col: Math.min(cols - 1, Math.max(0, Math.floor((x - originX) / cellSize))),
       row: Math.min(rows - 1, Math.max(0, Math.floor((z - originZ) / cellSize))),

@@ -22,10 +22,12 @@ import {
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
+  Plane,
   PlaneGeometry,
   PointLight,
   Raycaster,
   Scene,
+  Vector2,
   Vector3,
   WebGLRenderer,
   type AnimationAction,
@@ -51,12 +53,18 @@ import {
   type Gait,
   type LocomotionConfiguration,
   type JumpConfiguration,
+  type MoveInput,
 } from '@lai/game-engine/movement';
 import {
   type SprintMode,
   attachPointerControls,
   type PointerControls,
+  type PointerControlsOptions,
 } from '@lai/game-engine/input';
+import { isGuidedBand, type WalkCollider, type WalkPlatform } from '@lai/game-engine/navigation';
+import type { AgeBandValue } from '../../../child-profile/constants';
+import { createGuidedWalk, type GuidedWalk } from './guidedWalk';
+import { isFixedPlatform, walkHazardsOf } from './manifestWalkability';
 import {
   colliderObstruction,
   lookDirection,
@@ -221,6 +229,10 @@ export interface LocationEngineDeps<R extends RendererLike> {
       lookSensitivity?: () => number;
       /** Running & sprinting: hold or toggle Shift. */
       sprintMode?: () => SprintMode;
+      /** LAI-2104S guided mode only: `freeLook: false`, `onTap` and `shapeInput` (see `PointerControlsOptions`). */
+      freeLook?: PointerControlsOptions['freeLook'];
+      onTap?: PointerControlsOptions['onTap'];
+      shapeInput?: PointerControlsOptions['shapeInput'];
     },
   ): PointerControls;
   /** Keeps the renderer and camera sized to `parent`. Returns the disconnect. */
@@ -296,6 +308,17 @@ export interface LocationEngine extends ThreeEngineHandle {
   readonly locomotion: Readonly<LocomotionConfiguration>;
   /** Running & sprinting: switches how Shift sprints (a child's setting). */
   setSprintMode(mode: SprintMode): void;
+  /**
+   * LAI-2104S: true when this child plays the guided tap-to-move mode (the band's profile has
+   * `guidedSteering`, which is Sprouts). Then a tap on the canvas walks a path, there is no free
+   * look, and the camera is the assisted third-person one. False for every other band.
+   */
+  readonly guided: boolean;
+  /**
+   * LAI-2104S: walks to a ground point as a tap would (the accessible equivalent of tapping).
+   * `false`, and nothing started, where the mode is off or the child is walled in.
+   */
+  walkTo(x: number, z: number): boolean;
   /** Settles once every asynchronously loaded piece has been placed or has failed. Never rejects. */
   readonly ready: Promise<void>;
 }
@@ -320,6 +343,11 @@ export interface LocationEngineOptions {
    * switching; otherwise, or when absent, the location's default.
    */
   cameraMode?: CameraMode;
+  /**
+   * LAI-2104S: the child's age band. The profile's `guidedSteering` (Sprouts) selects the guided
+   * tap-to-move mode; absent, or any other band: today's controls, unchanged.
+   */
+  ageBand?: AgeBandValue;
   /** LAI-JMP-01a: the child's `ChildProfile.avatarKey`, for their avatar's look. */
   avatarKey?: string | null;
   /**
@@ -612,7 +640,13 @@ export function createLocationEngine<R extends RendererLike>(
     one avatar that only copies the controller's position. Neither moves the
     player.
   */
-  const cameraConfig = resolvePlayerCamera(manifest.player?.camera);
+  // LAI-2104S: the guided band keeps an assisted third-person camera and never switches perspective.
+  const guided = isGuidedBand(options.ageBand);
+  const cameraConfig = resolvePlayerCamera(
+    guided
+      ? { ...manifest.player?.camera, defaultMode: 'third-person', allowModeSwitch: false }
+      : manifest.player?.camera,
+  );
   const avatarConfig = resolvePlayerAvatar(manifest.player?.avatar);
   const playerCamera = new PlayerCameraController(
     cameraConfig,
@@ -801,6 +835,8 @@ export function createLocationEngine<R extends RendererLike>(
     return { x: controller.position.x, z: controller.position.z, yaw: controller.yaw };
   }
 
+  /** LAI-2104S: the guided mode needs the forgiving aim, so a walk that ends near a thing offers it. */
+  const interactionAssist = manifest.interactionAssist === true || guided;
   const focusTargets: FocusTarget[] = [];
   const npcAnimators = new Map<string, NpcAnimator>();
   const sceneryRoots = new Map<string, Object3D>();
@@ -1406,7 +1442,7 @@ export function createLocationEngine<R extends RendererLike>(
         node = node.parent;
       }
     }
-    return manifest.interactionAssist ? nearestAhead(aimable) : null;
+    return interactionAssist ? nearestAhead(aimable) : null;
   }
 
   /**
@@ -1447,7 +1483,7 @@ export function createLocationEngine<R extends RendererLike>(
     bobbing just above whatever has focus. One mesh for the whole region,
     moved rather than rebuilt, so it costs a single draw call.
   */
-  const focusMarker = manifest.interactionAssist
+  const focusMarker = interactionAssist
     ? ownMesh(
         new ConeGeometry(0.16, 0.32, 4),
         new MeshStandardMaterial({ color: FOCUS_MARKER_COLOR, emissive: FOCUS_MARKER_COLOR }),
@@ -1532,11 +1568,134 @@ export function createLocationEngine<R extends RendererLike>(
     }
   }
 
+  /*
+    LAI-2104S (step B1): the guided mode. A tap plans a walking path on the engine's walk grid and
+    the shared controller follows it through `shapeInput`; joystick, keys and pad override it.
+    Everything here is behind `guided`; other bands construct nothing.
+  */
+  /** An object tap stops this close: inside the 2.5 m approach range and the 3 m assist range. */
+  const GUIDED_APPROACH_METRES = 2;
+  /** A tap this close (ground metres) to a thing counts as a tap on it: large targets for small hands. */
+  const GUIDED_TAP_ASSIST_METRES = 1.2;
+  const liveWalkability = () => {
+    const platformBoxes = new Set(platformSystem?.platforms.map((platform) => platform.box));
+    const walkColliders: WalkCollider[] = [];
+    for (const box of colliders) {
+      if (platformBoxes.has(box) || box.isEmpty()) continue;
+      walkColliders.push({
+        min: box.min,
+        max: box.max,
+        kind: jumpableColliders.has(box) ? 'JUMPABLE' : 'SOLID',
+      });
+    }
+    const walkPlatforms: WalkPlatform[] = [];
+    for (const platform of platformSystem?.platforms ?? []) {
+      if (platform.box.isEmpty()) continue;
+      walkPlatforms.push({
+        id: platform.spec.id,
+        min: platform.box.min,
+        max: platform.box.max,
+        fixed: isFixedPlatform(platform.spec),
+      });
+    }
+    return {
+      colliders: walkColliders,
+      platforms: walkPlatforms,
+      hazards: walkHazardsOf(manifest.platforming),
+      bounds: {
+        minX: -(manifest.bounds.halfExtentX + playableMargin),
+        maxX: manifest.bounds.halfExtentX + playableMargin,
+        minZ: -(manifest.bounds.halfExtentZ + playableMargin),
+        maxZ: manifest.bounds.halfExtentZ + playableMargin,
+      },
+    };
+  };
+  const guidedWalk: GuidedWalk | null = guided
+    ? createGuidedWalk({
+        walkability: liveWalkability,
+        position: () => ({ x: controller.position.x, z: controller.position.z }),
+        reducedMotion: options.reducedMotion === true,
+      })
+    : null;
+  const tapRaycaster = new Raycaster();
+  const tapPoint = new Vector2();
+  const tapGround = new Vector3();
+  const tapPlane = new Plane(new Vector3(0, 1, 0), 0);
+  const tapFocusPosition = new Vector3();
+  function focusTargetFor(root: Object3D): FocusTarget | undefined {
+    let node: Object3D | null = root;
+    while (node) {
+      const found = focusTargets.find(
+        (candidate) => candidate.root === node && candidate.focusable,
+      );
+      if (found) return found;
+      node = node.parent;
+    }
+    return undefined;
+  }
+  function walkToObject(target: FocusTarget): boolean {
+    target.root.getWorldPosition(tapFocusPosition);
+    return (
+      guidedWalk?.walkTo(
+        { x: tapFocusPosition.x, z: tapFocusPosition.z },
+        { stopWithin: GUIDED_APPROACH_METRES, faceTarget: true },
+      ) != null
+    );
+  }
+  /** A tap on the canvas: an object walks to approach range, the ground walks onto the spot. */
+  function onGuidedTap(point: { clientX: number; clientY: number }): void {
+    if (disposed || !guidedWalk) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    if (!(rect.width > 0 && rect.height > 0)) return;
+    tapPoint.set(
+      ((point.clientX - rect.left) / rect.width) * 2 - 1,
+      -(((point.clientY - rect.top) / rect.height) * 2 - 1),
+    );
+    camera.updateMatrixWorld();
+    tapRaycaster.setFromCamera(tapPoint, camera);
+    const aimable = focusTargets.filter((target) => target.focusable);
+    for (const target of aimable) target.root.updateMatrixWorld(true);
+    const hits = tapRaycaster.intersectObjects(
+      aimable.map((target) => target.root),
+      true,
+    );
+    for (const hit of hits) {
+      const target = focusTargetFor(hit.object);
+      if (target && walkToObject(target)) return;
+    }
+    tapPlane.constant = -controller.position.y;
+    if (!tapRaycaster.ray.intersectPlane(tapPlane, tapGround)) return;
+    // Near enough to a thing counts as a tap on it.
+    let nearest: FocusTarget | null = null;
+    let nearestDistance = GUIDED_TAP_ASSIST_METRES;
+    for (const target of aimable) {
+      target.root.getWorldPosition(tapFocusPosition);
+      const distance = Math.hypot(
+        tapFocusPosition.x - tapGround.x,
+        tapFocusPosition.z - tapGround.z,
+      );
+      if (distance < nearestDistance) {
+        nearest = target;
+        nearestDistance = distance;
+      }
+    }
+    if (nearest && walkToObject(nearest)) return;
+    guidedWalk.walkTo({ x: tapGround.x, z: tapGround.z });
+  }
+
   const controls = deps.attachControls(renderer, controller, {
     onInteract: interact,
     onToggleCamera: () => void toggleCameraMode(),
     lookSensitivity: () => cameraConfig.rotationSensitivity,
     sprintMode: () => sprintMode,
+    ...(guidedWalk
+      ? {
+          freeLook: false,
+          onTap: onGuidedTap,
+          shapeInput: (manual: MoveInput, deltaSeconds: number) =>
+            guidedWalk.shapeInput(manual, deltaSeconds, controller.yaw),
+        }
+      : {}),
   });
   const stopFitting = deps.fitToParent(parent, camera, renderer);
 
@@ -1708,6 +1867,11 @@ export function createLocationEngine<R extends RendererLike>(
     }
 
     controls.update(delta);
+    if (guidedWalk) {
+      // No free look: the view turns behind the child, and its tilt stays at the entry angle.
+      controller.yaw = guidedWalk.assistYaw(controller.yaw, delta);
+      controller.pitch = THIRD_PERSON_ENTRY_PITCH;
+    }
     platformPresentation?.update(delta);
 
     // LAI-JMP-01: jumps, landings and safe returns, as typed events for sound
@@ -1910,7 +2074,10 @@ export function createLocationEngine<R extends RendererLike>(
       if (!disposed) controller.pressJump();
     },
     jump: controller.jump,
-    resetInput: () => controls.resetInput(),
+    resetInput: () => {
+      controls.resetInput();
+      guidedWalk?.cancel();
+    },
     cameraMode: () => playerCamera.mode,
     setCameraMode,
     toggleCameraMode,
@@ -1924,6 +2091,11 @@ export function createLocationEngine<R extends RendererLike>(
       if (!disposed) platformSystem?.signal(name, on);
     },
     platforms: () => platformSystem?.platforms ?? [],
+    guided,
+    walkTo: (x, z) => {
+      if (disposed || !guidedWalk) return false;
+      return guidedWalk.walkTo({ x, z }) !== null;
+    },
     ready,
   };
 }
