@@ -66,6 +66,17 @@ class ResizeForm(_Settings):
 FORMS = {images.CONVERT: ConvertForm, images.RESIZE: ResizeForm}
 
 
+def _initial_settings(version) -> dict:
+    """LAI-ENV-02: a material map (normal, roughness, ORM...) defaults to the data purpose, which
+    keeps channel values and is lossless, so it is never colour-managed by mistake."""
+    from . import image_profiles
+
+    profile = image_profiles.profile_for(version.asset, version)
+    if profile is not None and profile.role == image_profiles.MATERIAL_MAP:
+        return {"purpose": "data", "lossless": True}
+    return {}
+
+
 class ImageConversionAdminMixin:
     # --- permission and actions ---
 
@@ -166,7 +177,7 @@ class ImageConversionAdminMixin:
         if not images.enabled():
             self.message_user(request, images.MESSAGES["workload_disabled"], messages.ERROR)
             return back
-        form = form_class(request.POST or None)
+        form = form_class(request.POST or None, initial=_initial_settings(version))
         if request.method == "POST" and form.is_valid():
             options = {k: v for k, v in form.cleaned_data.items() if v not in (None, "")}
             if self._submit(request, version, action, options):

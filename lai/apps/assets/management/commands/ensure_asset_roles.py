@@ -39,6 +39,12 @@ EDITOR_PERMISSIONS = (
     "assets.view_derivedartifact",
     "assets.review_derivedartifact",
     "assets.capture_derivedartifact",
+    # LAI-ENV-02: editors read image profiles (they change what children see, like collision)
+    # and may create a material row. Material *content* is drafted and published through ADR-047
+    # (`ensure_content_roles`: Content editors / publishers), not granted here.
+    "assets.view_imageprofile",
+    "assets.view_materialdefinition",
+    "assets.add_materialdefinition",
 )
 PUBLISHER_PERMISSIONS = (
     *EDITOR_PERMISSIONS,
@@ -49,6 +55,10 @@ PUBLISHER_PERMISSIONS = (
     "assets.change_collisionprofile",
     "assets.delete_collisionprofile",
     "assets.promote_derivedartifact",
+    "assets.add_imageprofile",
+    "assets.change_imageprofile",
+    "assets.delete_imageprofile",
+    "assets.change_materialdefinition",
 )
 ROLES = {EDITORS: EDITOR_PERMISSIONS, PUBLISHERS: PUBLISHER_PERMISSIONS}
 
