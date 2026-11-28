@@ -126,9 +126,11 @@ def record_puzzle_evidence(
     never a child) for staff to map; `puzzle_skill_report` lists them. Any other failure is a
     real error and propagates, so the attempt, world change and reward roll back together.
 
-    Puzzles record no hint use, so the support level is derived from what the server knows: a
-    correct answer after an earlier wrong one in this visit counts as supported (1), a first
-    answer as independent (0).
+    Support level: the hints the child opened before this attempt (issue #102, capped at the
+    band's hint count by `solve_puzzle`; unknown counts as none, as before #102), and at least 1
+    when an earlier answer in this visit was wrong. Only a first, unhinted correct answer is
+    independent (0), which is what mastery counts; a supported success still counts as practice
+    and as supported success.
     """
     if not objective_code:
         return PuzzleEvidence.NO_SKILL
@@ -147,7 +149,7 @@ def record_puzzle_evidence(
                 "learning_objective_code": objective_code,
                 "evidence_type": PUZZLE_EVIDENCE_TYPE,
                 "result": EvidenceResult.CORRECT if attempt.correct else EvidenceResult.INCORRECT,
-                "support_level": 1 if failed_before else 0,
+                "support_level": max(attempt.hints_used or 0, 1 if failed_before else 0),
                 "observed_at": attempt.submitted_at,
             },
         )
@@ -166,12 +168,12 @@ def puzzle_skill_report() -> list[dict]:
     from apps.catalog import authoring
     from apps.core.content_status import ContentStatus
     from apps.regions.models import AreaPuzzle
-    from apps.regions.puzzles import SKILL_KINDS
+    from apps.regions.puzzles import EVIDENCE_KINDS
 
     known = set(LearningObjective.objects.values_list("code", flat=True))
     rows = []
     published = (
-        AreaPuzzle.objects.filter(status=ContentStatus.PUBLISHED, kind__in=SKILL_KINDS)
+        AreaPuzzle.objects.filter(status=ContentStatus.PUBLISHED, kind__in=EVIDENCE_KINDS)
         .select_related("region")
         .order_by("region__region_id", "sort_order", "puzzle_id")
     )
@@ -183,7 +185,8 @@ def puzzle_skill_report() -> list[dict]:
                 (v.get("id"), v["skill"]) for v in params.get("variants") or [] if v.get("skill")
             ]
             for variant, code in named:
-                if code not in known:
+                # A movement kind that names no skill is an accomplishment, not a gap.
+                if code and code not in known:
                     rows.append(
                         {
                             "region": puzzle.region.region_id,

@@ -50,6 +50,7 @@ from .models import (
 )
 from .pips_treasure_seed import (
     ADVENTURE_VERSION,
+    INSTRUCTIONS,
     LANDING_CLUE,
     PIPS_QUEST_ID,
     seed_pips_treasure,
@@ -180,11 +181,12 @@ def seed_treasure_rush() -> list[str]:
                 "bounds": dict(BOUNDS),
                 "layoutVersion": LAYOUT_VERSION,
                 "layout": cove_layout(),
-                "adventureVersion": ADVENTURE_VERSION,
+                # No adventureVersion: `upgrade_pips_treasure` below brings a new region up to
+                # date the same way as an old one, after its chests exist.
                 "environment": {"backgroundColor": 0x9FD8F0},
                 "copy": {
                     "loading": "Sailing to Treasure Cove.",
-                    "instructions": "Walk to the treasure chest and open it.",
+                    "instructions": INSTRUCTIONS,
                     "calmStop": "The tide is going out. Time to rest. The cove will be here.",
                 },
             },

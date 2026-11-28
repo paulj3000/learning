@@ -9,6 +9,7 @@ from apps.assets.model_packs import PACKS
 from apps.catalog.importer import import_content
 from apps.regions import treasure_cove_vegetation as VEG
 from apps.regions.models import WorldRegion
+from apps.regions.pips_treasure_seed import ADVENTURE_VERSION
 from apps.regions.pirates_leap_seed import LEAP_VERSION
 from apps.regions.treasure_cove_layout import (
     BARREL,
@@ -200,24 +201,26 @@ class TestSeedAppliesTheLayout:
         old_scene = {
             "bounds": {"halfExtentX": 18, "halfExtentZ": 18, "wallThickness": 1},
             "copy": {"instructions": "An admin's words."},
-            "adventureVersion": 1,  # only the layout is behind
+            "adventureVersion": 1,  # before the redesign (#102)
         }
         WorldRegion.objects.filter(pk=region.pk).update(
             scene=old_scene, title="Pirate Cove", version=3
         )
         region.spawn_points.update(yaw=0.0)
 
-        # The cove layout is upgraded; a scene from before Pirate's Leap also gets the course, once
-        # (LAI-JMP-03 keeps its own version, so neither ever replaces the other).
+        # The cove layout is upgraded; a scene from before the redesign (#102) gets its stages and
+        # one from before Pirate's Leap gets the course, once each (each keeps its own version, so
+        # none ever replaces another).
         assert seed_treasure_rush() == [
             f"WorldRegion {REGION_ID} layout v{LAYOUT_VERSION}",
+            f"WorldRegion {REGION_ID} adventure v{ADVENTURE_VERSION}",
             f"Pirate's Leap course v{LEAP_VERSION}",
         ]
         region.refresh_from_db()
         assert region.title == "Pirate Cove"
-        assert region.version == 5  # the layout upgrade and the Pirate's Leap course, one each
+        assert region.version == 6  # the layout, the stages and the Pirate's Leap course, one each
         assert region.scene["copy"] == {"instructions": "An admin's words."}
-        assert region.scene["adventureVersion"] == 1
+        assert region.scene["adventureVersion"] == ADVENTURE_VERSION
         assert region.scene["bounds"] == BOUNDS
         assert region.scene["layoutVersion"] == LAYOUT_VERSION
         assert region.spawn_points.get().yaw == pytest.approx(math.pi)

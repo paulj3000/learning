@@ -296,3 +296,87 @@ describe('the lava', () => {
     expect(scene.effects.setChangeKeys).toHaveBeenCalledWith(['FIREPEAK_FEATURES_OBSERVED']);
   });
 });
+
+describe('many objects to find in one Area (#102, Treasure Cove map pieces and carvings)', () => {
+  const ready = ['firepeak-telescope', 'firepeak-crossing', 'firepeak-steam'];
+
+  /** The Firepeak fixture with a second COLLECT_OBJECT puzzle beside the crystal. */
+  function twoToFind(solved: string[]) {
+    const json = firepeakBootstrapJson({ solved, session: true });
+    const crystal = json.puzzles.find((p) => p.puzzleId === 'firepeak-heart-crystal')!;
+    json.puzzles.push({
+      ...crystal,
+      puzzleId: 'firepeak-second-shard',
+      title: 'Find the second shard',
+      entityIds: ['firepeak-shard-two'],
+      solved: false,
+      locked: false,
+      parameters: { ...crystal.parameters, discoveryMessage: 'You found the second shard!' },
+    });
+    return read(json, parse.regionBootstrap);
+  }
+
+  function render2(data: RegionBootstrap, event: string | null) {
+    const { scene } = fakeScene();
+    const solvePuzzle = vi.fn(async () => read(puzzleOutcomeJson(), parse.puzzleOutcome));
+    const props = {
+      bootstrap: data,
+      sceneApi: scene,
+      busy: false,
+      solvePuzzle,
+      showToast: vi.fn(),
+      onClose: vi.fn(),
+    };
+    const view = render(
+      <AreaPuzzleLayer {...props} event={event ? puzzleEvent(data, event) : null} />,
+    );
+    return { scene, solvePuzzle, view, props };
+  }
+
+  it('hides each object already found and shows each one still to find', () => {
+    const { scene } = render2(twoToFind([...ready, 'firepeak-heart-crystal']), null);
+    expect(scene.puzzles.setVisible).toHaveBeenCalledWith('firepeak-crystal', false);
+    expect(scene.puzzles.setVisible).toHaveBeenCalledWith('firepeak-shard-two', true);
+  });
+
+  it('finding one object never shows the next one as already found', async () => {
+    const data = twoToFind(ready);
+    const { solvePuzzle, view, props } = render2(data, 'firepeak-crystal');
+    await userEvent.click(screen.getByRole('button', { name: 'Pick up the glowing crystal' }));
+    expect(solvePuzzle).toHaveBeenCalledWith('firepeak-heart-crystal', {});
+    const found = await screen.findByRole('dialog', {
+      name: 'You found the first Heart Crystal fragment!',
+    });
+    expect(found).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Keep exploring' }));
+    view.rerender(<AreaPuzzleLayer {...props} event={puzzleEvent(data, 'firepeak-shard-two')} />);
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Pick up the glowing crystal' }),
+    );
+    expect(solvePuzzle).toHaveBeenLastCalledWith('firepeak-second-shard', {});
+  });
+});
+
+describe('the pick-up button names what the child touched (#102)', () => {
+  it.each([
+    ['Torn map piece 1', 'Pick up the torn map piece 1'],
+    ['The Heart of Firepeak', 'Pick up the Heart of Firepeak'],
+    ["Santa's sleigh bell", "Pick up Santa's sleigh bell"],
+  ])('labels "%s" as "%s"', async (label, name) => {
+    const data = bootstrap(['firepeak-telescope', 'firepeak-crossing', 'firepeak-steam']);
+    const { scene } = fakeScene();
+    const puzzle = data.puzzles.find((p) => p.puzzleId === 'firepeak-heart-crystal')!;
+    render(
+      <AreaPuzzleLayer
+        bootstrap={data}
+        sceneApi={scene}
+        busy={false}
+        solvePuzzle={vi.fn(async () => undefined)}
+        showToast={vi.fn()}
+        onClose={vi.fn()}
+        event={{ kind: 'puzzle', entityId: 'firepeak-crystal', label, puzzle }}
+      />,
+    );
+    expect(await screen.findByRole('button', { name })).toBeInTheDocument();
+  });
+});

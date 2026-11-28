@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import styles from '../IslandWorldView.module.css';
 import { ThreeGameContainer } from './ThreeGameContainer';
 import { WorldStage } from './WorldStage';
+import { GameplayMenus } from './GameplayMenus';
 import { createSandboxEngine, type SandboxEngine } from './sandboxScene';
 import { useSandboxBridge } from './useSandboxBridge';
 import { WorldEngineEventBus } from './worldEngineEvents';
@@ -42,7 +43,48 @@ export function ThreeSandboxWorldView({ childId }: ThreeSandboxWorldViewProps) {
         the screen, then move your mouse (or drag with two fingers on a touch screen: left side to
         move, right side to look). Walk up to Pip to say hello.
       </p>
-      <WorldStage>
+      <WorldStage
+        menus={
+          <GameplayMenus
+            menus={[
+              {
+                id: 'explore',
+                label: 'Things to do',
+                icon: '🧭',
+                title: 'Things to do here',
+                content: (close) => (
+                  <ul className={styles.thingsToDoList}>
+                    <li>
+                      <button
+                        type="button"
+                        className={styles.thingsToDoButton}
+                        onClick={() => {
+                          close();
+                          noteCharacterMet('pirate-pip');
+                        }}
+                      >
+                        Say hello to Pip
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        className={styles.thingsToDoButton}
+                        onClick={() => {
+                          close();
+                          engineRef.current?.interact();
+                        }}
+                      >
+                        Interact with what you're looking at
+                      </button>
+                    </li>
+                  </ul>
+                ),
+              },
+            ]}
+          />
+        }
+      >
         <ThreeGameContainer
           instanceKey={childId}
           createEngine={(parent) => createSandboxEngine(parent, bus)}
@@ -51,29 +93,6 @@ export function ThreeSandboxWorldView({ childId }: ThreeSandboxWorldViewProps) {
           }}
         />
       </WorldStage>
-      <details className={styles.thingsToDo}>
-        <summary>Things to do here</summary>
-        <ul className={styles.thingsToDoList}>
-          <li>
-            <button
-              type="button"
-              className={styles.thingsToDoButton}
-              onClick={() => noteCharacterMet('pirate-pip')}
-            >
-              Say hello to Pip
-            </button>
-          </li>
-          <li>
-            <button
-              type="button"
-              className={styles.thingsToDoButton}
-              onClick={() => engineRef.current?.interact()}
-            >
-              Interact with what you're looking at
-            </button>
-          </li>
-        </ul>
-      </details>
     </div>
   );
 }

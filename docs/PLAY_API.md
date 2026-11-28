@@ -213,7 +213,10 @@ Items (`progress.inventory[].item`, reward `newItems[]`) gain `setId` and `journ
 
 ### `POST sessions/{sessionId}/puzzles/{puzzleId}/solve/`: one attempt at a puzzle
 
-- **Body:** `{"submission": {...}}`, and nothing else.
+- **Body:** `{"submission": {...}, "hintsUsed": n}`, and nothing else. `hintsUsed` is
+  optional (issue #102): how many of the band's hints the child opened before this answer,
+  0 to 4. The server caps it at the band's hint count and stores absent as unknown. It only
+  marks the learning evidence as supported; it never changes correctness, rewards or XP.
 - **Submission shape by kind:**
 
   | Kind | Submission |
@@ -222,13 +225,23 @@ Items (`progress.inventory[].item`, reward `newItems[]`) gain `setId` and `journ
   | `PLACE_PLATFORMS` | `{"placements": {slotId: stoneId}}` |
   | `VALVE_SEQUENCE` | `{"sequence": [valveId...]}` |
   | `COLLECT_OBJECT`, `RETURN_TO_NPC` | `{}` |
+  | `CHOOSE_ANSWER` | `{"variantId", "choice": optionId}` |
+  | `ORDER_SEQUENCE` | `{"variantId", "order": [itemId...]}` |
+  | `NAVIGATE_ROUTE` (issue #102) | `{"variantId", "moves": ["N" \| "E" \| "S" \| "W", ...]}` |
+  | `SORT_ITEMS` (issue #102) | `{"variantId", "placements": {itemId: binId}}` |
+  | `SHARE_ITEMS` (issue #102) | `{"variantId", "counts": {containerId: n}}` |
 
 - **Response:** `200` with
-  `{attemptId, correct, feedback, solvedNow, alreadySolved, failedAttempts, newItems, rewardMessage, questUpdates}`.
+  `{attemptId, correct, feedback, solvedNow, alreadySolved, practice, failedAttempts, skillPracticed, newItems, rewardMessage, questUpdates}`.
+  `skillPracticed` (issue #102) is `{code, title}` of the learning objective this attempt was
+  evidence for, for the puzzle panel's result step, or null (an accomplishment with no skill,
+  or practice replay). The support level is never sent to the child; it is a parent view.
 - **Grading:** the server grades against the puzzle version the session pinned. A correct
   answer records the puzzle's world change (`PUZZLE_SOLVED`), grants its reward rule once, and
   advances active quests, all in one transaction.
-- **Replays:** an already-solved puzzle answers `alreadySolved: true` and grants nothing.
+- **Replays:** an already-solved puzzle answers `alreadySolved: true` and grants nothing. A
+  quiz kind (`CHOOSE_ANSWER`, `ORDER_SEQUENCE`, `NAVIGATE_ROUTE`, `SORT_ITEMS`, `SHARE_ITEMS`)
+  is still graded for feedback (`practice: true`) and records nothing (FPV-D6).
 - **Errors:**
   - `400 invalid_submission`: a malformed submission; nothing is recorded.
   - `404`: an unknown or unpublished puzzle, or another child's session.
@@ -245,7 +258,10 @@ every new field when an older server leaves it out.
 **Region bootstrap, chests.** Each chest also carries `presentation` (`CHEST`, `HIDDEN`: not
 drawn until it may be opened, or `PUZZLE`: answered by touching objects, no chest drawn),
 `sortOrder` (the encounter order; the list comes sorted by it), `locked` and `lockReason`
-(`null`, `PROGRESS`: an earlier encounter first, or `ITEM`: a key the child lacks),
+(`null`, `PROGRESS`: an earlier encounter first, `ITEM`: a key the child lacks, or `PUZZLE`:
+a published 3D Area puzzle in the same Area records this chest's world change key, so solving
+that puzzle opens the chest and the chest issues no challenge of its own: `409 chest_locked`,
+issue #102),
 `requiredItemId`, `answerEntityIds` (a puzzle's answer objects, one per choice, in choice order)
 and `clue` (Pip's line that sends the child there; child-facing).
 

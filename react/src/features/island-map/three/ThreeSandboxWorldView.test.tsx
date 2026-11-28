@@ -59,6 +59,7 @@ describe('ThreeSandboxWorldView', () => {
     const user = userEvent.setup();
     render(<ThreeSandboxWorldView childId="child-1" />);
 
+    await user.click(await screen.findByRole('button', { name: 'Things to do' }));
     await user.click(await screen.findByRole('button', { name: /say hello to pip/i }));
 
     expect(recordCharacterMetMock).toHaveBeenCalledWith('child-1', 'pirate-pip');

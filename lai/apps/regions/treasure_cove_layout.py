@@ -58,7 +58,7 @@ CAMPFIRE_MODEL = "campfire"
 CAMPFIRE_COLLIDER_HALF = 0.6
 
 # Bump whenever the layout changes, so the seed refreshes an existing region's layout.
-LAYOUT_VERSION = 9
+LAYOUT_VERSION = 10
 BOUNDS = {"halfExtentX": 36, "halfExtentZ": 44, "wallThickness": 1}
 SNAPSHOT_PATH = Path(__file__).with_name("treasure_cove_layout.json")
 
@@ -74,6 +74,42 @@ SPOTS = {
     "lookout-point": (0.0, -42.5),
     "lookout-spyglass": (2.6, -41.6),
 }
+
+# The redesigned adventure's stage objects (#102, `treasure_cove_stages.py`): seeded placements,
+# not layout, named here so scenery keeps clear of them like the encounter spots above.
+STAGE_SPOTS = {
+    # Stage 1, the missing map: three torn pieces round the landing, then the three waymarker
+    # signs at the landing's exits (they replace the decorative waymarkers, layout v10).
+    "map-piece-1": (-2.5, 16.0),
+    "map-piece-2": (6.2, 11.0),
+    "map-piece-3": (2.6, 25.6),
+    "way-grove": (-10.5, 10.0),
+    "way-beach": (10.5, 10.0),
+    "way-ruins": (1.8, -2.5),
+    # Stage 2, Crocodile Creek: stepping stones zig-zag across the creek on the grove path.
+    "creek-stone-a": (-13.2, 6.4),
+    "creek-stone-b": (-14.1, 8.4),
+    "creek-stone-c": (-15.0, 6.6),
+    "creek-stone-d": (-15.9, 8.6),
+    "creek-stone-e": (-16.6, 6.8),
+    "creek-crocodile": (-14.6, 4.0),
+    # Stage 3, the supply dock: three cargo crates by the locked chest.
+    "dock-crate-a": (17.2, 22.6),
+    "dock-crate-b": (18.4, 26.2),
+    "dock-crate-c": (23.6, 26.6),
+    # Stage 4, the forgotten cave: carvings hidden in the ruins' corners.
+    "cave-glyph-1": (-7.2, -22.0),
+    "cave-glyph-2": (8.6, -19.0),
+    "cave-glyph-3": (-7.6, -33.6),
+    # Stage 5, Pip's lost treasure: four torches round the golden chest's dais.
+    "finale-torch-1": (-4.2, -30.4),
+    "finale-torch-2": (4.2, -30.4),
+    "finale-torch-3": (-4.2, -34.0),
+    "finale-torch-4": (4.2, -34.0),
+}
+# Crocodile Creek (#102): shallow water across the grove path. Decoration only: no collider and
+# no hazard, so a child who steps off a stone just keeps walking (no punitive reset).
+CREEK = {"minX": -17.0, "maxX": -12.6, "minZ": 3.2, "maxZ": 11.8}
 
 # TR-17: what the quest's completion (QUEST_COMPLETE_KEY, recorded by Django) opens. The client
 # lifts the gate, takes the closed-channel collider out, lays the bridge and hides the sinking
@@ -91,7 +127,7 @@ BRIDGE_HALF_WIDTH = 1.6
 # TR-18: the water that shimmers and the fireflies that drift. Decoration only; the client holds
 # both still when the device asks for reduced motion.
 AMBIENCE = {
-    "water": ["cove-channel", "cove-north-shallows", "cove-east-shallows"],
+    "water": ["cove-channel", "cove-north-shallows", "cove-east-shallows", "cove-creek"],
     "fireflies": [
         {"id": "cove-fireflies-grove", "x": -24, "z": 8, "radius": 9, "height": 2.4, "count": 28},
         {"id": "cove-fireflies-ruins", "x": 0, "z": -26, "radius": 10, "height": 3, "count": 24},
@@ -445,7 +481,15 @@ RUIN_PILLARS = _ring(PEDESTAL[0], PEDESTAL[1], 7, 8, start=math.pi / 8)
 RUNE_STONES = [(-3.0, -23.0), (3.0, -23.0), (0.0, -29.4)]
 # Where people stand or meet something: the spawn point, Pip and the first chest's helpers
 # (treasure_rush_seed), the encounter spots and the rune stones. Scenery keeps clear of them.
-KEEP_CLEAR = [(0.0, 10.0), (0.0, -6.0), (3.0, 6.0), (-3.0, 6.0), *SPOTS.values(), *RUNE_STONES]
+KEEP_CLEAR = [
+    (0.0, 10.0),
+    (0.0, -6.0),
+    (3.0, 6.0),
+    (-3.0, 6.0),
+    *SPOTS.values(),
+    *RUNE_STONES,
+    *STAGE_SPOTS.values(),
+]
 # Palms in the ruins' corners, clear of the walls, the pillars, the aisle and the gate.
 RUINS_PALMS = [(-10.6, -20.4, M), (10.4, -32.4, C), (-10.4, -31.2, S), (9.8, -22.8, M)]
 # Lookout Point: the two that frame the flag, and two at the far ends of the sand, so the view
@@ -499,6 +543,14 @@ def cove_layout() -> dict:
             0.02,
         ),
         _plane("cove-channel", SEA, _rect("cove-channel:area", -36, 36, -40.4, -36.4), 0.02),
+        # Crocodile Creek (#102): above the grove path, so the path runs under the water and
+        # the stepping stones are the way across.
+        _plane(
+            "cove-creek",
+            SHALLOWS,
+            _rect("cove-creek:area", CREEK["minX"], CREEK["maxX"], CREEK["minZ"], CREEK["maxZ"]),
+            0.035,
+        ),
         # Lookout Point (TR-17): sand beyond the channel, and a stone plaza round the flag.
         _plane(
             "cove-lookout-sand", SAND, _rect("cove-lookout-sand:area", -36, 36, -44, -40.4), 0.01
@@ -556,13 +608,8 @@ def cove_layout() -> dict:
             "log-fallen",
             _positions([(-6.9, 8.4), (-3.1, 10.6)], rotation_y=lambda i: (0.2, math.pi + 0.2)[i]),
         ),
-        _cluster(
-            "cove-waymarkers",
-            "signpost",
-            _positions(
-                [(-10.5, 10), (10.5, 10), (1.8, -2.5)], rotation_y=lambda i: (1.57, -1.57, 0)[i]
-            ),
-        ),
+        # The waymarkers are the map stage's signs now (#102): seeded placements the child
+        # walks to, at the same three spots (STAGE_SPOTS["way-*"]).
     ]
     colliders += [
         {"rect": _rect("cove-landing-crates:collider", 6, 7.8, 14.5, 16.3)},
