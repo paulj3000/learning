@@ -13,6 +13,12 @@ import { CASTLE_WRITING_ROOM_MANIFEST } from './castleWritingRoom';
  * Every source-controlled location manifest. Adding an ordinary location
  * is adding its manifest here; nothing else in the runtime changes.
  */
+/**
+ * GE-077: the 3D island hub. A Phaser `NAVIGATE 'world'` (the Phaser harbor) taken inside a
+ * Three.js world lands here instead (`navigationTarget.ts`).
+ */
+export const HUB_REGION_ID = WELCOME_HARBOR_MANIFEST.regionId;
+
 export const SOURCE_LOCATION_MANIFESTS: readonly ThreeLocationManifest[] = [
   WELCOME_HARBOR_MANIFEST,
   PIRATE_BUILDER_BAY_MANIFEST,

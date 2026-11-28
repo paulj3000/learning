@@ -238,7 +238,7 @@ describe('The Writing Room on the generic view: parity with CastleWritingRoomWor
     await renderUnlocked();
     await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'writing-room-castle-exit' }));
     const link = await screen.findByRole('link', { name: 'Go there' });
-    expect(link).toHaveAttribute('href', '/island/child-1/world/storykeeper-castle');
+    expect(link).toHaveAttribute('href', '/island/child-1/explore/storykeeper-castle');
   });
 
   it('always offers the location page as the way out of 3D', async () => {

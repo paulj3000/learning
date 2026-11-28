@@ -6,6 +6,7 @@ import { NpcConversation } from '../../NpcConversation';
 import type { WorldAction, WorldInteraction } from '../../worldObjects';
 import { resumeOrStartSession } from '../../../adventures/api';
 import { locationWorldPath } from './locationWorldPath';
+import { threeNavigationHref } from './navigationTarget';
 import { resolveAdventureForAgeBand } from '../../../adventures/content';
 import { adventureStartErrorMessage } from '../../../catalog/availabilityApi';
 import type { AgeBandValue } from '../../../child-profile/constants';
@@ -83,7 +84,8 @@ function WorldActionBody({
   switch (action.kind) {
     case 'NAVIGATE':
       return (
-        <Link className={styles.goLink} to={`/island/${childId}/${action.to}`}>
+        // GE-077: a Phaser target with a 3D location lands in 3D, so a child stays in Three.js.
+        <Link className={styles.goLink} to={threeNavigationHref(childId, action.to)}>
           Go there
         </Link>
       );

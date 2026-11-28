@@ -308,9 +308,10 @@ describe('Pirate Builder Bay on the generic view: parity with PirateBuilderBayWo
       renderBay();
       await screen.findByText(/move: wasd/i);
       await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'bay-harbor-exit' }));
+      // GE-077: the Phaser table's NAVIGATE 'world' lands in the 3D harbor hub, not Phaser.
       expect(screen.getByRole('link', { name: 'Go there' })).toHaveAttribute(
         'href',
-        '/island/child-1/world',
+        '/island/child-1/explore/welcome-harbor',
       );
     });
   });
