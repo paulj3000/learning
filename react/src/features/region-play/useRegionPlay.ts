@@ -53,7 +53,12 @@ export interface RegionPlayControls {
   requestChallenge: (chestEntityId: string) => Promise<void>;
   submitAnswer: (submission: AnswerSubmission) => Promise<void>;
   /** One attempt at a 3D Area puzzle; the server grades it, then the region is re-read. */
-  solvePuzzle: (puzzleId: string, submission: JsonObject) => Promise<PuzzleOutcome | undefined>;
+  /** `hintsUsed`: hints the child was shown before this answer, when the host counted them. */
+  solvePuzzle: (
+    puzzleId: string,
+    submission: JsonObject,
+    options?: { hintsUsed?: number },
+  ) => Promise<PuzzleOutcome | undefined>;
   /** Pick up a collectible (TR-14); the region is re-read after. */
   collectPickup: (entityId: string) => Promise<void>;
   /** Tell the server the child talked to an NPC (TR-14); the region is re-read after. */
@@ -263,13 +268,13 @@ export function useRegionPlay(
   );
 
   const solvePuzzle = useCallback(
-    async (puzzleId: string, submission: JsonObject) => {
+    async (puzzleId: string, submission: JsonObject, options?: { hintsUsed?: number }) => {
       const session = stateRef.current.session;
       if (!session) return undefined;
       const startedScope = scopeRef.current;
       const outcome = await run(
         'solvePuzzle',
-        (signal) => api.solvePuzzle(session.sessionId, puzzleId, submission, signal),
+        (signal) => api.solvePuzzle(session.sessionId, puzzleId, submission, signal, options),
         (result, at) => [{ scope: at, type: 'puzzleGraded', puzzleId, outcome: result }],
       );
       if (outcome) await reload(startedScope);

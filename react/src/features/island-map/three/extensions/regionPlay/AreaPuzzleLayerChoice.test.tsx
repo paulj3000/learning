@@ -99,7 +99,21 @@ describe('choice puzzles in the layer', () => {
     expect(screen.getByRole('button', { name: 'star, 7' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Check my answer' }));
     const variantId = firstVariantIndex(FIREPEAK_SESSION, 'fh-choose-1', 2) === 0 ? 'v1' : 'v2';
-    expect(solvePuzzle).toHaveBeenCalledWith('fh-choose-1', { variantId, choice: 'b' });
+    expect(solvePuzzle).toHaveBeenCalledWith(
+      'fh-choose-1',
+      { variantId, choice: 'b' },
+      { hintsUsed: 0 },
+    );
+  });
+
+  it('reports the hint the child asked for with the answer, and a new question starts at none (#102)', async () => {
+    const { open, solvePuzzle } = setup();
+    open('fh-choose-1', 'fh-stone-b');
+    await userEvent.click(screen.getByRole('button', { name: 'I would like a hint' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Check my answer' }));
+    expect(solvePuzzle).toHaveBeenLastCalledWith('fh-choose-1', expect.any(Object), {
+      hintsUsed: 1,
+    });
   });
 
   it('keeps each puzzle on its own state', async () => {
@@ -170,10 +184,14 @@ describe('choice puzzles in the layer', () => {
     await userEvent.click(screen.getByRole('button', { name: /Add: star, Sun switch/ }));
     await userEvent.click(screen.getByRole('button', { name: /Add: triangle, Fire switch/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Check my order' }));
-    expect(solvePuzzle).toHaveBeenCalledWith('fh-order-1', {
-      variantId: 'v1',
-      order: ['blue', 'gold', 'red'],
-    });
+    expect(solvePuzzle).toHaveBeenCalledWith(
+      'fh-order-1',
+      {
+        variantId: 'v1',
+        order: ['blue', 'gold', 'red'],
+      },
+      { hintsUsed: 0 },
+    );
   });
 
   it('never sends a malformed answer', async () => {

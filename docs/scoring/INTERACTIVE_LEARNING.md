@@ -79,6 +79,13 @@ mathematics mastery.
 - The value is reported by the client, like the chest's `hintLevel`. It can only mark evidence as
   supported, so a client that under-reports gains independent credit and nothing else: no reward,
   XP or world change depends on it.
+- **The host counts it** (follow-up to #111). The 3D Area puzzle layer sends `hintsUsed` with every
+  graded solve: `hintsShown` (`react/src/features/region-play/areaPuzzles.ts`) counts the first
+  hint if the child pressed "I would like a hint", and every hint that wrong tries brought out
+  (`dueHint`), capped at the band's hints. CHOOSE_ANSWER and ORDER_SEQUENCE count per question,
+  so "try a different one" starts again at none. The other kinds count for the visit. Collecting
+  an object sends no count. The engine event field is not set yet: it needs #114's types, and
+  the claim will carry the same count once #114 is on `main`.
 
 ## 3. Progression rules
 

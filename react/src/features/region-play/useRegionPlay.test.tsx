@@ -116,9 +116,42 @@ describe('useRegionPlay puzzles (LAI-0812)', () => {
       'firepeak-telescope',
       { observed: ['crater'] },
       expect.any(AbortSignal),
+      undefined,
     );
     expect(hook.result.current.state.lastPuzzleOutcome?.puzzleId).toBe('firepeak-telescope');
     expect(vi.mocked(api.getRegion).mock.calls.length).toBe(reads + 1);
+  });
+
+  it('passes the hint count from the host to the play API (#102)', async () => {
+    const outcome = {
+      attemptId: 'a2',
+      correct: true,
+      feedback: 'CORRECT' as const,
+      solvedNow: true,
+      alreadySolved: false,
+      practice: false,
+      failedAttempts: 0,
+      newItems: [],
+      rewardMessage: null,
+      questUpdates: [],
+    };
+    const api = fakeApi({ solvePuzzle: vi.fn(async () => outcome) });
+    const hook = await readyHook(api);
+    await act(() => hook.result.current.startSession());
+    await act(async () => {
+      await hook.result.current.solvePuzzle(
+        'firepeak-telescope',
+        { observed: [] },
+        { hintsUsed: 2 },
+      );
+    });
+    expect(api.solvePuzzle).toHaveBeenCalledWith(
+      expect.any(String),
+      'firepeak-telescope',
+      { observed: [] },
+      expect.any(AbortSignal),
+      { hintsUsed: 2 },
+    );
   });
 
   it('sends nothing without an open session', async () => {

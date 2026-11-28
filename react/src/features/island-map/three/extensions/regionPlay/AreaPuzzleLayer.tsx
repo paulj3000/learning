@@ -3,6 +3,7 @@ import type { PuzzleOutcome, PuzzleState, RegionBootstrap } from '../../../../..
 import {
   addToOrder,
   AREA_COPY,
+  askChoiceHint,
   asRevealOutcome,
   clearOrder,
   differentChoiceState,
@@ -21,6 +22,7 @@ import {
 } from '../../../../region-play/areaPuzzleUi';
 import {
   chooseAnswerCorrect,
+  hintsShown,
   orderSequenceCorrect,
   parsePuzzleParams,
   simulateValves,
@@ -65,9 +67,14 @@ export interface AreaPuzzleLayerProps {
   /** The interaction the child just opened, if it is a puzzle object or the way back. */
   event: RegionPlayInteractionEvent | null;
   busy: boolean;
+  /**
+   * `options.hintsUsed`: the hints shown before this answer (issue #102). It only lowers the
+   * evidence support level; rewards are the same with or without hints.
+   */
   solvePuzzle(
     puzzleId: string,
     submission: Record<string, unknown>,
+    options?: { hintsUsed: number },
   ): Promise<PuzzleOutcome | undefined>;
   onClose(): void;
   showToast(message: string): void;
@@ -175,6 +182,8 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
   const [flash, setFlash] = useState(0);
   // Multi-instance kinds: one state per puzzle id (FPV), never one per kind.
   const [choice, setChoice] = useState<Record<string, ChoiceState>>({});
+  /** Puzzles (not CHOOSE_ANSWER or ORDER_SEQUENCE) whose hint the child asked for this visit. */
+  const [hintAsked, setHintAsked] = useState<Record<string, true>>({});
   const sessionId = bootstrap.session?.sessionId ?? '';
 
   const crossing = byKind('PLACE_PLATFORMS');
@@ -282,7 +291,11 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
     title: string,
     message: string | null,
   ) {
-    const outcome = await props.solvePuzzle(puzzleId, submission);
+    const entry = typed.get(puzzleId);
+    const hintsUsed = entry
+      ? hintsShown(entry.params, entry.puzzle.failedAttempts, hintAsked[puzzleId] === true)
+      : 0;
+    const outcome = await props.solvePuzzle(puzzleId, submission, { hintsUsed });
     if (!outcome) return undefined;
     if (outcome.correct) {
       setWrong(null);
@@ -360,6 +373,10 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
     });
   }
 
+  function askHint(puzzleId: string) {
+    setHintAsked((asked) => (asked[puzzleId] ? asked : { ...asked, [puzzleId]: true }));
+  }
+
   function patchChoice(puzzleId: string, change: (state: ChoiceState) => ChoiceState) {
     setChoice((all) => (all[puzzleId] ? { ...all, [puzzleId]: change(all[puzzleId]) } : all));
   }
@@ -383,7 +400,9 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
     } catch {
       return;
     }
-    const outcome = await props.solvePuzzle(puzzle.puzzleId, submission);
+    const outcome = await props.solvePuzzle(puzzle.puzzleId, submission, {
+      hintsUsed: hintsShown(params, state.wrongCount, state.hintAsked),
+    });
     if (!outcome) return;
     // Practice: the puzzle was solved already, so the server graded and recorded nothing.
     const practice = state.practice || outcome.practice || puzzle.solved;
@@ -445,6 +464,7 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
           params={params}
           observed={observed}
           failedAttempts={failed}
+          onHintAsked={() => askHint(puzzle.puzzleId)}
           wrong={isWrong}
           busy={props.busy}
           onObserve={(id) => setObserved((seen) => (seen.includes(id) ? seen : [...seen, id]))}
@@ -463,6 +483,7 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
           carried={carried}
           fits={fittingSlots(params, placements)}
           failedAttempts={failed}
+          onHintAsked={() => askHint(puzzle.puzzleId)}
           wrong={isWrong}
           busy={props.busy}
           onCarry={setCarried}
@@ -486,6 +507,7 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
           steamAt={steamAt}
           lastTurnMoved={lastTurnMoved}
           failedAttempts={failed}
+          onHintAsked={() => askHint(puzzle.puzzleId)}
           wrong={isWrong}
           busy={props.busy}
           onTurn={(id) => turnValve(puzzle, params, id)}
@@ -505,6 +527,7 @@ export function AreaPuzzleLayer(props: AreaPuzzleLayerProps) {
           state,
           busy: props.busy,
           onDifferent: () => patchChoice(puzzle.puzzleId, (c) => differentChoiceState(c, params)),
+          onHintAsked: () => patchChoice(puzzle.puzzleId, askChoiceHint),
           onSubmit: () => void submitChoice(puzzle, params, state),
           onClose: close,
         };

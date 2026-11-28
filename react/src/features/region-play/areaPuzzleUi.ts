@@ -180,6 +180,11 @@ export function clearOrder(state: ChoiceState): ChoiceState {
   return { ...state, order: [], result: 'none' };
 }
 
+/** The child asked for the hint on this question (it counts towards `hintsUsed`). */
+export function askChoiceHint(state: ChoiceState): ChoiceState {
+  return state.hintAsked ? state : { ...state, hintAsked: true };
+}
+
 export function recordChoiceResult(state: ChoiceState, correct: boolean): ChoiceState {
   return correct
     ? { ...state, result: 'correct' }

@@ -86,6 +86,17 @@ function setup(
 }
 
 describe('the telescope', () => {
+  it('sends hintsUsed 1 when the child asked for the hint before answering (#102)', async () => {
+    const { solvePuzzle } = setup({ event: 'firepeak-telescope' });
+    await userEvent.click(screen.getByRole('button', { name: 'I would like a hint' }));
+    for (const name of ['Crater', 'Lava flow', 'Steam vent'])
+      await userEvent.click(screen.getByRole('button', { name }));
+    await userEvent.click(screen.getByRole('button', { name: 'Tell Professor Ember' }));
+    expect(solvePuzzle).toHaveBeenCalledWith('firepeak-telescope', expect.any(Object), {
+      hintsUsed: 1,
+    });
+  });
+
   it('asks the server once every feature has been looked at, and shows the reward', async () => {
     const { solvePuzzle } = setup({
       event: 'firepeak-telescope',
@@ -115,9 +126,13 @@ describe('the telescope', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Steam vent' }));
     await userEvent.click(tell);
 
-    expect(solvePuzzle).toHaveBeenCalledWith('firepeak-telescope', {
-      observed: ['crater', 'lava-flow', 'steam-vent'],
-    });
+    expect(solvePuzzle).toHaveBeenCalledWith(
+      'firepeak-telescope',
+      {
+        observed: ['crater', 'lava-flow', 'steam-vent'],
+      },
+      { hintsUsed: 0 },
+    );
     expect(
       await screen.findByRole('dialog', { name: 'Look through the telescope' }),
     ).toBeInTheDocument();
@@ -154,13 +169,17 @@ describe('the lava crossing', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Check the crossing' }));
 
-    expect(solvePuzzle).toHaveBeenCalledWith('firepeak-crossing', {
-      placements: {
-        'firepeak-gap-near': 'firepeak-stone-small',
-        'firepeak-gap-middle': 'firepeak-stone-middle',
-        'firepeak-gap-far': 'firepeak-stone-big',
+    expect(solvePuzzle).toHaveBeenCalledWith(
+      'firepeak-crossing',
+      {
+        placements: {
+          'firepeak-gap-near': 'firepeak-stone-small',
+          'firepeak-gap-middle': 'firepeak-stone-middle',
+          'firepeak-gap-far': 'firepeak-stone-big',
+        },
       },
-    });
+      { hintsUsed: 0 },
+    );
   });
 
   it('picks a stone up and snaps it into a gap from the scene, and shows the fit', () => {
@@ -203,14 +222,18 @@ describe('the steam valves', () => {
     await userEvent.click(screen.getByRole('button', { name: /Turn: Green valve/ }));
 
     await waitFor(() =>
-      expect(solvePuzzle).toHaveBeenCalledWith('firepeak-steam', {
-        sequence: [
-          'firepeak-valve-blue',
-          'firepeak-valve-red',
-          'firepeak-valve-blue',
-          'firepeak-valve-green',
-        ],
-      }),
+      expect(solvePuzzle).toHaveBeenCalledWith(
+        'firepeak-steam',
+        {
+          sequence: [
+            'firepeak-valve-blue',
+            'firepeak-valve-red',
+            'firepeak-valve-blue',
+            'firepeak-valve-green',
+          ],
+        },
+        { hintsUsed: 0 },
+      ),
     );
   });
 

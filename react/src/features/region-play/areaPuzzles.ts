@@ -373,6 +373,21 @@ export function dueHint(params: BandCommon, failedAttempts: number): string | nu
   return params.hints[index] ?? null;
 }
 
+/**
+ * How many of the band's hints the child has been shown before this answer (issue #102): the
+ * first one if they asked for it, and every hint `dueHint` has brought out after wrong tries. It
+ * is sent as the solve request's `hintsUsed` and only lowers the evidence support level: what the
+ * child earns is the same with or without hints. The server caps it at the band's hint count too.
+ */
+export function hintsShown(params: BandCommon, failedAttempts: number, asked: boolean): number {
+  if (params.hints.length === 0) return 0;
+  const due =
+    failedAttempts < params.hintAfterAttempts
+      ? 0
+      : Math.min(Math.floor(failedAttempts / params.hintAfterAttempts), params.hints.length);
+  return Math.max(due, asked ? 1 : 0);
+}
+
 // --- The rules, identical to the server's ------------------------------------------------------
 
 /** OBSERVE_FEATURES: solved once every feature has been looked at. */

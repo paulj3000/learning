@@ -41,17 +41,22 @@ function Hint({ text }: { text: string | null }) {
   );
 }
 
-/** Feedback and an optional hint: hints are always offered, and after a few tries shown. */
+/**
+ * Feedback and an optional hint: hints are always offered, and after a few tries shown. `onAsk`
+ * tells the puzzle layer the child asked, so the next answer can report `hintsUsed` (issue #102).
+ */
 function Feedback({
   wrong,
   wrongText,
   hints,
   due,
+  onAsk,
 }: {
   wrong: boolean;
   wrongText: string;
   hints: readonly string[];
   due: string | null;
+  onAsk?: () => void;
 }) {
   const [asked, setAsked] = useState(false);
   const shown = due ?? (asked ? (hints[0] ?? null) : null);
@@ -64,7 +69,14 @@ function Feedback({
       ) : null}
       <Hint text={shown} />
       {!shown && hints.length > 0 ? (
-        <button type="button" className={styles.button} onClick={() => setAsked(true)}>
+        <button
+          type="button"
+          className={styles.button}
+          onClick={() => {
+            setAsked(true);
+            onAsk?.();
+          }}
+        >
           {AREA_COPY.needHint}
         </button>
       ) : null}
@@ -89,6 +101,8 @@ export interface TelescopePanelProps {
   wrong: boolean;
   busy: boolean;
   onObserve(featureId: string): void;
+  /** The child asked for a hint (counted for the next answer's `hintsUsed`). */
+  onHintAsked?(): void;
   onSubmit(): void;
   onClose(): void;
 }
@@ -144,6 +158,7 @@ export function TelescopePanel(props: TelescopePanelProps) {
         wrongText={AREA_COPY.notYet}
         hints={params.hints}
         due={dueHint(params, props.failedAttempts)}
+        onAsk={props.onHintAsked}
       />
       <div className={styles.actions}>
         <button
@@ -188,6 +203,8 @@ export interface CrossingPanelProps {
   onCarry(stoneId: string | null): void;
   onPlace(stoneId: string, slotId: string): void;
   onRemove(stoneId: string): void;
+  /** The child asked for a hint (counted for the next answer's `hintsUsed`). */
+  onHintAsked?(): void;
   onSubmit(): void;
   onClose(): void;
 }
@@ -256,6 +273,7 @@ export function CrossingPanel(props: CrossingPanelProps) {
         wrongText={AREA_COPY.crossingWrong}
         hints={params.hints}
         due={dueHint(params, props.failedAttempts)}
+        onAsk={props.onHintAsked}
       />
       <div className={styles.actions}>
         <button
@@ -288,6 +306,8 @@ export interface ValvePanelProps {
   busy: boolean;
   onTurn(valveId: string): void;
   onReset(): void;
+  /** The child asked for a hint (counted for the next answer's `hintsUsed`). */
+  onHintAsked?(): void;
   onClose(): void;
 }
 
@@ -337,6 +357,7 @@ export function ValvePanel(props: ValvePanelProps) {
         wrongText={AREA_COPY.notYet}
         hints={params.hints}
         due={dueHint(params, props.failedAttempts)}
+        onAsk={props.onHintAsked}
       />
       <div className={styles.actions}>
         <button type="button" className={styles.button} onClick={props.onReset}>
@@ -436,6 +457,8 @@ interface ChoicePanelBase {
   state: ChoiceState;
   busy: boolean;
   onDifferent(): void;
+  /** The child asked for a hint (counted for the next answer's `hintsUsed`). */
+  onHintAsked?(): void;
   onSubmit(): void;
   onClose(): void;
 }
@@ -446,6 +469,7 @@ function ChoiceResult(props: {
   params: ChooseAnswerParams | OrderSequenceParams;
   explanation: string;
   wrongText: string;
+  onHintAsked?: () => void;
 }) {
   const { state, params, explanation } = props;
   const hint = dueHint(params, state.wrongCount);
@@ -477,6 +501,7 @@ function ChoiceResult(props: {
         wrongText=""
         hints={state.result === 'correct' ? [] : params.hints}
         due={state.result === 'correct' ? null : hint}
+        onAsk={props.onHintAsked}
       />
     </>
   );
@@ -525,6 +550,7 @@ export function ChooseAnswerPanel(props: ChooseAnswerPanelProps) {
         params={params}
         explanation={variant.explanation}
         wrongText={AREA_COPY.notQuiteAgain}
+        onHintAsked={props.onHintAsked}
       />
       <div className={styles.actions}>
         {done ? (
@@ -633,6 +659,7 @@ export function OrderSequencePanel(props: OrderSequencePanelProps) {
         params={params}
         explanation={variant.explanation}
         wrongText={AREA_COPY.orderNotQuite}
+        onHintAsked={props.onHintAsked}
       />
       <div className={styles.actions}>
         {done ? (
