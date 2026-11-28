@@ -24,6 +24,7 @@
     "./movement": "./src/movement/index.ts",
     "./input": "./src/input/index.ts",
     "./physics": "./src/physics/index.ts",
+    "./navigation": "./src/navigation/index.ts",
     "./engine": "./src/engine/index.ts",
     "./*": "./src/*.ts"
   },

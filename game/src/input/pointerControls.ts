@@ -1,5 +1,5 @@
 import { Vector2, type WebGLRenderer } from 'three';
-import type { FirstPersonController } from '../movement/firstPersonController';
+import type { FirstPersonController, MoveInput } from '../movement/firstPersonController';
 import { RUN_INPUT_THRESHOLD } from '../movement/locomotionConfiguration';
 import {
   GamepadReader,
@@ -26,7 +26,27 @@ export interface PointerControlsOptions {
    * `player.camera.rotationSensitivity`). Defaults to 1.
    */
   lookSensitivity?: () => number;
+  /**
+   * LAI-2104S guided mode: false turns free look off for good. Mouse, the touch look half and
+   * the gamepad's right stick no longer turn the view, and a click no longer captures the
+   * pointer (the cursor stays, so the child can tap). Default true.
+   */
+  freeLook?: boolean;
+  /**
+   * LAI-2104S guided mode: a tap or click on the canvas (not a joystick drag). Receives the
+   * client coordinates. Held-key and drag input is unaffected.
+   */
+  onTap?: (point: { clientX: number; clientY: number }) => void;
+  /**
+   * LAI-2104S guided mode: called each frame with what the keys, joystick and pad say (all
+   * zero when untouched) and the frame time. Returns the input to hand the controller, so a
+   * guided walk can supply it, yielding to any manual push.
+   */
+  shapeInput?: (manual: MoveInput, deltaSeconds: number) => MoveInput;
 }
+
+/** A touch or click that moves further than this (px) is a drag, not a tap. */
+export const TAP_SLOP_PX = 12;
 
 const SCROLL_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ']);
 
@@ -137,6 +157,7 @@ export function attachPointerControls(
   };
   /** Every look delta goes through here, so the location's sensitivity applies to all of them. */
   const look = (dx: number, dy: number) => {
+    if (options.freeLook === false) return;
     const scale = sensitivity();
     controller.applyLookDelta(dx * scale, dy * scale);
   };
@@ -172,7 +193,18 @@ export function attachPointerControls(
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
 
-  const onPointerLockClick = () => {
+  /** The move touch travelled past the slop, so the click that follows is a drag's, not a tap. */
+  let dragged = false;
+  const onPointerLockClick = (event: MouseEvent) => {
+    if (options.freeLook === false) {
+      // Guided mode: no pointer lock. A click is a tap unless a drag just ended.
+      if (dragged) {
+        dragged = false;
+        return;
+      }
+      options.onTap?.({ clientX: event.clientX, clientY: event.clientY });
+      return;
+    }
     if (document.pointerLockElement !== renderer.domElement) {
       void renderer.domElement.requestPointerLock();
     }
@@ -195,6 +227,7 @@ export function attachPointerControls(
   let lookTouchLast = new Vector2(0, 0);
 
   const onTouchStart = (event: TouchEvent) => {
+    dragged = false;
     const rect = renderer.domElement.getBoundingClientRect();
     for (const touch of Array.from(event.changedTouches)) {
       const x = touch.clientX - rect.left;
@@ -213,6 +246,7 @@ export function attachPointerControls(
       if (touch.identifier === moveTouchId) {
         const dx = touch.clientX - moveTouchStart.x;
         const dy = touch.clientY - moveTouchStart.y;
+        if (Math.hypot(dx, dy) > TAP_SLOP_PX) dragged = true;
         const drag = touchDrag(dx, dy);
         touchMoveVector.set(drag.x, drag.y);
         touchSprint = drag.sprint;
@@ -284,13 +318,14 @@ export function attachPointerControls(
       padSprintLatched = false;
     }
     const holdShift = options.sprintMode?.() !== 'toggle' && keysDown.has('shift');
-    controller.update(deltaSeconds, {
+    const manual: MoveInput = {
       forward,
       strafe,
       // A joystick drag or a stick: a strong push runs. Keys alone walk, as they always did.
       analog: touchMoveVector.lengthSq() > 0 || pad.forward !== 0 || pad.strafe !== 0,
       sprint: holdShift || keyboardSprintLatched || padSprintLatched || touchSprint,
-    });
+    };
+    controller.update(deltaSeconds, options.shapeInput?.(manual, deltaSeconds) ?? manual);
   }
 
   function dispose(): void {
