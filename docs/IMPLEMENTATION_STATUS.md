@@ -37,6 +37,23 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-06 #102 hint count from the host on puzzle solves (2026-11-28, `feature/hints-used-host-wiring`, `main` `6246cfc5`)
+
+Status: Development Complete on its branch, not merged, not owner-accepted (GitHub #102, Trello
+#258; owner decision 2 of 2026-11-27).
+
+- The 3D Area puzzle layer now sends the solve request's optional `hintsUsed` (added by #111):
+  the hints shown before the answer, from the new pure `hintsShown`. It only lowers the evidence
+  support level, and rewards and world changes do not change.
+- Panels report a hint request through `onHintAsked`. Choice questions keep it in
+  `ChoiceState.hintAsked` (new `askChoiceHint`), so it is counted per question.
+  `useRegionPlay.solvePuzzle` and the companion pass the options through to the play API.
+- Not yet: `learning.answer.submitted.hintsUsed` on the emitted claim. That waits for LAI 04's
+  #114 (engine type and Django validator) to reach `main`.
+- Tests: new `areaPuzzleHints.test.ts`; hint cases in `AreaPuzzleLayer.test.tsx`,
+  `AreaPuzzleLayerChoice.test.tsx` and `useRegionPlay.test.tsx`; existing solve assertions take
+  the new options argument. Deferred to merge readiness: full suites, browser and Playwright checks.
+
 ## LAI-07 environmental image assets and materials, LAI-ENV-01 to 03 (2026-11-27 to 28, `feature/environmental-image-assets`, `main` `c14392b0` merged in); Development Complete for the Django side, NOT merged
 
 - 2026-11-28:

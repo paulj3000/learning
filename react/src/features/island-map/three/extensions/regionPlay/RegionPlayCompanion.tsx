@@ -658,8 +658,12 @@ function RegionPlayGame(props: LocationCompanionProps) {
     : null;
 
   /** Solves through the play API and raises the confirmed-solve sounds (never for practice). */
-  async function solveWithSound(puzzleId: string, submission: JsonObject) {
-    const outcome = await solvePuzzle(puzzleId, submission);
+  async function solveWithSound(
+    puzzleId: string,
+    submission: JsonObject,
+    options?: { hintsUsed?: number },
+  ) {
+    const outcome = await solvePuzzle(puzzleId, submission, options);
     const kind = state.bootstrap?.puzzles.find((p) => p.puzzleId === puzzleId)?.kind;
     for (const cue of puzzleSolveCues(kind, outcome)) playCue(cue);
     // GE-073: the server's grading, restated as claims for the visit's sink.
@@ -877,8 +881,8 @@ function RegionPlayGame(props: LocationCompanionProps) {
           sceneApi={(sceneApi as RegionPlaySceneApi | null) ?? null}
           event={areaEvent}
           busy={state.busy === 'solvePuzzle'}
-          solvePuzzle={async (puzzleId, submission) => {
-            const outcome = await solveWithSound(puzzleId, submission as JsonObject);
+          solvePuzzle={async (puzzleId, submission, options) => {
+            const outcome = await solveWithSound(puzzleId, submission as JsonObject, options);
             if (outcome?.correct) void refreshProgress();
             return outcome;
           }}
