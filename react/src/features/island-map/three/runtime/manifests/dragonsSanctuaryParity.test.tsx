@@ -264,12 +264,13 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
 
   it('offers the way back to Welcome Harbor when the child walks onto the exit', async () => {
     await renderAndWait();
-    await emit((bus) =>
-      bus.emit('PlayerEnteredZone', { zoneId: 'dragons-sanctuary-harbor-exit' }),
-    );
-    expect(await screen.findByRole('link', { name: 'Go there' })).toHaveAttribute(
-      'href',
-      '/island/child-1/world',
+    await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'dragons-sanctuary-harbor-exit' }));
+    // The Phaser `NAVIGATE 'world'` renders the Phaser harbor until GE-077 (#130) resolves it to
+    // the 3D harbor hub; either is the way back to Welcome Harbor, so the merge order of the two
+    // PRs does not matter. After both merge, narrow this to `/explore/welcome-harbor`.
+    const link = await screen.findByRole('link', { name: 'Go there' });
+    expect(link.getAttribute('href')).toMatch(
+      /^\/island\/child-1\/(world|explore\/welcome-harbor)$/,
     );
   });
 
