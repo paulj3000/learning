@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { IslandExitProvider, LeaveIslandButton } from '../../../portal/exit';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorldEngineEventBus } from '../worldEngineEvents';
-import type { LocationEngineAssets } from './createLocationEngine';
+import { createLocationEngine, type LocationEngineAssets } from './createLocationEngine';
 import type { ThreeLocationManifest } from './locationManifest';
 import {
   InvalidLocationManifestError,
@@ -104,6 +104,7 @@ import { listAllWorldChanges, recordWorldChangeOnce } from '../../../adventures/
 import { getInventory } from '../../../rewards/api';
 import { listQuestStates } from '../../../quests/api';
 import { getCompanionProfile } from '../../../island/api';
+import { openThingsToDo } from '../../../../test/gameplayMenus';
 
 const getWorldStateMock = vi.mocked(getWorldState);
 const listAllWorldChangesMock = vi.mocked(listAllWorldChanges);
@@ -387,12 +388,13 @@ describe('ThreeLocationWorldView', () => {
   it('offers everything in a non-graphical list', async () => {
     const user = userEvent.setup();
     renderView();
-    await user.click(await screen.findByText('Things to do here'));
+    await user.click(await screen.findByRole('button', { name: 'Things to do' }));
     await user.click(screen.getByRole('button', { name: 'Say hello to Pip' }));
     expect(screen.getByRole('dialog', { name: 'Say hello to Pip' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Not now' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: "Interact with what you're looking at" }));
     expect(engine.interact).toHaveBeenCalledTimes(1);
   });
@@ -405,6 +407,7 @@ describe('ThreeLocationWorldView', () => {
       'href',
       '/island/child-1/world',
     );
+    await openThingsToDo();
     expect(screen.queryByRole('button', { name: 'Sail on' })).not.toBeInTheDocument();
 
     await emit('PlayerEnteredZone', { zoneId: 'cove-cave' });
@@ -413,6 +416,7 @@ describe('ThreeLocationWorldView', () => {
 
     getWorldStateMock.mockResolvedValue({ discoveredIds: ['cove-secret'], metCharacterIds: [] });
     await user.click(screen.getByRole('button', { name: 'discover cove-secret' }));
+    await openThingsToDo();
     expect(await screen.findByRole('button', { name: 'Sail on' })).toBeInTheDocument();
   });
 
@@ -536,12 +540,52 @@ describe('ThreeLocationWorldView camera view (LAI-JMP-01a)', () => {
 
   it('offers a Camera view setting, and remembers a change for next time', async () => {
     renderView();
+    await userEvent.click(await screen.findByRole('button', { name: 'Settings' }));
     const eyes = await screen.findByRole('radio', { name: 'Through my eyes' });
     expect(screen.getByRole('radio', { name: 'Behind my explorer' })).toBeChecked();
     await userEvent.click(eyes);
     await waitFor(() => expect(eyes).toBeChecked());
     expect(window.localStorage.getItem('lai:camera-mode:child-1')).toBe('first-person');
     window.localStorage.clear();
+  });
+
+  /** GE-101 (issue #101): settings and the exploration list are stage menus, closed by default. */
+  it('keeps settings and the exploration list on the stage, closed, with nothing below it', async () => {
+    const { container } = renderView();
+    await screen.findByRole('button', { name: 'Settings' });
+    const stage = container.querySelector('[data-world-stage]')!;
+    const toolbar = stage.querySelector('[data-stage-toolbar]')!;
+    for (const name of ['Things to do', 'Settings'])
+      expect(toolbar).toContainElement(screen.getByRole('button', { name }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    // Nothing that used to sit below the stage (and took half a phone's full screen) is left there.
+    expect(container.querySelectorAll('fieldset, details')).toHaveLength(0);
+  });
+
+  it('opening and closing the menus never rebuilds the scene or changes the camera', async () => {
+    const user = userEvent.setup();
+    renderView();
+    const settings = await screen.findByRole('button', { name: 'Settings' });
+    const builds = vi.mocked(createLocationEngine).mock.calls.length;
+    await user.click(settings);
+    await user.click(screen.getByRole('button', { name: 'Things to do' }));
+    await user.keyboard('{Escape}');
+    await user.click(settings);
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(vi.mocked(createLocationEngine).mock.calls.length).toBe(builds);
+    expect(engine.dispose).not.toHaveBeenCalled();
+    expect(engine.mode).toBe('third-person');
+    expect(engine.setSprintMode).not.toHaveBeenCalled();
+  });
+
+  it('closes the exploration list when an item in it opens a dialogue', async () => {
+    const user = userEvent.setup();
+    renderView();
+    await user.click(await screen.findByRole('button', { name: 'Things to do' }));
+    await user.click(screen.getByRole('button', { name: 'Say hello to Pip' }));
+    expect(screen.queryByRole('dialog', { name: 'Things to do here' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Say hello to Pip' })).toBeInTheDocument();
   });
 });
 
@@ -571,6 +615,7 @@ describe('ThreeLocationWorldView sprint setting (running & sprinting)', () => {
 
   it('offers hold or tap Shift, applies a change at once and remembers it', async () => {
     renderView();
+    await userEvent.click(await screen.findByRole('button', { name: 'Settings' }));
     const tap = await screen.findByRole('radio', { name: 'Tap Shift to switch' });
     expect(screen.getByRole('radio', { name: 'Hold Shift' })).toBeChecked();
     await userEvent.click(tap);

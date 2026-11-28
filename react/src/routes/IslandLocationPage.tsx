@@ -4,7 +4,10 @@ import styles from './IslandLocationPage.module.css';
 import { IslandLayout } from '../features/island/IslandLayout';
 import { getIslandLocation, isLocationUnlocked } from '../features/island/locations';
 import { getHomeWorld } from '../features/worlds/worlds';
-import { getAdventureTemplatesForLocation } from '../features/adventures/content';
+import {
+  getAdventureTemplatesForLocation,
+  resolveAdventureForAgeBand,
+} from '../features/adventures/content';
 import { listAllWorldChanges } from '../features/adventures/api';
 import { isIslandAvailable } from '../features/catalog/availability';
 import { loadCatalogSnapshot } from '../features/catalog/availabilityApi';
@@ -147,7 +150,18 @@ export function IslandLocationPage() {
   }
 
   const worldChanges = allWorldChanges.filter((change) => change.locationSlug === location.slug);
-  const template = getAdventureTemplatesForLocation(location.slug)[0];
+  /*
+    #99: the adventure this child's band is offered here. A Place can hold one template per band
+    (the castle: Quill's Picture Story for Sprouts, the Storykeeper's Tale for Pathfinders; the
+    Writing Room: one story per band). Taking the first template told every other band "not
+    available for your age yet" even though their own adventure was right there. The first one
+    is still used when no template fits, so that message stays honest.
+  */
+  const firstTemplate = getAdventureTemplatesForLocation(location.slug)[0];
+  const template = firstTemplate
+    ? (resolveAdventureForAgeBand(location.slug, firstTemplate.slug, childProfile.ageBand) ??
+      firstTemplate)
+    : undefined;
   const isAgeSupported = template ? template.ageBands.includes(childProfile.ageBand) : false;
   const worldChangeStep = template?.steps.find((step) => step.type === 'WORLD_CHANGE');
   const worldChangePresentation =
@@ -181,6 +195,21 @@ export function IslandLocationPage() {
             Explore {area.title}
           </Link>
         ) : null}
+        {/*
+          #99: the 3D castle is the castle's front door, as the forest's is (WF-2). Storykeeper
+          Castle has no Django 3D Area (its layout is a bundled manifest, ADR-033), so the
+          `area` link above never appears for it, and until now the only way in was a link
+          labelled as a preview. Sprouts keep the card route first (contract C-10, ADR-008)
+          until SC-R11's playtest; they still have the 3D castle as a plainly worded option.
+        */}
+        {location.slug === 'storykeeper-castle' && childProfile.ageBand !== 'SPROUT' ? (
+          <Link
+            className={styles.startLink}
+            to={locationWorldPath(childId, STORYKEEPER_CASTLE_REGION_ID)}
+          >
+            Enter the castle
+          </Link>
+        ) : null}
         {template && isAgeSupported ? (
           <Link
             className={styles.startLink}
@@ -198,7 +227,14 @@ export function IslandLocationPage() {
                 : `Start: ${template.title}`}
           </Link>
         ) : null}
-        {template && !isAgeSupported ? (
+        {template && !isAgeSupported && location.slug === 'storykeeper-castle' ? (
+          // #99: an Explorer's castle adventure (the Secret Door) starts inside, in the Great
+          // Library, so "not available" would wrongly say there is nothing here for them.
+          <p className={styles.decoration}>
+            Your castle adventure is inside. Look for the secret door in the Great Library.
+          </p>
+        ) : null}
+        {template && !isAgeSupported && location.slug !== 'storykeeper-castle' ? (
           <p className={styles.decoration}>This adventure is not available for your age yet.</p>
         ) : null}
         {location.slug === 'pirate-builder-bay' ? (
@@ -243,17 +279,22 @@ export function IslandLocationPage() {
               : 'Explore the forest from above instead'}
           </Link>
         ) : null}
-        {location.slug === 'storykeeper-castle' ? (
+        {location.slug === 'storykeeper-castle' && childProfile.ageBand === 'SPROUT' ? (
           <Link className={styles.walkLink} to={`/island/${childId}/world/storykeeper-castle`}>
             Try exploring the castle (new!)
           </Link>
         ) : null}
-        {location.slug === 'storykeeper-castle' ? (
+        {location.slug === 'storykeeper-castle' && childProfile.ageBand === 'SPROUT' ? (
           <Link
             className={styles.walkLink}
             to={locationWorldPath(childId, STORYKEEPER_CASTLE_REGION_ID)}
           >
-            Peek at an early 3D preview (new!)
+            Walk inside the castle
+          </Link>
+        ) : null}
+        {location.slug === 'storykeeper-castle' && childProfile.ageBand !== 'SPROUT' ? (
+          <Link className={styles.walkLink} to={`/island/${childId}/world/storykeeper-castle`}>
+            Explore the castle from above instead
           </Link>
         ) : null}
         {location.slug === 'dragons-sanctuary' ? (
