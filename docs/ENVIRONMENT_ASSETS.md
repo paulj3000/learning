@@ -373,8 +373,9 @@ Notes from LAI 04, recorded as part of the agreement:
 - **E-7:** bare `assetId` keys are tracked too (tested).
 - **E-10:** the client will check kind per field when materials land.
 
-The runtime loader, parser and material builder are LAI 04's, proposed as their own card. They
-are not started and wait for the owner to schedule them.
+The runtime work is LAI 04's, on the existing card #276 (LAI-ENV-04), not a new one: loader
+colour space and sampling, the material parser and builder, map caching and the catalog kind
+check. It is not started; it waits for #116 to merge and for the owner to schedule it.
 
 | # | Question | Agreed |
 |---|---|---|
