@@ -27,6 +27,11 @@ stay accomplishments and record no evidence. `puzzle_skill_report` checks all of
 a movement puzzle that names none. The rules below apply unchanged. See
 [../scoring/INTERACTIVE_LEARNING.md](../scoring/INTERACTIVE_LEARNING.md).
 
+One more objective (owner, 2026-11-27): `position-and-direction`, numeracy, "Using directions and
+positions on a map". `NAVIGATE_ROUTE` names it, and so do the Treasure Cove map's compass clues
+(`cove-treasure-map` p2, e1, e2, e4). Landmark matching stays `observation`, and the elimination
+clues (p3) stay `following-instructions`. The catalog now holds 33 objectives.
+
 ## Rules used
 
 1. Map by what the prompts actually test, not by a similar name. Some valid codes were wrong for

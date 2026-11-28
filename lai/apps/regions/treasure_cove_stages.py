@@ -343,7 +343,7 @@ def _map_reading() -> dict:
             DIRECTIONS,
             "grove",
             "The sun goes down in the west, and the west sign goes to Palm Tree Grove.",
-            "following-instructions",
+            "position-and-direction",
         ),
         choose(
             "p3",
@@ -362,7 +362,7 @@ def _map_reading() -> dict:
             DIRECTIONS,
             "grove",
             "West, past the flowers and into the trees: that is the path to Palm Tree Grove.",
-            "following-instructions",
+            "position-and-direction",
         ),
         choose(
             "e2",
@@ -371,7 +371,7 @@ def _map_reading() -> dict:
             DIRECTIONS,
             "grove",
             "Away from the east is west, and the west sign goes to the grove.",
-            "following-instructions",
+            "position-and-direction",
         ),
         choose(
             "e3",
@@ -389,7 +389,7 @@ def _map_reading() -> dict:
             DIRECTIONS,
             "grove",
             "North-west is between north and west, so the west sign is the closest way.",
-            "following-instructions",
+            "position-and-direction",
         ),
     ]
     hints = {

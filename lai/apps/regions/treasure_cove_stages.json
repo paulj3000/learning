@@ -411,7 +411,7 @@
          }
         ],
         "prompt": "Pip's map says: start at the landing, walk west past the flowers, and the X is in the trees. Which sign do you follow?",
-        "skill": "following-instructions"
+        "skill": "position-and-direction"
        },
        {
         "answer": "grove",
@@ -435,7 +435,7 @@
          }
         ],
         "prompt": "The map's arrow points away from where the sun comes up. The sun comes up in the east. Which way does the arrow point?",
-        "skill": "following-instructions"
+        "skill": "position-and-direction"
        },
        {
         "answer": "grove",
@@ -483,7 +483,7 @@
          }
         ],
         "prompt": "The X is to the north-west of the landing. Which sign points nearest to north-west?",
-        "skill": "following-instructions"
+        "skill": "position-and-direction"
        }
       ]
      },
@@ -548,7 +548,7 @@
          }
         ],
         "prompt": "The map says the sun goes down over the treasure. The sun goes down in the west. Which sign points west?",
-        "skill": "following-instructions"
+        "skill": "position-and-direction"
        },
        {
         "answer": "grove",

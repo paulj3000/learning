@@ -76,6 +76,13 @@ export const LEARNING_OBJECTIVES: LearningObjective[] = [
   { code: 'equal-sharing', domain: 'numeracy', title: 'Sharing equally into groups' },
   { code: 'halves-and-fractions', domain: 'numeracy', title: 'Halves and simple fractions' },
   { code: 'shapes-and-geometry', domain: 'numeracy', title: 'Naming and describing shapes' },
+  // #102 (owner, 2026-11-27): grid routes and compass clues are spatial reasoning, not only
+  // ordered steps. NAVIGATE_ROUTE and the cove map's direction clues name it.
+  {
+    code: 'position-and-direction',
+    domain: 'numeracy',
+    title: 'Using directions and positions on a map',
+  },
   { code: 'symmetry', domain: 'numeracy', title: 'Finding symmetry' },
   { code: 'sight-words', domain: 'literacy', title: 'Reading common sight words' },
   { code: 'simple-circuits', domain: 'science', title: 'How simple circuits work' },
