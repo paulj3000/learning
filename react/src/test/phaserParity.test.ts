@@ -81,20 +81,6 @@ const CONVERTED: readonly ConvertedWorld[] = [
 
 /** Phaser interactions the 3D world does not have yet, keyed `regionId/interactionId`. */
 const GAPS: Readonly<Record<string, string>> = {
-  // The 3D harbor has only Pip (LAI-2201, LAI 04, after the MVP round). harbor-door and
-  // harbor-tide-pool are the only placements of two discoveries.
-  'welcome-harbor/broken-bridge': 'LAI-2201',
-  'welcome-harbor/moonlight-bridge-crossing': 'LAI-2201',
-  'welcome-harbor/forest-entrance': 'LAI-2201',
-  'welcome-harbor/castle-entrance': 'LAI-2201',
-  'welcome-harbor/talk-to-chatty': 'LAI-2201',
-  'welcome-harbor/dock-sign': 'LAI-2201',
-  'welcome-harbor/palm-tree': 'LAI-2201',
-  'welcome-harbor/harbor-door': 'LAI-2201',
-  'welcome-harbor/harbor-tide-pool': 'LAI-2201',
-  'welcome-harbor/mountain-path': 'LAI-2201',
-  'welcome-harbor/fossil-ridge-path': 'LAI-2201',
-  'welcome-harbor/bolts-workshop-path': 'LAI-2201',
   // LAI-2205 (LAI 04, after the MVP round).
   'dragons-sanctuary/dragons-sanctuary-egg': 'LAI-2205',
   'dragons-sanctuary/dragons-sanctuary-harbor-exit': 'LAI-2205 (the card-page link stands in)',
@@ -106,9 +92,7 @@ const RENAMED: Readonly<Record<string, string>> = {
 };
 
 /** Phaser world changes the 3D world does not render yet, keyed `regionId/changeKey`. */
-const STATE_GAPS: Readonly<Record<string, string>> = {
-  'welcome-harbor/BRIDGE_REPAIRED': 'LAI-2201 (no repaired-bridge variant in the 3D harbor)',
-};
+const STATE_GAPS: Readonly<Record<string, string>> = {};
 
 function manifestFor(regionId: string) {
   const manifest = SOURCE_LOCATION_MANIFESTS.find((m) => m.regionId === regionId);
