@@ -63,8 +63,11 @@ describe('ChildIdentityStack', { timeout: 30_000 }, () => {
       AccessTokenValidity: 5,
       IdTokenValidity: 5,
       RefreshTokenValidity: 60,
-      WriteAttributes: Match.absent(),
     });
+    const client = Object.values(template.findResources('AWS::Cognito::UserPoolClient'))[0] as {
+      Properties: { WriteAttributes?: string[] };
+    };
+    expect(client.Properties.WriteAttributes ?? []).toEqual([]);
   });
 
   it('grants Django exactly the admin calls it makes, on this pool only', () => {

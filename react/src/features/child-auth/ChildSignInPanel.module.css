@@ -1,0 +1,125 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 44rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.section h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.section p {
+  margin: 0;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.facts dt {
+  font-weight: 600;
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 24rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.input {
+  font: inherit;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.input:focus-visible,
+.button:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+  cursor: pointer;
+}
+
+.buttonSecondary {
+  composes: button;
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.buttonDanger {
+  composes: button;
+  background-color: var(--color-danger);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.notice {
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.list {
+  margin: 0;
+  padding-left: var(--space-5);
+}

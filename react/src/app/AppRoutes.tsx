@@ -37,6 +37,8 @@ import { StoryPage } from '../routes/StoryPage';
 import { AdventureLibraryPage } from '../routes/AdventureLibraryPage';
 import { AdminMoved } from '../routes/AdminMoved';
 import { RequireParent } from '../features/auth/RequireParent';
+import { RequireChildOrParent } from '../features/child-auth/RequireChildOrParent';
+import { ChildSignInManagement } from '../routes/ChildSignInManagement';
 import { RequireGuest } from '../features/auth/RequireGuest';
 import { RequireAdmin } from '../features/auth/RequireAdmin';
 import { AdminLayout } from '../features/admin/AdminLayout';
@@ -169,6 +171,14 @@ export function AppRoutes() {
         }
       />
       <Route
+        path="/home/children/:childId/sign-in"
+        element={
+          <RequireParent>
+            <ChildSignInManagement />
+          </RequireParent>
+        }
+      />
+      <Route
         path="/home/children/:childId/stories"
         element={
           <RequireParent>
@@ -195,49 +205,49 @@ export function AppRoutes() {
       <Route
         path="/island/:childId"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <WelcomeHarbor />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/world"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <Suspense fallback={<p>Loading the island...</p>}>
               <IslandWorldPage />
             </Suspense>
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/world/pirate-builder-bay"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <Suspense fallback={<p>Loading Pirate Builder Bay...</p>}>
               <PirateBuilderBayWorldPage />
             </Suspense>
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/world/wonderwild-forest"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <Suspense fallback={<p>Loading Wonderwild Forest...</p>}>
               <WonderwildForestWorldPage />
             </Suspense>
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/world/storykeeper-castle"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <Suspense fallback={<p>Loading Storykeeper Castle...</p>}>
               <StorykeeperCastleWorldPage />
             </Suspense>
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
@@ -247,41 +257,41 @@ export function AppRoutes() {
       <Route
         path="/island/:childId/world/fossil-ridge-camp"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <Suspense fallback={<p>Loading Fossil Ridge Camp...</p>}>
               <FossilRidgeCampWorldPage />
             </Suspense>
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/world/castle-writing-room"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <Suspense fallback={<p>Loading the Writing Room...</p>}>
               <CastleWritingRoomWorldPage />
             </Suspense>
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/world/bolts-workshop"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <Suspense fallback={<p>Loading Bolt's Workshop...</p>}>
               <BoltsWorkshopWorldPage />
             </Suspense>
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/world/three-sandbox"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <Suspense fallback={<p>Loading the sandbox...</p>}>
               <ThreeSandboxWorldPage />
             </Suspense>
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       {GameEnginePlayground ? (
@@ -297,11 +307,11 @@ export function AppRoutes() {
       <Route
         path={LOCATION_WORLD_ROUTE}
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <Suspense fallback={<p>Loading...</p>}>
               <LocationWorldPage />
             </Suspense>
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       {/* Pre-Phase-6 URL, kept working for bookmarks and old links. */}
@@ -338,25 +348,25 @@ export function AppRoutes() {
       <Route
         path="/island/:childId/realms"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <RealmExplorerPage />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/realms/:realmId"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <RealmDetailPage />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/travel"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <TravelDeck />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       {/*
@@ -367,66 +377,66 @@ export function AppRoutes() {
       <Route
         path="/island/:childId/worlds/:worldSlug"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <WorldHubPage />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       {/* SC-final-B: the Writing Room's write-your-story activity (open to every child, never required). */}
       <Route
         path="/island/:childId/locations/castle-writing-room/write"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <WritingRoomWritePage />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/locations/:locationSlug"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <IslandLocationPage />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/locations/:locationSlug/adventures/:templateSlug"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <AdventurePage />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/log"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <AdventureLog />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/quests"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <QuestJournal />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/library"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <AdventureLibraryPage />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       <Route
         path="/island/:childId/stories/:storySlug"
         element={
-          <RequireParent>
+          <RequireChildOrParent>
             <StoryPage />
-          </RequireParent>
+          </RequireChildOrParent>
         }
       />
       {/* One RequireAdmin gate and one AdminLayout (Tailwind, ADR-023) for every admin page. */}

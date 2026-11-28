@@ -3,6 +3,7 @@ import { AppRoutes } from './AppRoutes';
 import { ErrorBoundary } from './ErrorBoundary';
 import { AuthProvider } from '../features/auth/AuthContext';
 import { ChildAudioPreferencesSync } from '../audio/preferences';
+import { ChildSessionProvider } from '../features/child-auth/ChildSessionContext';
 import { DjangoAccountProvider } from '../features/auth/DjangoAccountContext';
 
 export function App() {
@@ -14,8 +15,10 @@ export function App() {
             <a className="skip-link" href="#main-content">
               Skip to main content
             </a>
-            <ChildAudioPreferencesSync />
-            <AppRoutes />
+            <ChildSessionProvider>
+              <ChildAudioPreferencesSync />
+              <AppRoutes />
+            </ChildSessionProvider>
           </BrowserRouter>
         </DjangoAccountProvider>
       </AuthProvider>

@@ -1,3 +1,4 @@
+import { CHILD_CSRF_HEADER, childPrincipal, type ChildPrincipalAccess } from './childPrincipal';
 import { ApiError, kindForStatus, type ValidationDetail } from './errors';
 
 /**
@@ -22,6 +23,13 @@ import { ApiError, kindForStatus, type ValidationDetail } from './errors';
  * - Every request is bounded in time (`timeoutMs`, default `DEFAULT_REQUEST_TIMEOUT_MS`),
  *   including reading the token and the body. A request that runs out of time is a
  *   `network` error with code `timeout`, so no page waits forever on a stalled server.
+ * - Child mode: while a child who signed in on their own has a session
+ *   (`childPrincipal`), every request goes without `Authorization`, with
+ *   `credentials: 'same-origin'` (the HttpOnly session cookie) and, on writes, the
+ *   `X-LAI-Child-CSRF` header. A 401 asks the session to restore itself once from the
+ *   remembered device and retries once; if that fails the session is expired and the error
+ *   is `unauthenticated`. No parent token is read, so a parent token and a child session
+ *   never mix in one request.
  * - Every failure is an `ApiError`; nothing else is thrown.
  */
 
@@ -41,6 +49,8 @@ export interface ApiClientOptions {
   provisionAccount?: boolean;
   /** Bound on each request; see above. */
   timeoutMs?: number;
+  /** Child mode; defaults to the app's child session (inactive unless a child signed in). */
+  childPrincipal?: ChildPrincipalAccess;
 }
 
 export interface RequestOptions {
@@ -72,6 +82,7 @@ export const ACCOUNT_SETUP_FAILED = 'account_setup_failed';
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const timeoutMs = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  const principal = options.childPrincipal ?? childPrincipal;
 
   async function send(
     method: HttpMethod,
@@ -79,21 +90,25 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     request: RequestOptions,
     forceRefresh: boolean,
   ): Promise<Response> {
-    let token: string | null;
-    try {
-      token = await raceAbort(options.getAccessToken({ forceRefresh }), request.signal);
-    } catch {
-      if (request.signal?.aborted) throw new ApiError('aborted');
-      throw new ApiError('unauthenticated', { code: 'token_unavailable' });
-    }
-    if (!token) throw new ApiError('unauthenticated', { code: 'not_signed_in' });
-
-    const headers: Record<string, string> = {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-    };
-    if (request.responseType === 'blob') headers.Accept = '*/*';
+    const childCsrf = principal.csrfToken();
+    const headers: Record<string, string> = { Accept: 'application/json' };
     const init: RequestInit = { method, headers, signal: request.signal };
+    if (childCsrf !== null) {
+      // Child mode: the HttpOnly cookie is the credential; never an Authorization header.
+      init.credentials = 'same-origin';
+      if (method !== 'GET') headers[CHILD_CSRF_HEADER] = childCsrf;
+    } else {
+      let token: string | null;
+      try {
+        token = await raceAbort(options.getAccessToken({ forceRefresh }), request.signal);
+      } catch {
+        if (request.signal?.aborted) throw new ApiError('aborted');
+        throw new ApiError('unauthenticated', { code: 'token_unavailable' });
+      }
+      if (!token) throw new ApiError('unauthenticated', { code: 'not_signed_in' });
+      headers.Authorization = `Bearer ${token}`;
+    }
+    if (request.responseType === 'blob') headers.Accept = '*/*';
     if (request.rawBody && BODY_METHODS.has(method)) {
       headers['Content-Type'] = request.rawBody.contentType;
       init.body = request.rawBody.data;
@@ -138,7 +153,27 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     request: RequestOptions,
   ): Promise<ApiResponse> {
     let response = await send(method, path, request, false);
-    if (response.status === 401) response = await send(method, path, request, true);
+    if (response.status === 401) {
+      if (principal.csrfToken() !== null) {
+        // Child mode: only a session the server refused (`authentication_failed`: expired,
+        // revoked, idle) is worth reopening from the remembered device. A route that never
+        // reads the child cookie answers `not_authenticated`; restoring would not help and
+        // would rotate the device for nothing, so that 401 is returned as it is.
+        const refused = await readJson(response, request.signal);
+        if (errorCodeOf(refused) !== 'authentication_failed') {
+          throw errorFromEnvelope(response.status, refused);
+        }
+        // Reopen the session from the remembered device once, then retry once.
+        const restored = await principal.restore();
+        if (restored === null) {
+          principal.expired();
+          throw new ApiError('unauthenticated', { status: 401, code: 'child_session_ended' });
+        }
+        response = await send(method, path, request, false);
+      } else {
+        response = await send(method, path, request, true);
+      }
+    }
     if (response.ok && request.responseType === 'blob') {
       return { status: response.status, data: await readBlob(response, request.signal) };
     }
@@ -244,6 +279,12 @@ async function readJson(response: Response, signal?: AbortSignal): Promise<unkno
     if (!response.ok) return null; // e.g. an HTML 502 from a proxy: the status says enough
     throw new ApiError('invalid_response', { status: response.status, code: 'not_json' });
   }
+}
+
+/** The `error.code` of an error envelope, if there is one. */
+function errorCodeOf(data: unknown): string | undefined {
+  const error = isRecord(data) && isRecord(data.error) ? data.error : {};
+  return typeof error.code === 'string' ? error.code : undefined;
 }
 
 /** Reads `{"error": {"code", "message", "details"}, "request_id"}` defensively. */

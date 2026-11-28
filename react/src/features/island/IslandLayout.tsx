@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import styles from './IslandLayout.module.css';
 import { ChildShell } from '../portal/shell';
 import { PortalButton } from '../portal/ui';
+import { ChildSignOutButton } from '../child-auth/ChildSignOutButton';
 import {
   IslandExitProvider,
   LeaveIslandButton,
@@ -53,6 +54,7 @@ export function IslandLayout({ childId, children, profile }: IslandLayoutProps) 
           <>
             {onHub ? null : <LeaveIslandButton />}
             <ParentSpaceButton />
+            <ChildSignOutButton />
           </>
         }
       >

@@ -47,6 +47,9 @@ export function ChildProfileSummary({ childProfile, onToggleActive }: ChildProfi
             Enter island
           </Link>
         ) : null}
+        <Link className={styles.buttonSecondary} to={`/home/children/${childProfile.id}/sign-in`}>
+          Sign-in and devices
+        </Link>
         <Link className={styles.buttonSecondary} to={`/home/children/${childProfile.id}/edit`}>
           Edit
         </Link>

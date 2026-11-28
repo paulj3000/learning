@@ -32,3 +32,20 @@ export function readCognitoConfig(env: CognitoEnv): CognitoConfig | null {
   if (!match?.[1] || !CLIENT_ID.test(clientId)) return null;
   return { region: match[1], userPoolId, clientId };
 }
+
+/**
+ * The separate child user pool (LAI-AUTH, child sign-in). Children sign in with a login name
+ * and password the parent set up; the pool and client are not secrets. Unset or malformed means
+ * independent child sign-in is not available in this build.
+ */
+export interface ChildCognitoEnv {
+  VITE_COGNITO_CHILD_USER_POOL_ID?: string;
+  VITE_COGNITO_CHILD_CLIENT_ID?: string;
+}
+
+export function readChildCognitoConfig(env: ChildCognitoEnv): CognitoConfig | null {
+  return readCognitoConfig({
+    VITE_COGNITO_USER_POOL_ID: env.VITE_COGNITO_CHILD_USER_POOL_ID,
+    VITE_COGNITO_CLIENT_ID: env.VITE_COGNITO_CHILD_CLIENT_ID,
+  });
+}
