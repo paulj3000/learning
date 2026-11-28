@@ -536,6 +536,15 @@ class PuzzleAttempt(ChildOwnedModel):
     submission = models.JSONField()
     correct = models.BooleanField()
     attempt_number = models.PositiveSmallIntegerField()
+    hints_used = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Hints opened before this attempt (issue #102), capped at the band's hint count; "
+            "null when the client did not count them (older clients, every row before #102). It "
+            "only marks the evidence as supported; it never changes what is earned."
+        ),
+    )
     submitted_at = models.DateTimeField()
 
     class Meta:

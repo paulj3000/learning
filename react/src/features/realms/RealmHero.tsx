@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 /**
  * The Realm Explorer's welcome (AP-03): an ocean banner with a drawn archipelago and compass.
- * The artwork sits in its own column (below the words on a phone), never under the text, so
+ * The artwork sits in its own column on larger screens, never under the text, so
  * the white-on-ocean contrast always holds. Nothing moves.
  */
 export function RealmHero({ children }: { children?: ReactNode }) {
@@ -10,18 +10,18 @@ export function RealmHero({ children }: { children?: ReactNode }) {
     <section
       aria-labelledby="realm-explorer-heading"
       data-portal="realm-hero"
-      className="grid w-full gap-4 overflow-hidden rounded-3xl border-b-4 border-ocean-900 bg-ocean-700 p-6 text-white shadow-sm md:grid-cols-[1fr_auto] md:items-center md:p-8"
+      className="grid w-full gap-4 overflow-hidden rounded-3xl border-b-4 border-ocean-900 bg-ocean-700 p-5 text-white shadow-sm md:grid-cols-[1fr_auto] md:items-center md:p-8"
     >
       <div className="flex min-w-0 flex-col gap-3">
-        <p className="m-0 text-lg font-semibold text-white">Learning Adventure Island</p>
         <h1
           id="realm-explorer-heading"
-          className="m-0 font-display text-4xl leading-tight text-white md:text-5xl"
+          className="m-0 font-display text-3xl leading-tight text-white md:text-5xl"
         >
-          Realm Explorer
+          Explore the Realms
         </h1>
         <p className="m-0 max-w-xl text-lg text-white md:text-xl">
-          Choose a Realm to learn, play, and go on an adventure!
+          Choose your next adventure. Discover hidden treasures, solve mysteries and explore magical
+          worlds.
         </p>
         {children}
       </div>
@@ -36,7 +36,7 @@ function ArchipelagoArt() {
       aria-hidden="true"
       focusable="false"
       viewBox="0 0 260 170"
-      className="h-28 w-full max-w-xs justify-self-center md:h-44 md:w-64"
+      className="hidden h-44 w-64 justify-self-center md:block"
     >
       <ellipse cx="130" cy="150" rx="128" ry="18" fill="#1a8fc7" />
       <path d="M20 148 C 40 120, 80 118, 100 148 Z" fill="#2e9b52" />

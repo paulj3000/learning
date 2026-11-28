@@ -88,7 +88,12 @@ export type PuzzleKind =
   | 'COLLECT_OBJECT'
   | 'RETURN_TO_NPC'
   | 'CHOOSE_ANSWER'
-  | 'ORDER_SEQUENCE';
+  | 'ORDER_SEQUENCE'
+  // Issue #102: server-graded interactive kinds. No scene renders them yet
+  // (`parsePuzzleParams` returns null), so an Area that publishes one still loads.
+  | 'NAVIGATE_ROUTE'
+  | 'SORT_ITEMS'
+  | 'SHARE_ITEMS';
 
 /**
  * A 3D Area puzzle for this child's age band (ADR-047 F, LAI-0812). `parameters` is the kind's
@@ -357,9 +362,21 @@ export interface PuzzleOutcome {
    */
   practice: boolean;
   failedAttempts: number;
+  /**
+   * The skill this attempt was learning evidence for (issue #102), for the puzzle panel's result
+   * step. Null for an accomplishment with no skill and for practice replay; the parser reads an
+   * older server's missing field as null. Optional so hand-built outcomes need not name it.
+   * Support level is never sent to the child.
+   */
+  skillPracticed?: SkillPracticed | null;
   newItems: ItemView[];
   rewardMessage: string | null;
   questUpdates: QuestUpdate[];
+}
+
+export interface SkillPracticed {
+  code: string;
+  title: string;
 }
 
 export interface OpenedChest {

@@ -60,13 +60,13 @@ Trust tiers (`contracts.Trust`, ordered):
 | `SECRET_DISCOVERED` | `<discovery>` | `WorldState.discovered_objects` (requirements checked) | GRADED |
 | `SECRET_DISCOVERED` | `<region>/<pickup key>` | an authored pickup whose reward grants an item authored `hidden` (GE-109) | BOUNDED |
 | `PICKUP_COLLECTED` | `<region>/<pickup key>` | `WorldChange` COLLECTIBLE_FOUND whose key is an authored placement's | BOUNDED |
-| `PUZZLE_SOLVED` | `<region>/<puzzle>` | `PuzzleAttempt` correct | GRADED for graded kinds, else BOUNDED |
+| `PUZZLE_SOLVED` | `<region>/<puzzle>` | `PuzzleAttempt` correct | GRADED for every kind that checks an answer; BOUNDED for `COLLECT_OBJECT` and `RETURN_TO_NPC` (issue #102 fixed `CHOOSE_ANSWER` and `ORDER_SEQUENCE` reading as BOUNDED) |
 | `QUEST_COMPLETED` | `<quest>` | `QuestProgress` COMPLETED | BOUNDED |
 | `ADVENTURE_COMPLETED` | `<adventure>` | ADVENTURE `AdventureSession` COMPLETED | GRADED |
 | `ADVENTURE_COMPLETED` | `<3D adventure>` | its quests COMPLETED and every BUILD key proven by a server record (`realms.py`, GE-109) | BOUNDED |
 | `REALM_MILESTONE` | `<world>` | every active, age-appropriate quest of the world completed, or every listed adventure of the realm proven (`realms.py`); same ref, so it pays once | BOUNDED |
 | `REWARD_RULE_GRANTED` | `<rule id>` | `GrantedRule` (every realm's keepsakes, badges, sets) | BOUNDED |
-| `ADVENTURE_STAR` | `<region>/<n>` | goals done in the area (puzzles, chests, pickups) | BOUNDED |
+| `ADVENTURE_STAR` | `<region>/<n>` | goals done in the area (puzzles, chests, pickups). A chest whose world change key a published puzzle records is one goal with that puzzle, met by either (issue #102) | BOUNDED |
 | `JUMP_CHALLENGE` | `<challenge>` | none: no server record of a jump exists | deferred (client only) |
 | `PLATFORM_COURSE` | `<course>` | the course's completion quest COMPLETED with every BUILD key proven by a server record (Pirate's Leap: the crow's nest chest's graded challenge). Never movement claims | BOUNDED |
 
