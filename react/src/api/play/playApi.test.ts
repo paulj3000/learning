@@ -71,6 +71,43 @@ describe('3D Area puzzles in the play API (ADR-047, LAI-0812)', () => {
     expect(outcome.correct).toBe(false);
   });
 
+  it('sends hintsUsed only when the host counted hints (issue #102)', async () => {
+    const { api, fetch } = setup(jsonResponse(200, puzzleOutcomeJson()));
+    await api.solvePuzzle(SESSION_ID, 'sort-cargo', { variantId: 'v1' }, undefined, {
+      hintsUsed: 1,
+    });
+    expect(sent(fetch).body).toEqual({ submission: { variantId: 'v1' }, hintsUsed: 1 });
+  });
+
+  it('reads the skill practised, and an older server without it as null', async () => {
+    const skill = { code: 'classification', title: 'Sorting into groups' };
+    const { api } = setup(
+      jsonResponse(200, puzzleOutcomeJson({ skillPracticed: skill })),
+      jsonResponse(200, puzzleOutcomeJson()),
+      jsonResponse(200, puzzleOutcomeJson({ skillPracticed: null })),
+    );
+    expect((await api.solvePuzzle(SESSION_ID, 'p', {})).skillPracticed).toEqual(skill);
+    expect((await api.solvePuzzle(SESSION_ID, 'p', {})).skillPracticed).toBeNull();
+    expect((await api.solvePuzzle(SESSION_ID, 'p', {})).skillPracticed).toBeNull();
+  });
+
+  it('loads an Area that publishes the issue #102 kinds even before a scene renders them', async () => {
+    const json = firepeakBootstrapJson();
+    const [first] = json.puzzles;
+    const extra = (['NAVIGATE_ROUTE', 'SORT_ITEMS', 'SHARE_ITEMS'] as const).map((kind, i) => ({
+      ...first,
+      puzzleId: `new-${i}`,
+      kind,
+    }));
+    const { api } = setup(jsonResponse(200, { ...json, puzzles: [...json.puzzles, ...extra] }));
+    const region = await api.getRegion('firepeak-volcano');
+    expect(region.puzzles.slice(-3).map((p) => p.kind)).toEqual([
+      'NAVIGATE_ROUTE',
+      'SORT_ITEMS',
+      'SHARE_ITEMS',
+    ]);
+  });
+
   it('refuses a malformed outcome rather than guessing', async () => {
     const { api } = setup(jsonResponse(200, { correct: 'yes' }));
     await expect(api.solvePuzzle(SESSION_ID, 'p', {})).rejects.toBeInstanceOf(ApiError);
