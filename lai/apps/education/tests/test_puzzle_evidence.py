@@ -383,7 +383,8 @@ def cove_quiz(treasure):
         entity_ids=CHOOSE_ENTITIES,
         body=puzzle_body("choose", PuzzleKind.CHOOSE_ANSWER, "COVE_CHOSE", params),
     )
-    AreaPuzzle.objects.update(status=ContentStatus.PUBLISHED)
+    # Only this puzzle: the cove's own stages (#102) would open the chest this test quizzes.
+    AreaPuzzle.objects.filter(puzzle_id="choose").update(status=ContentStatus.PUBLISHED)
     return treasure
 
 

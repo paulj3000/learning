@@ -8,7 +8,7 @@ from apps.catalog.authoring import Kind, register
 from apps.catalog.models import RewardRule
 
 from . import castle_events, platforming, puzzles
-from .models import AreaPuzzle, CastleEvent, TreasureChest, WorldRegion
+from .models import AreaPuzzle, CastleEvent, ChestPresentation, TreasureChest, WorldRegion
 
 # Parameters naming this puzzle's placements: lists of {id, ...} whose ids are placements, and
 # maps of option/item id -> placement id (CHOOSE_ANSWER, ORDER_SEQUENCE).
@@ -93,11 +93,21 @@ def _apply_puzzle(puzzle: AreaPuzzle, body: dict, problems: list[str]):
             if rule is None:
                 problems.append(f"$.rewardRuleId: unknown reward rule {body['rewardRuleId']!r}")
         key = body["worldChangeKey"]
+        # #102: a puzzle may record the key of a chest in its own 3D Area. That is the one
+        # defined sharing: the puzzle opens the chest (`game_sessions.play.chest_lock`), so the
+        # chest never asks its own question. Any other owner of the key is a clash.
         if (
             AreaPuzzle.objects.filter(world_change_key=key).exclude(pk=puzzle.pk).exists()
-            or TreasureChest.objects.filter(world_change_key=key).exists()
+            or TreasureChest.objects.filter(world_change_key=key)
+            .exclude(region_id=puzzle.region_id)
+            .exists()
         ):
             problems.append(f"$.worldChangeKey: {key} is already recorded by something else")
+        # A replay activity (TR-20) never opens, so a puzzle could never open it.
+        elif TreasureChest.objects.filter(
+            world_change_key=key, presentation=ChestPresentation.REPLAY
+        ).exists():
+            problems.append(f"$.worldChangeKey: {key} belongs to a replay activity (never opens)")
         # Objects a child moves or turns are this puzzle's own placements (seed-authored).
         for band, params in body["ageBands"].items():
             for key in LIST_ENTITY_KEYS:

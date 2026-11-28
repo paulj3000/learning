@@ -1,13 +1,17 @@
 # Treasure Rush: Owner Playtest Checklist
 
-## Release playthrough (LAI 01, updated 2026-11-25): do this section first
+## Release playthrough (LAI 01, updated 2026-11-26 for the redesign): do this section first
 
-**Status: not yet played. Treasure Rush is not owner-accepted.** The checks behind this list are
+**Status: not yet played. Treasure Rush is not owner-accepted.** The 2026-11-26 gameplay redesign
+(issue #102, Trello #258) replaced the chest questions with five play stages: **play section F
+first**; it replaces the old A8, B1 and B2. The design is in
+[TREASURE_RUSH_GAME_DESIGN.md](TREASURE_RUSH_GAME_DESIGN.md). The checks behind this list are
 unit, API and engine tests, and static checks. Final child-facing acceptance (TR-21) stays open
 until you record your results here.
 
-**Build:** `main` at or after `05b54d8a`. That includes D7 (#63), D8 (#67), TR-D9 (#74) and the
-Asset Library work (#80 to #90). Allow about 45 minutes. Play on a tablet with one Pathfinders
+**Build:** `main` with the redesign PR (`feature/treasure-rush-gameplay-redesign`) merged, or that
+branch itself. Before the merge you can check out the branch in step 1 instead of `main`. It
+includes D7 (#63), D8 (#67), TR-D9 (#74) and the Asset Library work (#80 to #90). Allow about 45 minutes. Play on a tablet with one Pathfinders
 child (5 to 6). If you can, do a second pass with a Sprouts child (3 to 4), and a third with an
 Explorers child (7 to 8) for the questions. Write pass, fail or blocked beside each item, with
 the device and a note.
@@ -67,8 +71,12 @@ cd lai
 cd ..
 ```
 
-On a fresh database, `seed_treasure_rush` reports 47 rows and `publish_treasure_rush` reports 28.
-Both are safe to run again.
+On a fresh database, `seed_treasure_rush` reports 70 rows and `publish_treasure_rush` reports 39
+(the 11 stage puzzles are among them: `published puzzle cove-map-piece-1` and so on). Both are
+safe to run again. On a database seeded before the redesign, `seed_treasure_rush` adds the stage
+objects and puzzles and reports `adventure v2`; then run `publish_treasure_rush` again. Children's
+progress is kept. Check the stage skills with `../.venv/bin/python manage.py
+puzzle_skill_report --strict` (expect `0 unmapped puzzle skill(s).`).
 
 **5. Local asset storage**
 
@@ -140,6 +148,70 @@ address bar).
 `make down && docker volume rm <project>_lai_pg18data`, then repeat from step 2. Nothing is
 lost that you didn't create for the test.
 
+### F. The redesigned adventure (#102): play this first
+
+Play with a **new** Pathfinders child. Walk to each object and use the button that appears
+(Touch, Pick up). Nothing here has a timer. Stand-in shapes (a marker, a stone, a lantern) are
+expected where no model exists yet; the signs and crates are real models.
+
+- [ ] **F1.** **No chest asks a question.** Before doing anything else, walk to the chest at the landing
+   and open it. **Expected:** "This chest opens by itself when you finish the challenge nearby",
+   with Pip's clue about his torn map. No number question, no coins to count.
+- [ ] **F2.** **Stage 1, the missing map.** Find the three torn map pieces round the landing (by the
+   tent, near the crates, on the way to the dock). **Expected:** each one glows, flies to you and
+   says "You found piece 1 of Pip's map!"; it is gone when you come back. Then walk to the
+   waymarker sign the map points to and touch it, and choose. **Expected:** the sign glows when
+   chosen; the right sign opens the landing chest and shows the Golden Doubloon. The sign's
+   options show a symbol (star, circle, triangle) as well as words.
+- [ ] **F3.** **Stage 2, Crocodile Creek.** On the grove path, find the creek with stepping stones and
+   Snappy the crocodile. Touch the stones in the order the prompt asks (for Pathfinders, numbers
+   smallest to biggest, or counting by twos). **Expected:** each stone glows as you add it; Undo
+   and Start again work; the right order opens the hidden chest in the grove (the Palm Grove
+   Pearl). Stepping into the water does nothing bad: you just walk out.
+- [ ] **F4.** **Stage 3, the supply dock.** At Shipwreck Beach, try the cargo crates before you have
+   the key. **Expected:** it says to finish the part before this one first, and the chest says it
+   needs a key. Pick up the brass key on the X, then walk to the crate that answers Pip's cargo
+   question (sharing, adding a load, what is missing, or sorting). **Expected:** the right crate
+   opens the locked chest (the Shipwreck Compass).
+- [ ] **F5.** **Stage 4, the forgotten cave.** In the ruins, find the three carvings in the corners.
+   **Expected:** each says what it shows ("a carved star with 1 dot", "a moon with 2 dots", "a
+   triangle with 3 dots"). Then press the three rune stones in the order the riddle gives.
+   **Expected:** a wrong order opens nothing and lets you try again; after two wrong tries the hint
+   reminds you of the dots; the right order lights the pedestal.
+- [ ] **F6.** **Stage 5, Pip's lost treasure.** Light the four torches round the golden chest in the
+   order of the adventure (map, creek, dock, cave), or the order the prompt asks. **Expected:** the
+   golden chest opens by itself with the Sunstone. It feels like an ending: every clue you found
+   was needed.
+- [ ] **F7.** **Back to Pip.** Talk to Pip. **Expected:** the quest completes once, with the explorer
+   badge, and the bridge to Lookout Point opens (as A9).
+- [ ] **F8.** **Age bands.** Replay stages 2, 3 and 5 with a **Sprouts** child, then an **Explorers**
+   child. **Expected:** Sprouts cross on 3 stones with dots, fish or frogs, pick crates by simple
+   counts or "which has food", and light 3 torches; Explorers cross on 5 stones (add 3, count back
+   by 5, doubling), balance and share at the dock, and solve two-step riddles. The island is the
+   same for everyone.
+- [ ] **F9.** **Kind retries and hints.** Make one wrong choice at the creek and one at the dock.
+   **Expected:** nothing opens, the message is kind (no "wrong" in red, no buzzer), you can try
+   again or choose "Try a different one"; Hint gives a helpful next step.
+- [ ] **F10.** **Replay.** After finishing, go back to the creek and the dock. **Expected:** you can
+   play them again as practice, often with different numbers and the answer on a different stone
+   or crate; nothing new is added to the backpack, and the score (if on) does not grow from
+   practice.
+- [ ] **F11.** **Leave and come back mid-adventure.** Leave after stage 2 and come back. **Expected:**
+   the map pieces stay found, the landing and grove chests stay open, and the dock is where you
+   carry on.
+- [ ] **F12.** **An existing child.** With a child who opened chests before the redesign, enter the
+   cove. **Expected:** the chests they opened are still open and those stages show as done; they
+   carry on from the next chest; their backpack and quest progress are unchanged.
+- [ ] **F13.** **Full screen.** Play one stage in full screen on the tablet. **Expected:** the stage's
+   panel and the reward appear over the game, and "Exit full screen" still works (LAI 04's
+   fullscreen work, #101, keeps these panels as fixed layers).
+- [ ] **F14.** **Fun.** Write down, in a sentence, whether it felt like an adventure rather than a quiz,
+   and which stage was the best and the weakest.
+
+**Blocked in F:** none. **Not in this build** (deferred; don't fail F for them): jumping onto the
+creek's stones (it is walk-and-touch for now), dragging map pieces together, Pip speaking each
+stage's intro aloud, and a cave interior ([design, "Deferred"](TREASURE_RUSH_GAME_DESIGN.md)).
+
 ### A. Functional gameplay
 
 - [ ] **A1.** **Arrival.** **Expected:** you arrive at the dock in the third-person view, facing inland
@@ -166,10 +238,8 @@ lost that you didn't create for the test.
    help!". **Expected:** "Maybe later" starts nothing. "Yes" starts Pip's Missing Treasure. Pip
    confirms it and shows its steps and clue (the TR-D9 fix), not the Pirate's Leap offer, and the
    HUD shows "Find Pip's treasures: 0 of 4".
-- [ ] **A8.** **Chests in order.** Open the Landing chest, then the Grove chest. Pick up the key at
-   Shipwreck Beach and open the locked chest. At the ruins, read the pedestal and touch a rune
-   stone. **Expected:** the locked chest says it needs a key until you have it. The HUD count
-   goes from 1 to 4.
+- [ ] **A8.** **Chests in order.** Replaced by section F (the redesign): the chests now open at the
+   end of each stage.
 - [ ] **A9.** **Finale.** Take the treasure back to Pip. **Expected:** the quest ends once. A message
    says the bridge is mended, the gate's bars rise, and a lit bridge appears. You can walk to
    Lookout Point and back without stepping off the sides.
@@ -192,15 +262,9 @@ lost that you didn't create for the test.
 
 ### B. Educational outcomes
 
-- [ ] **B1.** **Questions suit the age band.** At each chest, note the question. **Expected for
-   Pathfinders:** addition at the Landing chest, subtraction at the Grove chest, counting at the
-   locked chest, addition on the rune stones, and an addition number entry at the golden chest.
-   **For Sprouts:** counting with three big choices everywhere. **For Explorers:** subtraction and
-   addition, some typed as numbers.
-- [ ] **B2.** **Wrong answers are kind.** Give one wrong answer at a chest and touch one wrong stone.
-   **Expected:** nothing opens, the message is kind (never "wrong" in red, no buzzer), and new
-   numbers appear. Asking a chest early, or touching a stone before reading the pedestal, is
-   refused kindly.
+- [ ] **B1.** **Learning suits the age band.** Replaced by F8 (the redesign): no chest asks a question
+   any more.
+- [ ] **B2.** **Wrong answers are kind.** Replaced by F9 (the redesign).
 - [ ] **B3.** **Hints.** Use Hint once. **Expected:** it gives the next step and never pops up on its
    own.
 - [ ] **B4.** **Parent view of learning.** After the play, open the parent dashboard for that child.

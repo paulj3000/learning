@@ -70,6 +70,35 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 - Tests: `apps/assets/tests/test_environment_assets.py`, plus 6 existing assertions updated for
   the two new metadata fields. Final results are in PR #116.
 
+## LAI-01 Treasure Rush gameplay redesign (#102, Trello #258; 2026-11-26, `feature/treasure-rush-gameplay-redesign`, `main` `41ee7320`, merged `d812ad71` 2026-11-27)
+
+Status: Development Complete when the PR's checks pass; **not owner-accepted** (the owner plays
+the redesigned adventure first, checklist section F). Design:
+[TREASURE_RUSH_GAME_DESIGN.md](TREASURE_RUSH_GAME_DESIGN.md).
+
+- The owner's playtest found the cove a repeated counting quiz. Each chest is now the reward at
+  the end of a play stage built from the existing 3D Area puzzle kinds (no new kind, no engine
+  change): the missing map (find three pieces, walk to the right sign), Crocodile Creek (cross the
+  stepping stones in sequence), the supply dock (walk to the right cargo crate), the forgotten
+  cave (find three carvings, press the rune stones in a riddle's order) and Pip's lost treasure
+  (light the torches in the order of the adventure). 11 Django-authored `AreaPuzzle`s, all three
+  age bands, 2 to 4 variants each, hints, practice on replay, skill evidence on every learning
+  stage.
+- Progress-compatible: each chest stage records the chest's existing world change key and grants
+  its existing reward rule, so quests, rewards, the bridge and every child's history are
+  unchanged; a chest a published puzzle opens issues no challenge (`LockReason.PUZZLE`).
+- Shared rule change, owner-approved 2026-11-27: `regions/authoring_kinds.py` lets a puzzle record
+  the key of a chest in its own 3D Area (still refused for another Area's chest, another puzzle or
+  a replay activity).
+- Seed: `ADVENTURE_VERSION` 2 (stand-ins, clues), `LAYOUT_VERSION` 10 (the creek; the decorative
+  waymarkers became the map stage's signs); `publish_treasure_rush` validates and publishes the
+  puzzles. No migration.
+- Client: `ChestLockReason` gains `PUZZLE`; `AreaPuzzleLayer` supports many `COLLECT_OBJECT`
+  puzzles in one Area and labels the pick-up button with the object.
+- Deferred: jumping onto the creek's stones (a separate LAI 04 ticket after PR #109 merges,
+  owner-approved 2026-11-27), map assembly and
+  LAI 06's proposed kinds (need scenes), Pip's spoken stage intros (NPC release), a cave interior.
+
 ## GE-101 full-screen gameplay: the canvas gets the viewport, settings and lists become stage menus (2026-11-26, `feature/shared-fullscreen-gameplay-ui`, `main` `41ee7320`, issue #101, Trello #257); Development Complete, NOT merged
 
 Owner playtest 2026-11-26. Agent 4 (Game Engine Core), with LAI 01 (Treasure Rush) and LAI 06
