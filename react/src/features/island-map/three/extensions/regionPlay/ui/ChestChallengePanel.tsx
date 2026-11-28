@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { IssuedChallenge } from '../../../../../../api/play/types';
+import type { ChestLockReason, IssuedChallenge } from '../../../../../../api/play/types';
 import {
   MAX_HINT_LEVEL,
   PLAY_COPY,
@@ -18,7 +18,7 @@ export type ChestPanelPhase =
   | { kind: 'open' }
   | { kind: 'not-ready' }
   /** TR-14: an earlier encounter first (`PROGRESS`), or a key (`ITEM`). `clue` is Pip's line. */
-  | { kind: 'locked'; reason: 'PROGRESS' | 'ITEM'; clue: string };
+  | { kind: 'locked'; reason: ChestLockReason; clue: string };
 
 export interface ChestChallengePanelProps {
   label: string;
@@ -63,9 +63,13 @@ export function ChestChallengePanel({
       {phase.kind === 'locked' ? (
         <>
           <p className={styles.speech} role="status">
-            {phase.reason === 'ITEM' ? PLAY_COPY.chestNeedsKey : PLAY_COPY.chestNotYet}
+            {phase.reason === 'ITEM'
+              ? PLAY_COPY.chestNeedsKey
+              : phase.reason === 'PUZZLE'
+                ? PLAY_COPY.chestOpensByPuzzle
+                : PLAY_COPY.chestNotYet}
           </p>
-          {phase.reason === 'ITEM' && phase.clue ? (
+          {(phase.reason === 'ITEM' || phase.reason === 'PUZZLE') && phase.clue ? (
             <p className={styles.speech}>{phase.clue}</p>
           ) : null}
         </>

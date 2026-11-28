@@ -98,7 +98,7 @@ export interface RegionPlaySceneApi {
    * TR-14: why a chest is locked now, from server state. A `HIDDEN` chest locked by progress is
    * not drawn and cannot be focused; a chest locked by progress has no beacon.
    */
-  setChestLock(entityId: string, lockReason: 'PROGRESS' | 'ITEM' | null): void;
+  setChestLock(entityId: string, lockReason: 'PROGRESS' | 'ITEM' | 'PUZZLE' | null): void;
   /** TR-14: a pickup the server says is picked up; it disappears and cannot be focused. */
   setPickupCollected(entityId: string): void;
   /** TR-14: the numbers on a puzzle's answer stones while its challenge is out, or none. */

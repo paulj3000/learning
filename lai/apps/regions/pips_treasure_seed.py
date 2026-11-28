@@ -21,6 +21,14 @@ and lays the bridge to **Lookout Point** (TR-17), where a spyglass (TR-20) offer
 activity the child may repeat: a fresh counting challenge each time, skill evidence recorded, and
 nothing permanent granted.
 
+**Version 2 (#102, the gameplay redesign).** Every chest is now the reward at the end of a stage
+the child plays: `treasure_cove_stages.py` adds the stage placements and 3D Area puzzles (map
+pieces and signs, Crocodile Creek, the supply dock, the forgotten cave, the torches). Each stage
+records its chest's own world change key, so the chest opens without its old question and every
+child's progress stays valid. `seed_cove_stages` creates what is missing (all versions), and
+`upgrade_pips_treasure` moves an existing region to version 2 once: the stand-in shapes, and the
+chest clues while they are still the seed's.
+
 Items, reward rules and the quest are catalog content from the export
 (`react/src/features/content-export/treasureRushContent.ts`); positions match
 `treasure_cove_layout.SPOTS`.
@@ -30,10 +38,12 @@ from apps.catalog.models import ItemDefinition, Quest, RewardRule
 from apps.education.models import ChallengeSpec
 from apps.users.models import AgeBand
 
+from . import treasure_cove_stages as stages
 from .models import ChestPresentation, PlacementKind, TreasureChest, WorldObjectPlacement
+from .seeding import seed_puzzle
 from .treasure_cove_layout import RUNE_STONES, SPOTS
 
-ADVENTURE_VERSION = 1
+ADVENTURE_VERSION = 2
 PIPS_QUEST_ID = "pips-missing-treasure"
 LEGACY_QUEST_ID = "treasure-rush-cove"
 
@@ -55,6 +65,9 @@ KEY_ENTITY_ID = "cove-brass-key"
 RUNE_STONE_IDS = ["cove-rune-stone-1", "cove-rune-stone-2", "cove-rune-stone-3"]
 
 LANDING_CLUE = "My first chest is right here at Pirate Landing. Walk up to it and open it!"
+# A new region's one-line instructions (#102). An existing region's copy is authored content
+# (its published revision, ADR-047): an administrator changes it, never the seed.
+INSTRUCTIONS = "Help Pip find the missing treasure. Talk to Pip to begin."
 
 # (slug suffix, title, {band: (skill, min, max, mode, choices)})
 _SPECS = {
@@ -258,6 +271,45 @@ def seed_pips_treasure(region, get_or_create) -> None:
         },
     )
     seed_lookout_replay(region, get_or_create)
+    seed_cove_stages(region, get_or_create)
+
+
+def seed_cove_stages(region, get_or_create) -> list[str]:
+    """The redesign's stage placements and puzzles (#102), created if absent. Never edits a row.
+
+    Puzzles are created DRAFT with their content as the first published revision (ADR-047), like
+    every seeded 3D Area puzzle; `publish_treasure_rush` (or Django Admin) publishes them. Until a
+    stage's puzzle is published, its chest keeps its old question.
+    """
+    for row in stages.placement_rows():
+        entity_id = row.pop("entity_id")
+        get_or_create(
+            WorldObjectPlacement,
+            {"region": region, "entity_id": entity_id},
+            row,
+        )
+    created = []
+    for order, (puzzle_id, kind, entity_ids, body) in enumerate(stages.puzzle_rows()):
+        _, was_created = seed_puzzle(
+            region,
+            puzzle_id=puzzle_id,
+            kind=kind,
+            entity_ids=entity_ids,
+            body=body,
+            sort_order=order,
+        )
+        if was_created:
+            created.append(f"AreaPuzzle {region.region_id}:{puzzle_id}")
+    return created
+
+
+def _with_stand_ins(scene: dict) -> dict:
+    """The scene with the stages' stand-in shapes added; an entry already there is kept."""
+    effects = scene.get("effects") if isinstance(scene.get("effects"), dict) else {}
+    present = [e for e in effects.get("standIns", []) if isinstance(e, dict)]
+    known = {entry.get("entityId") for entry in present}
+    added = [entry for entry in stages.stand_ins() if entry["entityId"] not in known]
+    return {**scene, "effects": {**effects, "standIns": [*present, *added]}}
 
 
 def seed_lookout_replay(region, get_or_create) -> None:
@@ -290,20 +342,32 @@ def seed_lookout_replay(region, get_or_create) -> None:
 
 
 def upgrade_pips_treasure(region) -> bool:
-    """Offer Pip's Missing Treasure in the cove instead of the one-chest quest, once.
+    """Bring the cove's adventure up to `ADVENTURE_VERSION`, once per version.
 
-    Only seed-owned state changes: the region's offered quests (the old quest stays in the
-    catalog, so a child who started it keeps their progress and backpack) and the first chest's
-    clue and order while they are still the seed's defaults. True if anything changed.
+    Version 1 offers Pip's Missing Treasure instead of the one-chest quest; version 2 adds the
+    stages' stand-ins and points the default clues at them. Only seed-owned state changes: the
+    region's offered quests (the old quest stays in the catalog, so a child who started it keeps
+    their progress and backpack), the scene's stand-ins, and clues while they are still the
+    seed's defaults. True if anything changed.
     """
     scene = region.scene if isinstance(region.scene, dict) else {}
-    if scene.get("adventureVersion", 0) >= ADVENTURE_VERSION:
+    version = scene.get("adventureVersion", 0)
+    if version >= ADVENTURE_VERSION:
         return False
-    region.offered_quests.remove(*Quest.objects.filter(slug=LEGACY_QUEST_ID))
-    region.offered_quests.add(Quest.objects.get(slug=PIPS_QUEST_ID))
-    TreasureChest.objects.filter(region=region, entity_id="cove-chest", clue="").update(
-        clue=LANDING_CLUE
-    )
+    if version < 1:
+        region.offered_quests.remove(*Quest.objects.filter(slug=LEGACY_QUEST_ID))
+        region.offered_quests.add(Quest.objects.get(slug=PIPS_QUEST_ID))
+        TreasureChest.objects.filter(region=region, entity_id="cove-chest", clue="").update(
+            clue=LANDING_CLUE
+        )
+    # Version 2 (#102): Pip's clues point to the stages, but only clues an administrator has
+    # not changed.
+    for entity_id, (old_clue, new_clue) in stages.CLUES.items():
+        TreasureChest.objects.filter(region=region, entity_id=entity_id, clue=old_clue).update(
+            clue=new_clue
+        )
+    scene = _with_stand_ins(scene)
     region.scene = {**scene, "adventureVersion": ADVENTURE_VERSION}
-    region.save(update_fields=["scene", "updated_at"])
+    region.version += 1  # the scene changed: clients holding the old one fetch it again
+    region.save(update_fields=["scene", "version", "updated_at"])
     return True

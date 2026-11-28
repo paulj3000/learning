@@ -245,7 +245,10 @@ every new field when an older server leaves it out.
 **Region bootstrap, chests.** Each chest also carries `presentation` (`CHEST`, `HIDDEN`: not
 drawn until it may be opened, or `PUZZLE`: answered by touching objects, no chest drawn),
 `sortOrder` (the encounter order; the list comes sorted by it), `locked` and `lockReason`
-(`null`, `PROGRESS`: an earlier encounter first, or `ITEM`: a key the child lacks),
+(`null`, `PROGRESS`: an earlier encounter first, `ITEM`: a key the child lacks, or `PUZZLE`:
+a published 3D Area puzzle in the same Area records this chest's world change key, so solving
+that puzzle opens the chest and the chest issues no challenge of its own: `409 chest_locked`,
+issue #102),
 `requiredItemId`, `answerEntityIds` (a puzzle's answer objects, one per choice, in choice order)
 and `clue` (Pip's line that sends the child there; child-facing).
 
