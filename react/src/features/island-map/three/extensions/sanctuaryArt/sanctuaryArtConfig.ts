@@ -16,6 +16,8 @@ export interface SanctuaryArtConfig {
   sockets: readonly { x: number; z: number; changeKey: string }[];
   runeEntityIds: readonly string[];
   scaleEntityIds: readonly string[];
+  /** The dragon's egg (LAI-2205). Optional so older bindings still parse. */
+  eggEntityId?: string;
   gates: readonly {
     entityId: string;
     halfWidth: number;
@@ -97,6 +99,8 @@ export function tryParseSanctuaryArtConfig(config: {
     skyCliffs.push({ x, z, halfWidth, height });
   }
 
+  const eggEntityId = text(config.eggEntityId);
+
   return {
     forgeChangeKey,
     hearthEntityId,
@@ -104,6 +108,7 @@ export function tryParseSanctuaryArtConfig(config: {
     sockets,
     runeEntityIds,
     scaleEntityIds,
+    ...(eggEntityId ? { eggEntityId } : {}),
     gates,
     skyCliffs,
   };

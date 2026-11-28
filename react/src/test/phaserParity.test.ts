@@ -95,9 +95,6 @@ const GAPS: Readonly<Record<string, string>> = {
   'welcome-harbor/mountain-path': 'LAI-2201',
   'welcome-harbor/fossil-ridge-path': 'LAI-2201',
   'welcome-harbor/bolts-workshop-path': 'LAI-2201',
-  // LAI-2205 (LAI 04, after the MVP round).
-  'dragons-sanctuary/dragons-sanctuary-egg': 'LAI-2205',
-  'dragons-sanctuary/dragons-sanctuary-harbor-exit': 'LAI-2205 (the card-page link stands in)',
 };
 
 /** Phaser ids the 3D world carries under another id (same action kind). */

@@ -37,6 +37,20 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-2205 Dragon's Sanctuary parity: egg, harbor exit, unlock guard (2026-11-28, `feature/LAI-2205-dragons-sanctuary`, base `fd3d3974`); Development Complete, NOT merged, NOT owner accepted
+
+- The 3D Dragon's Sanctuary now has `dragons-sanctuary-egg` (a tappable prop beside Ember, drawn by
+  the `sanctuary-art` extension from primitives) and `dragons-sanctuary-harbor-exit` (a walk-on
+  floor strip at the south end of the valley), each with `action` and `requirements` identical to
+  the Phaser table. Both sit on open floor, so neither needs a jump. The exit keeps
+  `NAVIGATE 'world'`; GE-077 retargets it. No new assets, no Phaser or Django change.
+- Unlock guard: the manifest declares `entryRequirements` from the location registry's
+  `unlockRequirement` (`DRAGON_OF_EMBER_MOUNTAIN_COMPLETE`). A direct URL before the story is
+  finished shows the calm "not discovered yet" line and a link back to the map, builds no engine,
+  and stays shut if the progress read fails.
+- Both `GAPS` entries removed from `phaserParity.test.ts`. The `meet-ember-dragon` rename is kept.
+- Tests: see the audit section 8 row. Deferred: full suites, lint, format, browser, Playwright.
+
 ## LAI 04 Phaser retirement audit, Phase 2 (2026-11-27, `feature/threejs-phaser-retirement`, `main` `41ee7320`)
 
 - Audit and plan: `docs/engineering/game-engine/phaser-retirement-audit.md`. Migration measured at
