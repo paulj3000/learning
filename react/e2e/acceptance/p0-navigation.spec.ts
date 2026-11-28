@@ -100,7 +100,9 @@ test.describe.serial('P0: Home -> Realms -> Treasure Cove and Storykeeper Castle
       await test.step('Realms opens the Realm Explorer, not Home', async () => {
         await childNav(page).getByRole('link', { name: 'Realms' }).click();
         await expect(page).toHaveURL(new RegExp(`/island/${childId}/realms$`));
-        await expect(page.getByRole('heading', { level: 1, name: 'Realm Explorer' })).toBeVisible();
+        await expect(
+          page.getByRole('heading', { level: 1, name: 'Explore the Realms' }),
+        ).toBeVisible();
         await expect(
           page.getByRole('article', { name: 'Learning Adventure Island' }),
         ).toBeVisible();
