@@ -37,6 +37,53 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI 05 MVP playability integration (2026-11-26 to 2026-11-28, `integration/20261126-mvp-playability`, GitHub #98 to #103, Trello #254 to #259); all PRs merged, candidate retired, NOT owner accepted
+
+The candidate integrated, from `main` `41ee7320`: #106 (#99 Castle entry), #107 (#98 North Pole
+and #100 Firepeak entry), #110 (region catalog lists every scene asset), #109 and #111 (#102
+Treasure Rush puzzles and scoring; additive migrations regions 0010 and game_sessions 0008),
+#108 (#101 full-screen menus), #105 (README seeds and publishes every Realm) and #104 (#103
+Realms page). All of them are now merged to `main`, and the candidate branch was retired on
+2026-11-28 with owner approval. This record and the owner QA checklist moved to `main` with it.
+
+Integration fixes, carried on the PR branches:
+- #104 against #107 (`RealmExplorerPage.test.tsx`): the resolution keeps every test and
+  assertion from both PRs. #104's North Pole card test uses the village 3D Area Django serves,
+  because #107 offers entry into a Realm with no client hub only through a published Area
+  (#104 `09d9b79f`).
+- Heart of Firepeak was labelled twice (found by LAI 03): `placeCopy()` gave the
+  `firepeak-volcano` card the `firepeak-heart` Place's title. The Volcano now keeps Django's
+  title, and a test renders both Firepeak Places on `/realms` (#104 `a34bdddf`).
+- #111's scoring test copied a key that #109's `cove-treasure-map` already records (LAI 06,
+  `41ba33f9`).
+- The two Playwright acceptance specs still expected the old "Realm Explorer" heading: PR #121.
+  Further stale expectations in the same specs, from #104's destination cards, are listed in #121.
+
+Root causes, recorded on the issues:
+- #98: every non-home Realm was sent to the client hub, which knows only client-registered
+  worlds, so North Pole showed "could not find".
+- #100: an Area counted as playable only if it had a chest, and both Firepeak Areas have
+  puzzles only.
+- #99: the 3D castle was offered only as a preview link, and the adventure ignored the age band.
+- Seed data: README step 7 seeded and published only Treasure Rush (PR #105).
+
+Evidence:
+- **EC2 full-unit, final candidate** (run 46092205713 on `038f4ca5`, tree `1c24fc47`, gate
+  MERGE-OK): makemigrations check passed; Django 5749 passed and 3 skipped; python-repo 3641
+  passed and 62 skipped; engine 705 of 705; React 6603 of 6603. An earlier run on `95c82f86`
+  (46068614497) was incomplete: Django used about 124 of the 150 budget minutes and React was
+  stopped. Run 45924441573 on `94346a5a` passed before #104 and #105 joined.
+- **Local:** Django on PostgreSQL 18 for the changed apps (1925 passed on `8cae4172` apart from
+  the #111 test fixed in `41ba33f9`; scoring 296 of 296 on `94346a5a`); migrate on fresh and
+  seeded databases; the Islands API per age band; Vitest for the Realm Explorer, realms,
+  region-play and regionPlay folders (804 of 804 on `038f4ca5`); typecheck, Prettier, oxlint,
+  ruff and the docs check clean.
+- **CI** on #104's `a34bdddf`: typecheck/lint/unit/build, Python/Django/PostgreSQL and
+  end-to-end passed.
+
+Not yet run: the Playwright acceptance specs and the owner's browser QA on `main`
+(`docs/qa/MVP_PLAYABILITY_OWNER_QA.md`). Unit tests are not acceptance.
+
 ## LAI-07 asset intake checklist: one sourcing list for missing audio and models (2026-11-27, `docs/asset-intake-checklist`, `main` `d812ad71`)
 
 Docs only; no code, seed or asset changed. Trello #244, #246, #247.
