@@ -35,6 +35,14 @@
       ]
     },
     {
+      "regionSlug": "fossil-ridge-camp",
+      "assetIds": [
+        "rock",
+        "signpost",
+        "toolbox"
+      ]
+    },
+    {
       "regionSlug": "pirate-builder-bay",
       "assetIds": [
         "bridge-plank-repaired",

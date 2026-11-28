@@ -402,6 +402,25 @@ export const CASTLE_WRITING_ROOM_CHECKPOINTS: readonly RegionCheckpoint[] = [
   },
 ];
 
+export const FOSSIL_RIDGE_CAMP_REGION_ID = 'fossil-ridge-camp';
+
+/**
+ * Fossil Ridge Camp's one checkpoint (LAI-2206): the trailhead the child walks
+ * in by from Welcome Harbor, facing into the camp (+X). Appended after every
+ * shipped region's, so no saved checkpoint id changes meaning. The camp has
+ * no puzzle to resume.
+ */
+export const FOSSIL_RIDGE_CAMP_CHECKPOINTS: readonly RegionCheckpoint[] = [
+  {
+    id: 'fossil-ridge-camp:trailhead',
+    regionId: FOSSIL_RIDGE_CAMP_REGION_ID,
+    label: 'the trailhead',
+    x: -12,
+    z: 0,
+    yaw: Math.PI / 2,
+  },
+];
+
 const SOURCE_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...WELCOME_HARBOR_CHECKPOINTS,
   ...PIRATE_BUILDER_BAY_CHECKPOINTS,
@@ -411,6 +430,7 @@ const SOURCE_CHECKPOINTS: readonly RegionCheckpoint[] = [
   ...CLOCKWORK_HARBOR_CHECKPOINTS,
   ...DRAGONS_SANCTUARY_CHECKPOINTS,
   ...CASTLE_WRITING_ROOM_CHECKPOINTS,
+  ...FOSSIL_RIDGE_CAMP_CHECKPOINTS,
 ];
 
 /**

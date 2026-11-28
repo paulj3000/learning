@@ -208,6 +208,7 @@ No Django schema change: Django regions carry the block inside their existing `s
 | Storykeeper Castle | **Yes** (default) | Closer indoor camera under the ceilings. Engine test walks through the archway and turns all the way round at eight stops: never inside a wall, never above 2.8 m. |
 | Pirate Builder Bay | **Yes** (default) | Standard outdoor. Jumping still cannot cross the broken bridge. |
 | Welcome Harbor, Wonderwild Forest, Clockwork Harbor, Dragon's Sanctuary, Firepeak | **Yes** (default) | Standard outdoor; the same shared runtime, no per-location code. |
+| Fossil Ridge Camp (LAI-2206) | **Yes** (default) | Standard outdoor, flat floor; the camp does not use jumping (LAI-JMP-01b), every collider is solid. |
 | Phaser 2D worlds | No | ADR-020: no new features. LAI-JMP-01b covers them after conversion. |
 
 ## Controls

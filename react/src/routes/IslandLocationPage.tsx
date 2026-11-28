@@ -21,6 +21,7 @@ import { usePlaceArea } from '../features/region-play/usePlaceArea';
 import {
   CASTLE_WRITING_ROOM_REGION_ID,
   DRAGONS_SANCTUARY_REGION_ID,
+  FOSSIL_RIDGE_CAMP_REGION_ID,
   PIRATE_BUILDER_BAY_REGION_ID,
   STORYKEEPER_CASTLE_REGION_ID,
   WONDERWILD_FOREST_REGION_ID,
@@ -308,6 +309,19 @@ export function IslandLocationPage() {
         {location.slug === 'fossil-ridge-camp' ? (
           <Link className={styles.walkLink} to={`/island/${childId}/world/fossil-ridge-camp`}>
             Try exploring the camp (new!)
+          </Link>
+        ) : null}
+        {/*
+          LAI-2206: the 3D camp, as a preview beside the Phaser camp. Sprouts are not offered
+          it until the guided tap-to-walk profile (LAI-2104S) lands; the 3D view itself
+          applies the same unlock guard as this page.
+        */}
+        {location.slug === 'fossil-ridge-camp' && childProfile.ageBand !== 'SPROUT' ? (
+          <Link
+            className={styles.walkLink}
+            to={locationWorldPath(childId, FOSSIL_RIDGE_CAMP_REGION_ID)}
+          >
+            Peek at the 3D camp (preview)
           </Link>
         ) : null}
         {location.slug === 'castle-writing-room' ? (

@@ -173,14 +173,14 @@ describe('preservation of the existing content', () => {
       rewardRules: 92, // + one seal rule per band's Great Storybook quest, + three keepsake rules, + the mouse door knob, + Pirate's Leap's four, + Firepeak and North Pole
       npcs: 23, // + Professor Orion (SC-R05-03), + Firepeak and North Pole
       discoveries: 8, // + the Secret Chamber's two quiet finds (SC-R08-02)
-      checkpoints: 31,
+      checkpoints: 32, // + Fossil Ridge Camp's trailhead (LAI-2206)
       interactions: 8,
       subjects: 2,
       grades: 4,
       domains: 7,
       skills: 11,
       assets: 114,
-      locationAssets: 7,
+      locationAssets: 8, // + Fossil Ridge Camp in 3D (LAI-2206)
     });
   });
 

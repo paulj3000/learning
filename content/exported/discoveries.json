@@ -247,6 +247,14 @@
       "x": -2.5,
       "yaw": 1.5707963267948966,
       "z": 0
+    },
+    {
+      "id": "fossil-ridge-camp:trailhead",
+      "label": "the trailhead",
+      "regionId": "fossil-ridge-camp",
+      "x": -12,
+      "yaw": 1.5707963267948966,
+      "z": 0
     }
   ],
   "discoveries": [

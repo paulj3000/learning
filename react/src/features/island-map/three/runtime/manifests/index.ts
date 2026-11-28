@@ -8,6 +8,7 @@ import { CLOCKWORK_HARBOR_MANIFEST } from './clockworkHarbor';
 import { DRAGONS_SANCTUARY_MANIFEST } from './dragonsSanctuary';
 import { STORYKEEPER_CASTLE_MANIFEST } from './storykeeperCastle';
 import { CASTLE_WRITING_ROOM_MANIFEST } from './castleWritingRoom';
+import { FOSSIL_RIDGE_CAMP_MANIFEST } from './fossilRidgeCamp';
 
 /**
  * Every source-controlled location manifest. Adding an ordinary location
@@ -21,6 +22,7 @@ export const SOURCE_LOCATION_MANIFESTS: readonly ThreeLocationManifest[] = [
   DRAGONS_SANCTUARY_MANIFEST,
   STORYKEEPER_CASTLE_MANIFEST,
   CASTLE_WRITING_ROOM_MANIFEST,
+  FOSSIL_RIDGE_CAMP_MANIFEST,
 ];
 
 /** The repository the app uses today. */

@@ -29,7 +29,11 @@ import type { AgeBandValue } from '../features/child-profile/constants';
  * is exactly the kind of thing that quietly becomes "primary for everyone".
  */
 
-function renderLocation(slug: string, ageBand: AgeBandValue) {
+function renderLocation(
+  slug: string,
+  ageBand: AgeBandValue,
+  worldChanges: readonly { changeKey: string }[] = [],
+) {
   getChildProfile.mockResolvedValue({
     id: 'child-1',
     nickname: 'Robin',
@@ -37,7 +41,7 @@ function renderLocation(slug: string, ageBand: AgeBandValue) {
     interests: [],
     avatarKey: 'fox',
   });
-  listAllWorldChanges.mockResolvedValue([]);
+  listAllWorldChanges.mockResolvedValue(worldChanges);
   return render(
     <MemoryRouter initialEntries={[`/island/child-1/locations/${slug}`]}>
       <Routes>
@@ -217,4 +221,38 @@ describe('the Writing Room offers each band its own story (#99, same cause)', ()
       expect(screen.queryByText(/not available for your age/)).not.toBeInTheDocument();
     },
   );
+});
+
+describe('Fossil Ridge Camp route, by age band (LAI-2206)', () => {
+  const UNLOCKED = [{ changeKey: 'DINOSAUR_EXPEDITION_COMPLETE' }];
+
+  it.each(['PATHFINDER', 'EXPLORER'] as const)(
+    'offers a %s the 3D camp as a preview, beside the Phaser camp',
+    async (band) => {
+      renderLocation('fossil-ridge-camp', band, UNLOCKED);
+      expect(
+        await screen.findByRole('link', { name: 'Peek at the 3D camp (preview)' }),
+      ).toHaveAttribute('href', '/island/child-1/explore/fossil-ridge-camp');
+      expect(screen.getByRole('link', { name: 'Try exploring the camp (new!)' })).toHaveAttribute(
+        'href',
+        '/island/child-1/world/fossil-ridge-camp',
+      );
+    },
+  );
+
+  it('does not offer a Sprout the 3D camp before the guided profile, and keeps the Phaser camp', async () => {
+    renderLocation('fossil-ridge-camp', 'SPROUT', UNLOCKED);
+    expect(
+      await screen.findByRole('link', { name: 'Try exploring the camp (new!)' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Peek at the 3D camp (preview)' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('offers no way into either camp before the dinosaur mystery is finished', async () => {
+    renderLocation('fossil-ridge-camp', 'PATHFINDER');
+    expect(await screen.findByText(/not been discovered yet/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /3D camp/ })).not.toBeInTheDocument();
+  });
 });

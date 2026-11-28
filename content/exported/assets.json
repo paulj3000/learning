@@ -756,6 +756,14 @@
     },
     {
       "assetIds": [
+        "rock",
+        "signpost",
+        "toolbox"
+      ],
+      "regionSlug": "fossil-ridge-camp"
+    },
+    {
+      "assetIds": [
         "bridge-plank-repaired",
         "bridge-plank",
         "rock",

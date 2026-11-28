@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ALL_CHECKPOINTS,
   CASTLE_WRITING_ROOM_CHECKPOINTS,
+  FOSSIL_RIDGE_CAMP_CHECKPOINTS,
 } from '../../../../discovery/checkpoints';
 import { getIslandLocation } from '../../../../island/locations';
 import { CASTLE_EXITS } from '../../castleLayout';
@@ -150,7 +151,12 @@ describe('Writing Room manifest (SC-R10-01)', () => {
   it('appends exactly one checkpoint, after every existing one, with a clear spawn', () => {
     expect(CASTLE_WRITING_ROOM_CHECKPOINTS).toHaveLength(1);
     expect(MANIFEST.checkpoints.ids).toEqual(['castle-writing-room:entry']);
-    expect(ALL_CHECKPOINTS[ALL_CHECKPOINTS.length - 1]?.id).toBe('castle-writing-room:entry');
+    // After every region shipped before it; only later regions (Fossil Ridge Camp, LAI-2206) follow.
+    const afterRoom = FOSSIL_RIDGE_CAMP_CHECKPOINTS.length;
+    expect(ALL_CHECKPOINTS[ALL_CHECKPOINTS.length - 1 - afterRoom]?.id).toBe(
+      'castle-writing-room:entry',
+    );
+    expect(ALL_CHECKPOINTS.slice(-afterRoom)).toEqual(FOSSIL_RIDGE_CAMP_CHECKPOINTS);
     const spawn = CASTLE_WRITING_ROOM_CHECKPOINTS[0]!;
     expect({ x: spawn.x, z: spawn.z }).toEqual(WRITING_ROOM_SPAWN);
     expect(inside(WRITING_ROOM_EXIT_ZONE, spawn.x, spawn.z)).toBe(false);

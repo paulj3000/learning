@@ -1,5 +1,5 @@
 {
-  "contentDigest": "ad97832c0724ef40f2116fadb35af659a042e7d10e30243600490ad48a442c24",
+  "contentDigest": "9b633725ea42e7f3928a275c26586b6a6ebb814ba50a13b7c9d9d42b25f709af",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -60,11 +60,11 @@
     },
     {
       "counts": {
-        "checkpoints": 31,
+        "checkpoints": 32,
         "discoveries": 8
       },
       "path": "discoveries.json",
-      "sha256": "01c23e84cb7e7412ffadabd839ddebfbe718d2056a1af7173b9351e7c702c5ca"
+      "sha256": "f5076914c1cbca9de2001447fb092aab7da9baf636a47a45372dad01132aeac1"
     },
     {
       "counts": {
@@ -86,10 +86,10 @@
     {
       "counts": {
         "assets": 114,
-        "locationAssets": 7
+        "locationAssets": 8
       },
       "path": "assets.json",
-      "sha256": "48470848b47e89dcec4f959a984e611694782a57f769c32f284374282c41e6c8"
+      "sha256": "fe42381430e648d086f281a99d0df9aab516eab35bbc4108d179ef60257c113d"
     }
   ],
   "knownAmbiguities": [

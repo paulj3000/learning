@@ -37,6 +37,36 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-2206 Fossil Ridge Camp in Three.js: layout, unlock guard, parity (2026-11-28, `feature/lai-2206-fossil-ridge-camp-3d`, base `main` `6246cfc5`, LAI 03)
+
+Status: in development (draft PR). Started on the owner's go-ahead, relayed 2026-11-28, for the
+independent parts only. Not Development Complete: the exit to the 3D hub (LAI-2201), final
+models (LAI 07) and the Sprouts route (LAI-2104S B1, PR #129) are still to come. Trello #268.
+
+- New manifest `runtime/manifests/fossilRidgeCamp.ts` from `three/fossilRidgeCampRegion.ts`, on
+  `/island/:childId/explore/fossil-ridge-camp`. It reuses `FOSSIL_RIDGE_CAMP_INTERACTIONS` by
+  identity: the same three ids and lines as the Phaser camp, which gains nothing (ADR-020).
+- Unlock guard: `entryRequirements` on `DINOSAUR_EXPEDITION_COMPLETE`, the Phaser view's key.
+  It fails closed and shows the same calm line and a way back to the map.
+- Flat by design (owner, 2026-11-28): one floor, with the ridge faces, boulders, tent, plinth and
+  roped dig pits as solid colliders. Nothing is `jumpable`, and there is no platforming or
+  `movement` block. LAI-JMP-01b: the camp does not use jumping. Every target is reachable on
+  foot, so B1 is enough for Sprouts.
+- Placeholder art: coloured boxes. The bundled `signpost` is the skeleton's placard, `toolbox`
+  is the dig tools, plus `rock`. `interactionAssist` is on. Final models change scenery and
+  `assetId`s only.
+- Still the Phaser behaviour: the exit navigates to `world` until LAI-2201.
+- The location page offers Pathfinders and Explorers "Peek at the 3D camp (preview)" beside the
+  Phaser camp. Sprouts are not offered it until LAI-2104S.
+- New checkpoint `fossil-ridge-camp:trailhead`, appended last. The content export and
+  `scene-asset-index.json` are regenerated (checkpoints 32, locationAssets 8).
+- New engine location definition `locations/fossilRidgeCamp.location.ts`, with `engineApi`
+  `>=0.1.0 <1.0.0`.
+- Reported, not changed: the 3D Dragon's Sanctuary manifest has no `entryRequirements`, so its
+  `/explore/dragons-sanctuary` URL opens without `DRAGON_OF_EMBER_MOUNTAIN_COMPLETE`. The
+  Phaser view and the location page do guard it.
+- Checks: see the LAI-2206 Trello card and the PR for the exact commands and results.
+
 ## LAI-07 asset intake checklist: one sourcing list for missing audio and models (2026-11-27, `docs/asset-intake-checklist`, `main` `d812ad71`)
 
 Docs only; no code, seed or asset changed. Trello #244, #246, #247.
