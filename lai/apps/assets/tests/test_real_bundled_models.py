@@ -9,7 +9,12 @@ import pytest
 from apps.assets.importer import import_bundled
 from apps.catalog.importer import import_content
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 
 def test_every_shipped_bundled_model_validates():

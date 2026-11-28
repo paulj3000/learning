@@ -52,11 +52,22 @@ def publish_all():
     AreaPuzzle.objects.filter(region__region_id=REGION_ID).update(status=ContentStatus.PUBLISHED)
 
 
-@pytest.fixture
-def firepeak(families):
+def _seed_firepeak():
     import_content()
     seed_firepeak()
     publish_all()
+
+
+@pytest.fixture(scope="module")
+def firepeak_content(module_content):
+    """`_seed_firepeak()` once for the module (lai/conftest.py, "Module content baseline")."""
+    return module_content.seed("firepeak", _seed_firepeak)
+
+
+@pytest.fixture
+def firepeak(firepeak_content, families):
+    if not firepeak_content.has("firepeak"):
+        _seed_firepeak()
     return families
 
 

@@ -13,7 +13,12 @@ from apps.regions.pips_treasure_seed import PIPS_QUEST_ID
 from apps.regions.treasure_rush_publish import PublishRefused, publish_treasure_rush
 from apps.regions.treasure_rush_seed import REGION_ID, seed_treasure_rush
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 
 @pytest.fixture

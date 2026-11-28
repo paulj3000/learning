@@ -22,7 +22,11 @@ from apps.catalog import authoring
 from apps.catalog.models import ContentAsset
 from apps.catalog.tests.helpers import publish_edit
 from apps.education.models import SkillEvidence, SkillProgress
-from apps.education.tests.test_puzzle_evidence import heart, play_all  # noqa: F401 - fixture
+from apps.education.tests.test_puzzle_evidence import (  # noqa: F401 - fixtures
+    heart,
+    heart_content,
+    play_all,
+)
 from apps.game_sessions.models import ChallengeAttempt, PuzzleAttempt
 from apps.game_sessions.play_state import practice_summary, region_catalog
 from apps.inventory.models import GrantedRule, InventoryItem

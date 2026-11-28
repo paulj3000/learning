@@ -257,6 +257,7 @@ def test_strict_mode_passes_when_everything_is_ready(small_game, treasure):
     assert "2 of 2 required cues ready" in output
 
 
+@pytest.mark.without_module_content  # Treasure Cove must not be seeded
 def test_without_strict_a_missing_library_still_exits_normally(small_game):
     assert "NOT FOUND" in run("--game", "treasure-rush")
 

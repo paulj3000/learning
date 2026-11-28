@@ -50,11 +50,22 @@ def publish_all():
     ChallengeSpec.objects.filter(slug__startswith="np-").update(status=ContentStatus.PUBLISHED)
 
 
-@pytest.fixture
-def north_pole(families):
+def _seed_north_pole():
     import_content()
     seed_north_pole()
     publish_all()
+
+
+@pytest.fixture(scope="module")
+def north_pole_content(module_content):
+    """`_seed_north_pole()` once for the module (lai/conftest.py, "Module content baseline")."""
+    return module_content.seed("north_pole", _seed_north_pole)
+
+
+@pytest.fixture
+def north_pole(north_pole_content, families):
+    if not north_pole_content.has("north_pole"):
+        _seed_north_pole()
     return families
 
 

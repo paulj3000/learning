@@ -18,7 +18,12 @@ from apps.regions.north_pole_seed import REGION_ID as NORTH_POLE
 from apps.regions.north_pole_seed import seed_north_pole
 from apps.regions.treasure_rush_seed import REGION_ID, seed_treasure_rush
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 
 def test_the_catalog_names_the_library_models_and_whether_each_can_be_delivered():
