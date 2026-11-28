@@ -58,21 +58,26 @@ def test_the_hub_scene_assets_are_kept_in_the_release_report(tmp_path):
     assert not LocationAsset.objects.filter(location__slug="welcome-harbor").exists()
 
 
-def test_the_shipped_export_lists_all_eleven_welcome_harbor_assets():
+def test_the_shipped_export_lists_every_welcome_harbor_asset():
     report = import_content(importer.DEFAULT_EXPORT_DIR)
 
     hub = report.scene_assets_without_place["welcome-harbor"]
+    # LAI-2201: the 3D harbor hub adds the bridge (broken and repaired), Chatty and the dock sign.
     assert hub == [
         "wall",
         "roof",
         "door",
         "ground-tile",
+        "bridge-plank-repaired",
+        "bridge-plank",
         "rock",
         "foliage-tree",
         "foliage-tree-lod1",
         "foliage-bush",
         "fence",
         "npc-pip",
+        "companion-chatty",
+        "signpost",
         "collectible-gem",
     ]
     for asset_id in hub:

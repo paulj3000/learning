@@ -1,5 +1,5 @@
 {
-  "contentDigest": "ad97832c0724ef40f2116fadb35af659a042e7d10e30243600490ad48a442c24",
+  "contentDigest": "728f9212b0def90c6d41abecb47b7a71c51512dee5688ad861b86ca8fb5a395f",
   "exportTool": {
     "name": "lai-content-export",
     "version": "1.0.0"
@@ -89,7 +89,7 @@
         "locationAssets": 7
       },
       "path": "assets.json",
-      "sha256": "48470848b47e89dcec4f959a984e611694782a57f769c32f284374282c41e6c8"
+      "sha256": "d43248c7b1f6e02c421848b790bd9bcc57975d7cc3402203c04cfed0cd12d6d1"
     }
   ],
   "knownAmbiguities": [

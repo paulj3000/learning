@@ -49,19 +49,23 @@ def test_shipped_scenes_are_listed_and_never_block(tmp_path):
     ]
 
 
-def test_all_eleven_welcome_harbor_assets_are_listed_from_the_shipped_export():
+def test_every_welcome_harbor_asset_is_listed_from_the_shipped_export():
     import_content(DEFAULT_EXPORT_DIR)
     hub = [
         "wall",
         "roof",
         "door",
         "ground-tile",
+        "bridge-plank-repaired",
+        "bridge-plank",
         "rock",
         "foliage-tree",
         "foliage-tree-lod1",
         "foliage-bush",
         "fence",
         "npc-pip",
+        "companion-chatty",
+        "signpost",
         "collectible-gem",
     ]
     for asset_id in hub:
