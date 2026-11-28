@@ -9,9 +9,11 @@ import uuid
 import pytest
 
 NS = "dev"
-JOB = str(uuid.uuid4())
-ATTEMPT = str(uuid.uuid4())
-OTHER = str(uuid.uuid4())
+# Fixed ids: they appear in parametrized test ids, which must be identical on every collection
+# for parallel workers (pytest-xdist).
+JOB = "0b6f2a4e-6d3c-4f1a-9e2b-1c4d5e6f7a80"
+ATTEMPT = "1c7a3b5f-7e4d-4a2b-8f3c-2d5e6f7a8b91"
+OTHER = "2d8b4c6a-8f5e-4b3c-9a4d-3e6f7a8b9ca2"
 BUCKET = "lai-dev-assets"
 DATA = b"OggS" + b"\x01" * 100
 DIGEST = hashlib.sha256(DATA).hexdigest()
@@ -158,7 +160,7 @@ def test_412_when_the_object_then_vanished_is_retryable(mod, bucket):
         key(attempt=OTHER),
         key(job=OTHER),
         key(ns="prod"),
-        f"processing/artifacts/{NS}/capture/{uuid.uuid4()}.png",
+        f"processing/artifacts/{NS}/capture/3e9c5d7b-9a6f-4c4d-8b5e-4f7a8b9cadb3.png",
         "assets/audio/npc-pip/x/audio.ogg",
         f"processing/quarantine/{NS}/x.ogg",
         f"processing/artifacts/{NS}/{JOB}/{ATTEMPT}/../{OTHER}/opus.ogg",

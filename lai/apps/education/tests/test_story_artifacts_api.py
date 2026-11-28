@@ -9,7 +9,12 @@ from apps.catalog.models import Adventure
 from apps.education.models import StoryArtifact
 from apps.game_sessions import services as sessions
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 SLUG = "the-dark-lighthouse-counting"
 

@@ -61,12 +61,22 @@ py-format:
 	$(PY) -m ruff check --fix .
 	$(PY) -m ruff format .
 
+# The full suite runs in parallel (pytest-xdist): one worker per CPU by default, each with its own
+# test database (pytest-django names them test_<db>_gw0, _gw1, ...). `loadgroup` with the groups
+# lai/conftest.py assigns keeps a module on one worker, so its content baseline is imported once;
+# `--no-loadscope-reorder` hands the groups out in collection order, so every worker runs its
+# transactional tests (which flush its database) after the others. On a busy machine:
+# PYTEST_WORKERS=2.
+# PYTEST_WORKERS=0 runs serially. Development runs by path stay serial: `pytest -q <paths>`.
+PYTEST_WORKERS ?= auto
+PYTEST_PARALLEL = -n $(PYTEST_WORKERS) --dist loadgroup --no-loadscope-reorder
+
 py-test:
-	$(PY) -m pytest -q
+	$(PY) -m pytest -q $(PYTEST_PARALLEL)
 
 # Same as py-test, but the PostgreSQL tests fail instead of skipping when `make up` was not run.
 py-test-db:
-	LAI_REQUIRE_POSTGRES=1 $(PY) -m pytest -q
+	LAI_REQUIRE_POSTGRES=1 $(PY) -m pytest -q $(PYTEST_PARALLEL)
 
 # Django management commands (local settings; need no database except migrate and runserver).
 django-check:

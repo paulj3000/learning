@@ -6,6 +6,8 @@
 ruff==0.17.0
 pytest==9.1.1
 pytest-django==4.14.0
+# parallel full-suite runs (`make py-test`, `make py-test-db`); MIT. Owner-approved 2026-11-28.
+pytest-xdist==3.8.0
 # structural guards on the GitHub workflows (tests/repo/test_ci_workflow.py); no runtime use
 PyYAML==6.0.3
 # contract-schema checks of the processing fixtures (tests/processing/test_processing_fixtures.py,
@@ -17,6 +19,8 @@ attrs==26.1.0
 jsonschema-specifications==2025.9.1
 referencing==0.37.0
 rpds-py==2026.9.1
+# transitive dependency of pytest-xdist; MIT
+execnet==2.1.2
 # transitive dependencies of pytest
 iniconfig==2.3.1
 packaging==26.3
