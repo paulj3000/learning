@@ -2,7 +2,7 @@
   "id": "treasure-rush-cove",
   "realmId": "pirate-builder-bay",
   "version": "1.0.0",
-  "engineApi": "^0.1.0",
+  "engineApi": ">=0.1.0 <1.0.0",
   "ageBands": ["SPROUT", "PATHFINDER", "EXPLORER"],
   "learningObjectiveIds": ["counting-sets", "addition-within-ten", "subtraction-within-ten"],
   "areas": ["treasure-rush-cove"],

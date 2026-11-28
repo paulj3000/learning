@@ -33,7 +33,7 @@ export const STORYKEEPER_CASTLE_LOCATION = defineLocation(
   {
     id: STORYKEEPER_CASTLE_MANIFEST.regionId,
     version: '1.0.0',
-    engineApi: '^0.1.0',
+    engineApi: '>=0.1.0 <1.0.0',
     contentSource: 'MANIFEST',
     capabilities: requests,
     requiredServices: [ASSET_MANAGER.id, NPC_MANAGER.id, SOUND_MANAGER.id],

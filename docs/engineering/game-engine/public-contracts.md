@@ -11,7 +11,7 @@
 
 | Interface | Version | Where |
 |---|---|---|
-| Package API | `ENGINE_API_VERSION` `0.1.0` | `game/src/version.ts`, `game/package.json` |
+| Package API | `ENGINE_API_VERSION` `0.2.0` (0.2.0: optional `learning.answer.submitted.hintsUsed`) | `game/src/version.ts`, `game/package.json` |
 | Gameplay claims | `lai.gameplay-event` v1 | `game/src/contracts/gameplayEvents.ts` |
 | Capability configs | Semver per capability (`definition.version`) | Each capability definition |
 
@@ -21,6 +21,11 @@
   contract version beside the old one (v2 with v1), a migration note here, and every consumer
   updated in the same pull request.
 - While the package is `0.x`, the `react` dependency names the exact version.
+- Content declares its `engineApi` as `>=0.<minor>.0 <1.0.0`, not a caret range. In this
+  validator a caret range on `0.x` locks the minor (`0.2.0` does not satisfy `^0.1.0`), which
+  would make every additive minor bump reject existing content. Only a major bump breaks
+  (`game/src/version.ts`), so the upper bound is `1.0.0`. Recorded with the 0.2.0 bump
+  (2026-11-27); `pickupKey` (0.1.0) predates this rule and was added without a bump.
 
 ## 2. Gameplay claims v1 (`lai.gameplay-event`)
 
@@ -44,7 +49,7 @@ interface GameplayEvent<T> {
 | Family | Type | Payload |
 |---|---|---|
 | Learning questions | `learning.question.presented` | `learningRef` |
-| | `learning.answer.submitted` | `learningRef`, `choiceId` (authored option id or null) |
+| | `learning.answer.submitted` | `learningRef`, `choiceId` (authored option id or null), optional `hintsUsed` (non-negative integer: hints opened before answering; absent means unknown, never zero; evidence only, capped by the server at the band's hint count, never changes what is earned; additive v1, owner-approved 2026-11-27 with LAI 06, issue #102) |
 | Exploration | `exploration.area.entered` | `areaId` |
 | | `exploration.discovery.found` | `discoveryId` |
 | Collectibles | `collectible.collected` | `collectibleId`, `setId` or null, optional `pickupKey` (server pickup change key) or null |

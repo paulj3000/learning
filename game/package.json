@@ -1,6 +1,6 @@
 {
   "name": "@lai/game-engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Learning Adventure Island Game Engine Core: the shared Three.js runtime, movement, camera, gameplay components and Realm/Adventure SDK (ADR-020). Imports no React, Django client or AWS SDK.",
   "private": true,
   "type": "module",

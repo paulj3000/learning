@@ -23,7 +23,7 @@ export const PIRATE_BUILDER_BAY_LOCATION = defineLocation(
   {
     id: PIRATE_BUILDER_BAY_MANIFEST.regionId,
     version: '1.0.0',
-    engineApi: '^0.1.0',
+    engineApi: '>=0.1.0 <1.0.0',
     contentSource: 'MANIFEST',
     capabilities: requests,
     requiredServices: [ASSET_MANAGER.id, NPC_MANAGER.id],

@@ -151,7 +151,7 @@ export const NORTH_POLE_ADVENTURE: Readonly<AdventureDefinition> = defineAdventu
   id: NORTH_POLE_ADVENTURE_ID,
   realmId: NORTH_POLE_WORLD_SLUG,
   version: '1.0.0',
-  engineApi: '^0.1.0',
+  engineApi: '>=0.1.0 <1.0.0',
   ageBands: ['SPROUT', 'PATHFINDER', 'EXPLORER'],
   learningObjectiveIds: SKILLS,
   areas: [NORTH_POLE_AREA],

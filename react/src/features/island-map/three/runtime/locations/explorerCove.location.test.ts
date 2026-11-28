@@ -25,7 +25,7 @@ const EXPLORER_COVE_LOCATION = defineLocation(
   {
     id: TEST_EXPLORER_COVE_MANIFEST.regionId,
     version: '1.0.0',
-    engineApi: '^0.1.0',
+    engineApi: '>=0.1.0 <1.0.0',
     contentSource: 'MANIFEST',
     capabilities: adapted.requests,
     // Pip is placed in the cove; every model is an asset id.

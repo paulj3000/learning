@@ -60,6 +60,16 @@ def test_a_points_field_cannot_ride_along():
     assert "payload.points" in {i.path for i in validate(event)}
 
 
+@pytest.mark.parametrize(
+    "value, ok", [(0, True), (2**53 - 1, True), (2**53, False), (True, False), (-1, False)]
+)
+def test_hints_used_is_a_safe_non_negative_integer_like_the_engine(value, ok):
+    # Same bound as the engine's Number.isSafeInteger; bool is not a count.
+    event = _valid("learning.answer.submitted")
+    event["payload"]["hintsUsed"] = value
+    assert ("payload.hintsUsed" not in {i.path for i in validate(event)}) is ok
+
+
 def test_true_is_not_version_one():
     event = _valid("quest.completed")
     event["version"] = True

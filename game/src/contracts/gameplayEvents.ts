@@ -59,7 +59,17 @@ export type GameplayEventPayloads = {
   // Learning questions
   'learning.question.presented': { learningRef: LearningRef };
   /** The child submitted an answer. `choiceId` is the authored option id, never typed text. */
-  'learning.answer.submitted': { learningRef: LearningRef; choiceId: string | null };
+  /**
+   * `hintsUsed` (optional, added in v1 for LAI 06's interactive learning evidence, issue #102):
+   * how many hints the child opened before answering. Absent means unknown (an older host), never
+   * zero. It is evidence only: the server caps it at the band's hint count and it never changes
+   * what is earned.
+   */
+  'learning.answer.submitted': {
+    learningRef: LearningRef;
+    choiceId: string | null;
+    hintsUsed?: number;
+  };
   // Exploration
   'exploration.area.entered': { areaId: string };
   'exploration.discovery.found': { discoveryId: string };
@@ -144,13 +154,20 @@ export type AnyGameplayEvent = { [T in GameplayEventType]: GameplayEvent<T> }[Ga
 
 // --- validation --------------------------------------------------------------------------
 
-type FieldRule = 'id' | 'idOrNull' | 'optionalIdOrNull' | 'learningRef';
+type FieldRule = 'id' | 'idOrNull' | 'optionalIdOrNull' | 'optionalCount' | 'learningRef';
+
+/** Rules whose field may be absent. */
+const OPTIONAL_RULES: ReadonlySet<FieldRule> = new Set(['optionalIdOrNull', 'optionalCount']);
 
 const PAYLOAD_RULES: {
   [T in GameplayEventType]: Readonly<Record<keyof GameplayEventPayloads[T] & string, FieldRule>>;
 } = {
   'learning.question.presented': { learningRef: 'learningRef' },
-  'learning.answer.submitted': { learningRef: 'learningRef', choiceId: 'idOrNull' },
+  'learning.answer.submitted': {
+    learningRef: 'learningRef',
+    choiceId: 'idOrNull',
+    hintsUsed: 'optionalCount',
+  },
   'exploration.area.entered': { areaId: 'id' },
   'exploration.discovery.found': { discoveryId: 'id' },
   'collectible.collected': {
@@ -205,6 +222,13 @@ function checkId(value: unknown, path: string, issues: ValidationIssue[], nullab
       path,
       message: nullable ? 'must be a semantic id or null' : 'must be a semantic id',
     });
+  }
+}
+
+/** A count: a non-negative safe integer. Not null, not a string, not a fraction. */
+function checkCount(value: unknown, path: string, issues: ValidationIssue[]): void {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    issues.push({ path, message: 'must be a non-negative integer' });
   }
 }
 
@@ -289,7 +313,7 @@ export function validateGameplayEvent(input: unknown): ValidationResult<AnyGamep
     for (const [field, rule] of Object.entries(rules)) {
       const path = `payload.${field}`;
       if (!(field in input.payload)) {
-        if (rule !== 'optionalIdOrNull') {
+        if (!OPTIONAL_RULES.has(rule)) {
           issues.push({ path, message: 'is required' });
         }
         continue;
@@ -297,6 +321,8 @@ export function validateGameplayEvent(input: unknown): ValidationResult<AnyGamep
       const value = input.payload[field];
       if (rule === 'learningRef') {
         checkLearningRef(value, path, issues);
+      } else if (rule === 'optionalCount') {
+        checkCount(value, path, issues);
       } else {
         checkId(value, path, issues, rule === 'idOrNull' || rule === 'optionalIdOrNull');
       }
