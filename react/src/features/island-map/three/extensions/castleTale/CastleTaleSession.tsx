@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import styles from '../../../IslandWorldView.module.css';
+import styles from '../../../WorldView.module.css';
 import { AdventureStepCard } from '../../../../adventures/AdventureStepCard';
 import { useAdventureSession } from '../../../../adventures/useAdventureSession';
 import {

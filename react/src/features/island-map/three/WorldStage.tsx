@@ -22,7 +22,7 @@ function fullscreenSupported(): boolean {
  * The element that goes full screen is this stage's *parent* (each world
  * view's `.wrapper`), not the stage itself, so the dialogue and puzzle layers
  * each view renders beside the canvas (fixed to the viewport) stay visible
- * while full screen. `IslandWorldView.module.css` (`.wrapper:fullscreen`)
+ * while full screen. `WorldView.module.css` (`.wrapper:fullscreen`)
  * lays that parent out as a single viewport-high column with the stage
  * filling it. Settings and exploration lists live in the stage toolbar's
  * menus (GE-101), so nothing takes height from the game.

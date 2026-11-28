@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Phaser from 'phaser';
-import styles from './IslandWorldView.module.css';
+import styles from './WorldView.module.css';
 import { PhaserGameContainer } from './PhaserGameContainer';
 import { WorldEventBus } from './worldEvents';
 import { StorykeeperCastleScene, WORLD_HEIGHT, WORLD_WIDTH } from './scenes/StorykeeperCastleScene';

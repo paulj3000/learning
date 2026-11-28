@@ -145,7 +145,7 @@ describe('child nav insets', () => {
     // Pip's panel is a direct child of the full-screen wrapper. A `.wrapper:fullscreen > *`
     // max-height (0,3,0) beat the panel's own cap (0,1,0): at 375x667 it grew to 45vh and ran
     // off the top over "Go back to the harbor" (GE-090-D8). The column rule must not compete.
-    const column = rules(read('features/island-map/IslandWorldView.module.css')).filter(
+    const column = rules(read('features/island-map/WorldView.module.css')).filter(
       (rule) =>
         rule.selector.includes('.wrapper:fullscreen >') &&
         declaration(rule.body, 'max-height') !== undefined,

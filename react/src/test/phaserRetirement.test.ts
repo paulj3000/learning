@@ -84,25 +84,10 @@ const PHASER_ONLY_DATA_MODULE =
 function isPhaserOnlyModule(specifier: string): boolean {
   if (!specifier.startsWith('.')) return false;
   if (/(^|\/)scenes\//.test(specifier)) return true;
-  const last = (specifier.split('/').pop() ?? '').replace(/\.(tsx?|js)$/, '');
+  // A stylesheet named after a Phaser view (`IslandWorldView.module.css`) goes with that view.
+  const last = (specifier.split('/').pop() ?? '').replace(/\.(tsx?|js|module\.css)$/, '');
   return PHASER_VIEW_MODULES.has(last) || PHASER_ONLY_DATA_MODULE.test(last);
 }
-
-/**
- * Three.js modules that still import the Phaser views' stylesheet (risk R7). It must move to a
- * neutral name before `IslandWorldView.tsx` is deleted. The list may only shrink. The move waits
- * until the MVP integration candidate (which edits this stylesheet) has merged.
- */
-const THREE_IMPORTERS_OF_PHASER_STYLESHEET = [
-  'react/src/features/island-map/three/ThreeSandboxWorldView.tsx',
-  'react/src/features/island-map/three/extensions/adaptiveAdventureEntrance/AdaptiveAdventureEntranceOverlay.tsx',
-  'react/src/features/island-map/three/extensions/castleTale/CastlePaintedWordsSession.tsx',
-  'react/src/features/island-map/three/extensions/castleTale/CastleSecretDoorStory.tsx',
-  'react/src/features/island-map/three/extensions/castleTale/CastleSessionStatus.tsx',
-  'react/src/features/island-map/three/extensions/castleTale/CastleTaleSession.tsx',
-  'react/src/features/island-map/three/runtime/ThreeLocationWorldView.tsx',
-  'react/src/features/island-map/three/runtime/WorldActionPanel.tsx',
-];
 
 interface LegacyWorld {
   world: string;
@@ -231,21 +216,6 @@ describe('Phaser retirement ratchet (ADR-020)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('lets the Phaser stylesheet importers in Three.js code only shrink', () => {
-    const importers: string[] = [];
-    for (const dir of THREE_DIRS) {
-      for (const file of sourceFiles(join(repo, dir))) {
-        if (/\.test\.tsx?$/.test(file)) continue;
-        const text = readFileSync(file, 'utf8');
-        if (specifiers(text).some((s) => s.endsWith('/IslandWorldView.module.css'))) {
-          importers.push(relative(file));
-        }
-      }
-    }
-    const added = importers.filter((file) => !THREE_IMPORTERS_OF_PHASER_STYLESHEET.includes(file));
-    expect(added, 'new Three.js importers of IslandWorldView.module.css').toEqual([]);
-  });
-
   it('records each legacy world view, route and Three.js replacement as audited', () => {
     const routes = worldRoutes();
     const manifestIds = new Set(SOURCE_LOCATION_MANIFESTS.map((manifest) => manifest.regionId));
@@ -300,6 +270,7 @@ describe('Phaser retirement ratchet (ADR-020)', () => {
       '../../wonderwildForestDecor.ts',
       '../worldEvents',
       '../npcs',
+      '../IslandWorldView.module.css',
     ]) {
       expect(isPhaserOnlyModule(phaserOnly), phaserOnly).toBe(true);
     }
@@ -310,7 +281,7 @@ describe('Phaser retirement ratchet (ADR-020)', () => {
       './regionPlayScene',
       '../../worldObjects',
       '../../DiscoveryAction',
-      '../IslandWorldView.module.css',
+      '../WorldView.module.css',
       'phaser',
     ]) {
       expect(isPhaserOnlyModule(shared), shared).toBe(false);
