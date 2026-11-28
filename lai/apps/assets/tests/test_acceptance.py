@@ -134,6 +134,7 @@ def test_there_is_no_mutation_endpoint_for_players(api, families, cognito, metho
     assert response.status_code == 405
 
 
+@pytest.mark.without_module_content  # creates npc-pip itself
 def test_asset_logs_carry_ids_and_codes_only(families, caplog):
     pip = make_definition("npc-pip")
     with caplog.at_level(logging.INFO, logger="lai.assets"):

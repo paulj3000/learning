@@ -87,15 +87,99 @@ describe('Wonderwild Forest route, by age band', () => {
     },
   );
 
-  it('leaves the castle and the bay on their own roadmaps, still labelled previews', async () => {
-    // Promoting those routes belongs to SC-11 and Phase 33, not to WF-2.
-    renderLocation('storykeeper-castle', 'PATHFINDER');
+  it('leaves the bay on its own roadmap, still labelled a preview', async () => {
+    // Promoting that route belongs to Phase 33, not to WF-2.
+    renderLocation('pirate-builder-bay', 'PATHFINDER');
     expect(
       await screen.findByRole('link', { name: /Peek at an early 3D preview/ }),
-      // Engine Phase 9: the castle runs on the generic route now. What it is
-      // *called* is still a preview, which is SC-11's call to change.
-    ).toHaveAttribute('href', '/island/child-1/explore/storykeeper-castle');
+    ).toHaveAttribute('href', '/island/child-1/explore/pirate-builder-bay');
   });
+});
+
+/**
+ * #99 (owner playtest 2026-11-26): the child could not enter the castle. Storykeeper Castle has
+ * no Django 3D Area (bundled manifest, ADR-033), so the Place page's `area` link never appears
+ * for it, and the 3D castle was reachable only through a link labelled an "early 3D preview",
+ * below the card tale and the Phaser view. The 3D castle is now the front door for Pathfinders
+ * and Explorers; Sprouts keep the card route first (contract C-10, ADR-008).
+ */
+describe('Storykeeper Castle entry, by age band (#99)', () => {
+  const CASTLE_3D = '/island/child-1/explore/storykeeper-castle';
+  const CASTLE_PHASER = '/island/child-1/world/storykeeper-castle';
+
+  it.each(['PATHFINDER', 'EXPLORER'] as const)(
+    'offers a %s the 3D castle as the first action, not as a preview',
+    async (band) => {
+      placeArea.mockReturnValue(null);
+      renderLocation('storykeeper-castle', band);
+      const enter = await screen.findByRole('link', { name: 'Enter the castle' });
+      expect(enter).toHaveAttribute('href', CASTLE_3D);
+      // Above the card tale and the view from above, so it reads as the way in.
+      for (const later of screen.getAllByRole('link', { name: /^Start: |from above/ })) {
+        expect(
+          enter.compareDocumentPosition(later) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      }
+      expect(screen.queryByText(/preview/i)).not.toBeInTheDocument();
+      // The Phaser view stays reachable until SC-R10-03 retires it; it is never the way in.
+      expect(
+        screen.getByRole('link', { name: 'Explore the castle from above instead' }),
+      ).toHaveAttribute('href', CASTLE_PHASER);
+    },
+  );
+
+  it('keeps the card route first for a Sprout, with the 3D castle plainly offered', async () => {
+    placeArea.mockReturnValue(null);
+    renderLocation('storykeeper-castle', 'SPROUT');
+    const walk = await screen.findByRole('link', { name: 'Walk inside the castle' });
+    expect(walk).toHaveAttribute('href', CASTLE_3D);
+    expect(screen.queryByRole('link', { name: 'Enter the castle' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Try exploring the castle/ })).toHaveAttribute(
+      'href',
+      CASTLE_PHASER,
+    );
+    expect(screen.queryByText(/preview/i)).not.toBeInTheDocument();
+    // Second to the Sprouts' own route, never above it.
+    const phaser = screen.getByRole('link', { name: /Try exploring the castle/ });
+    expect(phaser.compareDocumentPosition(walk) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it.each([
+    ['SPROUT', "Start: Quill's Picture Story", '/adventures/quills-picture-story'],
+    ['PATHFINDER', "Start: The Storykeeper's Tale", '/adventures/the-storykeepers-tale'],
+  ] as const)("offers a %s its own band's castle adventure", async (band, name, path) => {
+    // Before #99 every band was offered the first template (a Pathfinder one), so a Sprout
+    // was told "not available for your age yet" beside its own Picture Story.
+    placeArea.mockReturnValue(null);
+    renderLocation('storykeeper-castle', band);
+    expect(await screen.findByRole('link', { name })).toHaveAttribute(
+      'href',
+      `/island/child-1/locations/storykeeper-castle${path}`,
+    );
+    expect(screen.queryByText(/not available for your age/)).not.toBeInTheDocument();
+  });
+
+  it('tells an Explorer their castle adventure starts inside, never "not available"', async () => {
+    placeArea.mockReturnValue(null);
+    renderLocation('storykeeper-castle', 'EXPLORER');
+    expect(await screen.findByText(/Look for the secret door in the Great Library/)).toBeVisible();
+    expect(screen.queryByText(/not available for your age/)).not.toBeInTheDocument();
+    // No other band's adventure is offered to them.
+    expect(screen.queryByRole('link', { name: /^Start: / })).not.toBeInTheDocument();
+  });
+
+  it.each(['SPROUT', 'PATHFINDER', 'EXPLORER'] as const)(
+    'gives a %s exactly one link into the 3D castle',
+    async (band) => {
+      placeArea.mockReturnValue(null);
+      renderLocation('storykeeper-castle', band);
+      await screen.findByRole('link', { name: 'Back to the map' });
+      const into3d = screen
+        .getAllByRole('link')
+        .filter((link) => link.getAttribute('href') === CASTLE_3D);
+      expect(into3d).toHaveLength(1);
+    },
+  );
 });
 
 describe('a Place with a published 3D Area (ADR-041)', () => {
@@ -118,4 +202,19 @@ describe('a Place with a published 3D Area (ADR-041)', () => {
     expect(await screen.findByRole('link', { name: /^Start: / })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^Explore / })).not.toBeInTheDocument();
   });
+});
+
+describe('the Writing Room offers each band its own story (#99, same cause)', () => {
+  it.each(['SPROUT', 'PATHFINDER', 'EXPLORER'] as const)(
+    'offers a %s "Write a story", not "not available"',
+    async (band) => {
+      placeArea.mockReturnValue(null);
+      renderLocation('castle-writing-room', band);
+      expect(await screen.findByRole('link', { name: 'Write a story' })).toHaveAttribute(
+        'href',
+        '/island/child-1/locations/castle-writing-room/write',
+      );
+      expect(screen.queryByText(/not available for your age/)).not.toBeInTheDocument();
+    },
+  );
 });

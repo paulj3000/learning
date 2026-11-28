@@ -20,7 +20,12 @@ from apps.regions import firepeak_heart_seed, firepeak_seed, north_pole_seed
 from apps.regions.dependencies import scene_asset_ids
 from apps.regions.models import AreaPuzzle, WorldRegion
 
-pytestmark = [pytest.mark.postgres, pytest.mark.django_db]
+pytestmark = [
+    pytest.mark.postgres,
+    pytest.mark.django_db,
+    # One content import for the module (lai/conftest.py, "Module content baseline").
+    pytest.mark.usefixtures("module_content"),
+]
 
 #: The client's bundled manifest, as exported (`content/exported/assets.json`).
 EXPORT = Path(__file__).resolve().parents[4] / "content" / "exported" / "assets.json"

@@ -357,8 +357,26 @@ export interface DiscoveryPanelProps {
   params: CollectParams;
   phase: 'ready' | 'discovering' | 'found';
   busy: boolean;
+  /** The touched object's label, for the button ("Pick up the torn map piece 1"). */
+  objectLabel?: string | null;
   onCollect(): void;
   onClose(): void;
+}
+
+/** "Pick up the torn map piece 1" for a labelled object, else the crystal's own words. */
+/**
+ * "Pick up the torn map piece", from the object's label. A label with its own article keeps it
+ * and its capitals ("the Heart of Firepeak"); a possessive takes no article ("Santa's sleigh
+ * bell"). Labels stay as they are: other screens use them as accessible names.
+ */
+function pickUpLabel(objectLabel: string | null | undefined): string {
+  const label = objectLabel?.trim();
+  if (!label) return AREA_COPY.pickCrystal;
+  const withArticle = /^the\s+(.+)$/i.exec(label);
+  if (withArticle) return `${AREA_COPY.pickUp} the ${withArticle[1]}`;
+  const firstWord = label.split(/\s/, 1)[0];
+  if (/['’]s$/i.test(firstWord)) return `${AREA_COPY.pickUp} ${label}`;
+  return `${AREA_COPY.pickUp} the ${label.charAt(0).toLowerCase()}${label.slice(1)}`;
 }
 
 export function DiscoveryPanel(props: DiscoveryPanelProps) {
@@ -385,7 +403,7 @@ export function DiscoveryPanel(props: DiscoveryPanelProps) {
             aria-busy={props.busy}
             onClick={props.onCollect}
           >
-            {AREA_COPY.pickCrystal}
+            {pickUpLabel(props.objectLabel)}
           </button>
         ) : null}
         <button type="button" className={styles.button} onClick={props.onClose}>

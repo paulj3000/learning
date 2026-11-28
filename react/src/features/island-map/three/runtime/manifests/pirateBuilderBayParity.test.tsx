@@ -80,6 +80,7 @@ import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../../../d
 import { getInventory } from '../../../../rewards/api';
 import { listQuestStates } from '../../../../quests/api';
 import { getCompanionProfile } from '../../../../island/api';
+import { openThingsToDo } from '../../../../../test/gameplayMenus';
 
 function renderBay(ageBand: AgeBandValue = 'PATHFINDER') {
   return render(
@@ -136,6 +137,7 @@ describe('Pirate Builder Bay on the generic view: parity with PirateBuilderBayWo
   it('renders the 3D scene and HUD, and lists the always-available interactions once ready', async () => {
     renderBay();
     expect(await screen.findByText(/move: wasd or the arrow keys/i)).toBeInTheDocument();
+    await openThingsToDo();
     expect(screen.getByText('The broken Moonlight Bridge')).toBeInTheDocument();
     expect(screen.getByText('Pirate Pip')).toBeInTheDocument();
     expect(screen.getByText('A coil of rope')).toBeInTheDocument();
@@ -151,6 +153,7 @@ describe('Pirate Builder Bay on the generic view: parity with PirateBuilderBayWo
       currentStepId: REPAIR_THE_MOONLIGHT_BRIDGE.entryStepId,
     } as never);
     renderBay();
+    await openThingsToDo();
     await user.click(await screen.findByText('The broken Moonlight Bridge'));
     await user.click(screen.getByRole('button', { name: /start the adventure/i }));
     await waitFor(() => {
@@ -162,6 +165,7 @@ describe('Pirate Builder Bay on the generic view: parity with PirateBuilderBayWo
   it('gives an Explorer the in-scene Beat the Tide challenge instead of the card adventure', async () => {
     const user = userEvent.setup();
     renderBay('EXPLORER');
+    await openThingsToDo();
     await user.click(await screen.findByText('The broken Moonlight Bridge'));
     expect(screen.getByRole('region', { name: 'Beat the Tide' })).toBeInTheDocument();
     expect(fakeTideTrial.begin).toHaveBeenCalledTimes(1);
@@ -172,6 +176,7 @@ describe('Pirate Builder Bay on the generic view: parity with PirateBuilderBayWo
   it("repairs the bridge for real when an Explorer's deck survives the tide", async () => {
     const user = userEvent.setup();
     renderBay('EXPLORER');
+    await openThingsToDo();
     await user.click(await screen.findByText('The broken Moonlight Bridge'));
     for (let step = 0; step < 4; step += 1) {
       await user.click(screen.getByRole('button', { name: 'Raise the deck' }));
@@ -198,6 +203,7 @@ describe('Pirate Builder Bay on the generic view: parity with PirateBuilderBayWo
   it('offers the repaired-bridge narration instead of the adventure once the bridge is repaired', async () => {
     vi.mocked(listAllWorldChanges).mockResolvedValue([{ changeKey: 'BRIDGE_REPAIRED' } as never]);
     renderBay();
+    await openThingsToDo();
     expect(await screen.findByText('The repaired Moonlight Bridge')).toBeInTheDocument();
     expect(screen.queryByText('The broken Moonlight Bridge')).not.toBeInTheDocument();
   });
@@ -205,6 +211,7 @@ describe('Pirate Builder Bay on the generic view: parity with PirateBuilderBayWo
   it('opens a conversation with Pip instead of trying to start a session', async () => {
     const user = userEvent.setup();
     renderBay();
+    await openThingsToDo();
     await user.click(await screen.findByText('Pirate Pip'));
     expect(await screen.findByTestId('npc-conversation')).toHaveTextContent('pirate-pip');
     expect(resumeOrStartSession).not.toHaveBeenCalled();
@@ -213,6 +220,7 @@ describe('Pirate Builder Bay on the generic view: parity with PirateBuilderBayWo
   it('dismisses the interaction panel without navigating', async () => {
     const user = userEvent.setup();
     renderBay();
+    await openThingsToDo();
     await user.click(await screen.findByText('Pirate Pip'));
     await user.click(screen.getByRole('button', { name: /not now/i }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

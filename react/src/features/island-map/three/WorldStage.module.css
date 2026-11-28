@@ -3,22 +3,42 @@
 }
 
 /*
-  In full screen the stage must be tall enough for a dialogue panel to fit between the HUD's
-  top row and the stage's own exits (GE-090-D8): the header inset (3.5rem) + 1rem + the panel's
-  10rem floor + 1rem + the exits (7.5rem) = 23rem from the top of the screen
-  (ChildShell.module.css, RegionPlayPanels.module.css). On a 375x667 phone the settings below
-  the stage otherwise left it 311px tall and the panel covered "Go back to the harbor"; they
-  shrink and scroll inside themselves instead. Capped at 70vh for very short screens.
+  In full screen the stage fills the viewport (GE-101): the view's settings and exploration
+  lists are menus on the stage, not panels below it. The floor is GE-090-D8's: tall enough for a
+  dialogue panel between the HUD's top row and the stage's own exits (the header inset 3.5rem +
+  1rem + the panel's 10rem floor + 1rem + the exits 7.5rem = 23rem; ChildShell.module.css,
+  RegionPlayPanels.module.css), capped at 70vh for very short screens.
 */
 :fullscreen > .stage {
   flex: 1 1 0;
   min-height: max(40vh, min(23rem, 70vh));
 }
 
-.fullscreenButton {
+/*
+  GE-101: the stage toolbar. The layer covers the stage (so a menu panel can size itself to it)
+  and lets pointers through to the canvas; the row sits bottom left.
+*/
+.toolbarLayer {
   position: absolute;
-  left: var(--space-3);
-  bottom: var(--space-3);
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: var(--space-3);
+  pointer-events: none;
+}
+
+.toolbar {
+  display: flex;
+  /* One row, so "Leave island" (stacked one row above in full screen) is never covered. */
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-2);
+  /* Clear of the HUD's right-hand column (jump, backpack, a realm's Hint and Sound). */
+  max-width: calc(100% - 7rem);
+}
+
+.fullscreenButton {
+  pointer-events: auto;
   font-weight: 600;
   padding: var(--space-2) var(--space-4);
   min-height: 44px;
@@ -27,6 +47,11 @@
   color: #fff;
   border: 2px solid rgba(255, 255, 255, 0.85);
   cursor: pointer;
+}
+
+.fullscreenButton:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 3px;
 }
 
 /* AP-04: the child's "Leave island" while full screen hides the top bar. */

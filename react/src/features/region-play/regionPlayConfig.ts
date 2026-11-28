@@ -18,7 +18,7 @@ export interface RegionPlayChestConfig {
    */
   presentation?: 'CHEST' | 'HIDDEN' | 'PUZZLE' | 'REPLAY';
   /** Why it is locked at build time; the companion updates it from server state after. */
-  lockReason?: 'PROGRESS' | 'ITEM' | null;
+  lockReason?: 'PROGRESS' | 'ITEM' | 'PUZZLE' | null;
 }
 
 /** A collectible the child picks up through the play API (TR-14), drawn by the extension. */

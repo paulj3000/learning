@@ -38,12 +38,23 @@ REGION = seed.REGION_ID
 QUEST = seed.QUEST_ID
 
 
-@pytest.fixture
-def heart(families):
+def _seed_heart():
     import_content()
     with override_settings(DEBUG=True):
         call_command("seed_firepeak_heart", stdout=None)
         call_command("publish_firepeak_heart", stdout=None)
+
+
+@pytest.fixture(scope="module")
+def heart_content(module_content):
+    """`_seed_heart()` once for the module (lai/conftest.py, "Module content baseline")."""
+    return module_content.seed("heart", _seed_heart)
+
+
+@pytest.fixture
+def heart(heart_content, families):
+    if not heart_content.has("heart"):
+        _seed_heart()
     return families
 
 
@@ -383,7 +394,8 @@ def cove_quiz(treasure):
         entity_ids=CHOOSE_ENTITIES,
         body=puzzle_body("choose", PuzzleKind.CHOOSE_ANSWER, "COVE_CHOSE", params),
     )
-    AreaPuzzle.objects.update(status=ContentStatus.PUBLISHED)
+    # Only this puzzle: the cove's own stages (#102) would open the chest this test quizzes.
+    AreaPuzzle.objects.filter(puzzle_id="choose").update(status=ContentStatus.PUBLISHED)
     return treasure
 
 

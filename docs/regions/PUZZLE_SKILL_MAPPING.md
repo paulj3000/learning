@@ -18,6 +18,15 @@ are not `catalog.LearningObjective` codes. FPV-D10 records skill evidence from t
 and evidence can only name a catalog objective. An unknown code is skipped (the solve and its
 reward are kept) and listed by `manage.py puzzle_skill_report`.
 
+### Issue #102 additions
+
+Three more quiz kinds name a band `skill` the same way: `NAVIGATE_ROUTE`, `SORT_ITEMS` and
+`SHARE_ITEMS`. `PLACE_PLATFORMS` and `VALVE_SEQUENCE` may now name an optional `skill` when the
+grader checks a concept (a stone matching its gap, steam reaching the vent). Without one they
+stay accomplishments and record no evidence. `puzzle_skill_report` checks all of them and skips
+a movement puzzle that names none. The rules below apply unchanged. See
+[../scoring/INTERACTIVE_LEARNING.md](../scoring/INTERACTIVE_LEARNING.md).
+
 ## Rules used
 
 1. Map by what the prompts actually test, not by a similar name. Some valid codes were wrong for

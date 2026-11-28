@@ -37,6 +37,170 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI-07 asset intake checklist: one sourcing list for missing audio and models (2026-11-27, `docs/asset-intake-checklist`, `main` `d812ad71`)
+
+Docs only; no code, seed or asset changed. Trello #244, #246, #247.
+
+- New `docs/ASSET_INTAKE_CHECKLIST.md`: 92 audio files (Treasure Rush 30, Storykeeper Castle 18,
+  Firepeak 19, North Pole 25) and 84 model or image definitions (Firepeak 38, North Pole 46),
+  none present in any environment. Each row gives the asset id, type, format and limits, realm,
+  required or optional, licence rules and the upload, seed and publish recipe. Ids were checked
+  against `CueSpec.asset_id` and the seed tables, not only the realm docs.
+- There is no command-line upload for a single new file; Django Admin is the upload path, and the
+  realm's seed command then wires it in (section 2).
+- Reported, not resolved: the realms disagree on audio format (MP3 or Ogg) and loudness targets
+  (section 1.3); `docs/ASSET_LICENCES.md` has no audio section yet; `FIREPEAK_AUDIO_INVENTORY.md`
+  still says `puzzleComplete` and `restoration` are never raised, but on `main` they are
+  (`puzzleSolveCues`); `north_pole_cues.py` marks `fragment` and `star_restored` `wired=False`
+  although the client raises both, and `crystalCollect` fires on every North Pole pickup.
+- Checks: `make docs-check`. No tests apply (no code).
+
+## Backend test suite speed: module content baseline and parallel pytest (2026-11-28, `ccr-7ec57d09-gp9p2c`, base `e13e03b`, `main` `7ba5425` merged in, no Trello card; owner-directed, owner authorized the merge)
+
+Status: Development Complete; merged to `main` on the owner's direct instruction. Details:
+[TESTING_STRATEGY.md](TESTING_STRATEGY.md), "Backend suite speed".
+
+- Cause: `import_content()` takes about 3.5 s into an empty database and fixtures such as
+  `treasure`, `realms`, `heart`, `north_pole` and `firepeak` ran it (and slow publish commands)
+  for every test; about 900 tests in 64 modules spent 77% of the 68-minute run in that setup.
+- `lai/conftest.py`: `module_content` (one import per module inside an outer transaction rolled
+  back at module end), `treasure` seeded once per module, the `without_module_content` marker,
+  transactional tests closing the baseline, and `xdist_group`s for parallel runs. Five module
+  fixtures converted (`test_realm_entry`, `test_north_pole_seed`, `test_firepeak`,
+  `test_firepeak_heart_play`, `test_puzzle_evidence`); 17 modules opted in; five tests that need
+  the content absent marked. Test fixtures only; no application code changed.
+- pytest-xdist 3.8.0 and execnet 2.1.2 (MIT, owner-approved 2026-11-28) in
+  `requirements-dev.txt`; `make py-test` and `make py-test-db` run
+  `-n auto --dist loadgroup --no-loadscope-reorder` (`PYTEST_WORKERS`). Without the last flag
+  xdist schedules large groups first, so a transactional group could flush a worker's database
+  (migration-seeded rows included) before another module's tests ran there; a guard in
+  `lai/conftest.py` now fails any database test that would run after a flush, with the reason.
+- Order-dependent tests that parallel runs exposed, fixed: three parametrize lists put `uuid4()`
+  in test ids (now fixed ids); `jobs/tests/test_jobs_admin_settings.py` left settings modules
+  built from its environment in `sys.modules`, which failed `ai/tests/test_ai_settings.py` when
+  it ran later in the same process (pre-existing; serially `ai` always ran first).
+- Measured (`make py-test-db`, 4 CPUs, a local PostgreSQL 16 because Docker was unavailable):
+  68 min before; 23 min serial (`PYTEST_WORKERS=0`) and 6 min with 4 workers after; 9,238 passed
+  each way. The one failure in every run, before and after, is
+  `test_postgres_18_connection_and_framework_migrations`, which requires PostgreSQL 18.
+- Deferred: a run on PostgreSQL 18 (CI's `python` job runs it on the merge); the EC2 unit-test
+  gate (`scripts/ci/remote_runner.py`) still runs pytest serially and gets only the fixture speed-up.
+  Vitest (4 min) is unchanged.
+
+## LAI-06 #102 interactive learning scoring (2026-11-26, `feature/interactive-learning-scoring`, base `41ee7320`)
+
+Status: **Development Complete on its branch**, not merged, not owner-accepted (GitHub #102, Trello
+#258). Design and compatibility notes: [scoring/INTERACTIVE_LEARNING.md](scoring/INTERACTIVE_LEARNING.md).
+
+- Three new graded 3D Area puzzle kinds reuse the AreaPuzzle, PuzzleAttempt, SkillEvidence and
+  mastery pipeline: `NAVIGATE_ROUTE` (directions on a grid map, BFS-checked route), `SORT_ITEMS`
+  (each item into its group) and `SHARE_ITEMS` (an amount into each container). `ORDER_SEQUENCE`
+  gains a `MAP_PIECES` presentation for map assembly.
+- Movement puzzles (`PLACE_PLATFORMS`, `VALVE_SEQUENCE`) give skill evidence only when they name a
+  `skill`; jumping and course events never count as mastery.
+- Hints: an optional `hintsUsed` on the solve request is stored as `PuzzleAttempt.hints_used`
+  (nullable, so older rows and clients are unchanged), capped at the puzzle's hint count. It only
+  lowers the evidence support level. Rewards and world changes are the same with or without hints
+  and mistakes.
+- Solve responses add `skillPracticed`. Replay stays practice and records nothing.
+- Scoring: `CHOOSE_ANSWER` and `ORDER_SEQUENCE` are now graded kinds in the collectors. A published
+  puzzle that covers a chest in the same region (same world change key) is one star goal, not two.
+- Migrations: `regions 0010_interactive_learning_kinds` (kind constraint) and
+  `game_sessions 0008_puzzle_attempt_hints_used` (nullable field).
+- Evidence: the new Django tests pass (`regions/tests/test_interactive_puzzle_kinds.py`,
+  `scoring/tests/test_interactive_learning.py`); `makemigrations --check` reports no changes;
+  `npm run typecheck` exits 0; the client tests (`src/api/play`, `region-play`, `content-export`,
+  `parent-dashboard`) give 597 of 597 passing. Django regression on PostgreSQL across `regions`,
+  `game_sessions`, `education`, `scoring`, `quests`, `inventory` and `progression`: 1846 passed,
+  2 skipped, 0 failed.
+- Deferred to merge readiness: full lint and format, full suites, browser and Playwright checks.
+- Owner decisions open: a new `position-and-direction` objective (interim
+  `following-instructions`); LAI 04's optional `hintsUsed` gameplay-event field; 3D scenes for the
+  new kinds (a separate LAI 01 and LAI 04 ticket).
+
+## LAI-01 Treasure Rush gameplay redesign (#102, Trello #258; 2026-11-26, `feature/treasure-rush-gameplay-redesign`, `main` `41ee7320`, merged `d812ad71` 2026-11-27)
+
+Status: Development Complete when the PR's checks pass; **not owner-accepted** (the owner plays
+the redesigned adventure first, checklist section F). Design:
+[TREASURE_RUSH_GAME_DESIGN.md](TREASURE_RUSH_GAME_DESIGN.md).
+
+- The owner's playtest found the cove a repeated counting quiz. Each chest is now the reward at
+  the end of a play stage built from the existing 3D Area puzzle kinds (no new kind, no engine
+  change): the missing map (find three pieces, walk to the right sign), Crocodile Creek (cross the
+  stepping stones in sequence), the supply dock (walk to the right cargo crate), the forgotten
+  cave (find three carvings, press the rune stones in a riddle's order) and Pip's lost treasure
+  (light the torches in the order of the adventure). 11 Django-authored `AreaPuzzle`s, all three
+  age bands, 2 to 4 variants each, hints, practice on replay, skill evidence on every learning
+  stage.
+- Progress-compatible: each chest stage records the chest's existing world change key and grants
+  its existing reward rule, so quests, rewards, the bridge and every child's history are
+  unchanged; a chest a published puzzle opens issues no challenge (`LockReason.PUZZLE`).
+- Shared rule change, owner-approved 2026-11-27: `regions/authoring_kinds.py` lets a puzzle record
+  the key of a chest in its own 3D Area (still refused for another Area's chest, another puzzle or
+  a replay activity).
+- Seed: `ADVENTURE_VERSION` 2 (stand-ins, clues), `LAYOUT_VERSION` 10 (the creek; the decorative
+  waymarkers became the map stage's signs); `publish_treasure_rush` validates and publishes the
+  puzzles. No migration.
+- Client: `ChestLockReason` gains `PUZZLE`; `AreaPuzzleLayer` supports many `COLLECT_OBJECT`
+  puzzles in one Area and labels the pick-up button with the object.
+- Deferred: jumping onto the creek's stones (a separate LAI 04 ticket after PR #109 merges,
+  owner-approved 2026-11-27), map assembly and
+  LAI 06's proposed kinds (need scenes), Pip's spoken stage intros (NPC release), a cave interior.
+
+## GE-101 full-screen gameplay: the canvas gets the viewport, settings and lists become stage menus (2026-11-26, `feature/shared-fullscreen-gameplay-ui`, `main` `41ee7320`, issue #101, Trello #257); Development Complete, NOT merged
+
+Owner playtest 2026-11-26. Agent 4 (Game Engine Core), with LAI 01 (Treasure Rush) and LAI 06
+(scoring overlays).
+
+- **Cause:** "Camera view", "Sprint with Shift" and "Things to do here" were in-flow panels below
+  the stage. The full-screen column (`.wrapper:fullscreen`) gave them up to 45vh, about half of a
+  phone screen. GE-090-D8 (#249) had measured the gap for the exits but never moved the panels.
+- **Fix (shared, every 3D realm):** `GameplayMenus.tsx` (new) adds compact menus in the
+  `WorldStage` toolbar beside "Full screen": "Things to do" (exploration) and "Settings" (camera
+  view and sprint, shown only when there is something to set). They are closed by default, one at
+  a time, and overlay the canvas.
+  - Escape or Close gives focus back to the menu's button.
+  - An item that starts a dialogue closes its menu, and any open dialogue, puzzle or interaction
+    closes the menus.
+  - Key presses inside menus stay away from the engine; releases still reach it.
+  - The full-screen wrapper is edge to edge (no padding or gap).
+- No engine (`game/`) change. Menus never rebuild the scene or move the camera (tested).
+- The sandbox view uses the same menus.
+- Contract and browser QA checklist: `docs/engineering/game-engine/gameplay-ui-contract.md`.
+- Realms: Treasure Rush, Storykeeper Castle, Firepeak and North Pole all render through
+  `ThreeLocationWorldView`, and none needs a realm code change.
+- Tests: `GameplayMenus.test.tsx` (new), `WorldStage.test.tsx` and `ThreeLocationWorldView.test.tsx`
+  (new cases). The parity tests now open "Things to do" first.
+- Not run: browser, Playwright and real-device checks. The QA checklist is for the owner or LAI 05.
+
+## LAI 02 #99: Storykeeper Castle can be entered from the child UI (2026-11-26, `feature/storykeeper-playability-fixes` from `main` `41ee7320`, Trello #255); Development Complete, NOT merged, NOT owner accepted
+
+- **Root cause:** no crash and no server refusal. The castle has no Django 3D Area, so the Realms
+  pages offer only "Visit". On the Place page the 3D castle was a link labelled "early 3D
+  preview", below the card tale and the Phaser view. Sprouts and Explorers were also told "not
+  available for your age yet", because the page took the location's first template (the
+  Pathfinder tale). The Writing Room had the same template bug for Pathfinders and Explorers.
+- **Fix** (`react/src/routes/IslandLocationPage.tsx`):
+  - "Enter the castle" is the first action for Pathfinders and Explorers.
+  - Sprouts keep the card route first (C-10, ADR-008) and get "Walk inside the castle" as well.
+  - The Phaser view stays as a secondary link (retiring it is SC-R10-03).
+  - Each band is offered its own template (`resolveAdventureForAgeBand`).
+  - Explorers are told that their castle adventure starts inside, at the Great Library's secret
+    door.
+- **Evidence:**
+  - API probe on PostgreSQL 18 with `load_content` only: every castle API the 3D castle calls
+    answers 200 for all three bands.
+  - Regression tests in `IslandLocationPage.test.tsx`.
+- **Unverified:** no browser test. The owner's navigation checklist and the per-area status are
+  in `docs/regions/storykeeper_castle_entry_99.md`.
+- **Follow-up for LAI 05 and the owner:** a direct castle entry button on the Realms card, which
+  would mean the catalog knowing about bundled regions.
+- **Acceptance spec (LAI 04 finding):** `react/e2e/acceptance/p0-navigation.spec.ts` no longer
+  clicks "Try exploring the castle (new!)" as a Pathfinder. A Pathfinder now goes Realms, Visit
+  Storykeeper Castle, Enter the castle (`/explore/storykeeper-castle`); a new Sprout test checks
+  that "Start: Quill's Picture Story" comes before "Walk inside the castle". No other `react/e2e`
+  spec used the old link. Playwright not run (deferred to merge readiness).
+
 ## LAI-07 MVP realm asset support: realm thumbnails, Treasure Rush audit, region catalog fix (2026-11-26, `feature/mvp-realm-asset-support`, `main` `41ee7320`)
 
 - Report: `docs/qa/MVP_REALM_ASSET_SUPPORT_2026-11-26.md` (realm thumbnail matrix, Treasure Rush
