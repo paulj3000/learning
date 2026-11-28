@@ -1635,12 +1635,11 @@ export function createLocationEngine<R extends RendererLike>(
   }
   function walkToObject(target: FocusTarget): boolean {
     target.root.getWorldPosition(tapFocusPosition);
-    return (
-      guidedWalk?.walkTo(
-        { x: tapFocusPosition.x, z: tapFocusPosition.z },
-        { stopWithin: GUIDED_APPROACH_METRES, faceTarget: true },
-      ) != null
+    const path = guidedWalk?.walkTo(
+      { x: tapFocusPosition.x, z: tapFocusPosition.z },
+      { stopWithin: GUIDED_APPROACH_METRES, faceTarget: true },
     );
+    return (path ?? null) !== null;
   }
   /** A tap on the canvas: an object walks to approach range, the ground walks onto the spot. */
   function onGuidedTap(point: { clientX: number; clientY: number }): void {
