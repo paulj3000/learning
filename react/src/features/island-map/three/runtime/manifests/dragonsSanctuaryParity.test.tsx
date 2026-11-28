@@ -72,6 +72,8 @@ import { getCompanionProfile } from '../../../../island/api';
 import { openThingsToDo } from '../../../../../test/gameplayMenus';
 
 const STONE_RUNE = FIRE_RUNE_SPOTS[0]!;
+/** The change that opens the sanctuary (finishing the Ember Mountain story). */
+const UNLOCKED = { changeKey: 'DRAGON_OF_EMBER_MOUNTAIN_COMPLETE' };
 
 function renderSanctuary(ageBand: AgeBandValue = 'PATHFINDER') {
   return render(
@@ -115,7 +117,7 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
     vi.mocked(saveCheckpoint).mockResolvedValue(undefined);
     vi.mocked(recordCharacterMet).mockResolvedValue(undefined);
     vi.mocked(recordWorldChangeOnce).mockResolvedValue(undefined);
-    vi.mocked(listAllWorldChanges).mockResolvedValue([]);
+    vi.mocked(listAllWorldChanges).mockResolvedValue([UNLOCKED] as never);
     vi.mocked(getInventory).mockResolvedValue({ ownedItemIds: [], grantedRuleIds: [] });
     vi.mocked(listQuestStates).mockResolvedValue([]);
     vi.mocked(getCompanionProfile).mockResolvedValue(null);
@@ -130,6 +132,7 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
 
   it('shows the lit sanctuary to a child who already rekindled the forge', async () => {
     vi.mocked(listAllWorldChanges).mockResolvedValue([
+      UNLOCKED,
       { changeKey: SANCTUARY_CHANGE_KEYS.FORGE_LIT },
     ] as never);
     await renderAndWait();
@@ -140,6 +143,7 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
 
   it('hands the scene the runes the child has already found', async () => {
     vi.mocked(listAllWorldChanges).mockResolvedValue([
+      UNLOCKED,
       { changeKey: fireRuneChangeKey(STONE_RUNE.id) },
     ] as never);
     await renderAndWait();
@@ -150,12 +154,32 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
     );
   });
 
-  it('falls back to the forgotten sanctuary when the read fails', async () => {
+  it('keeps the sanctuary shut when the progress read fails (the unlock guard fails closed)', async () => {
     vi.mocked(listAllWorldChanges).mockRejectedValue(new Error('offline'));
-    await renderAndWait();
+    renderSanctuary();
+    expect(await screen.findByText(/has not been discovered yet/i)).toBeInTheDocument();
+    expect(engine.bus).toBeNull();
+  });
+
+  it('refuses a direct visit before the Ember Mountain story is finished, kindly', async () => {
+    vi.mocked(listAllWorldChanges).mockResolvedValue([]);
+    renderSanctuary();
     expect(
-      screen.getByText('The forge is cold and dark. Ember is waiting up at her roost.'),
+      await screen.findByText(
+        'This part of the island has not been discovered yet. Maybe a new story will lead you here.',
+      ),
     ).toBeInTheDocument();
+    expect(engine.bus).toBeNull();
+    expect(screen.getByRole('link', { name: 'Back to the map' })).toHaveAttribute(
+      'href',
+      '/island/child-1',
+    );
+    expect(screen.queryByText(/move: wasd or the arrow keys/i)).not.toBeInTheDocument();
+  });
+
+  it('opens the sanctuary once the Ember Mountain story is finished', async () => {
+    await renderAndWait();
+    expect(screen.queryByText(/has not been discovered yet/i)).not.toBeInTheDocument();
   });
 
   it('records a rune once, by its own change key', async () => {
@@ -175,6 +199,7 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
 
   it('drops a rune’s hint as that rune is found', async () => {
     vi.mocked(listAllWorldChanges).mockResolvedValue([
+      UNLOCKED,
       { changeKey: fireRuneChangeKey(STONE_RUNE.id) },
     ] as never);
     await renderAndWait();
@@ -222,6 +247,31 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
         'The hearth is cold, and its three rune sockets are empty. Ember is up at her roost.',
       ),
     ).toBeInTheDocument();
+  });
+
+  it("shows the dragon's egg line, with the Phaser wording", async () => {
+    await renderAndWait();
+    await emit((bus) =>
+      bus.emit('ObjectInteracted', {
+        entityId: 'dragons-sanctuary-egg',
+        interactionId: 'dragons-sanctuary-egg:interact',
+      }),
+    );
+    expect(
+      await screen.findByText('The egg glows warm and safe, tucked close beside its mother.'),
+    ).toBeInTheDocument();
+  });
+
+  it('offers the way back to Welcome Harbor when the child walks onto the exit', async () => {
+    await renderAndWait();
+    await emit((bus) => bus.emit('PlayerEnteredZone', { zoneId: 'dragons-sanctuary-harbor-exit' }));
+    // The Phaser `NAVIGATE 'world'` renders the Phaser harbor until GE-077 (#130) resolves it to
+    // the 3D harbor hub; either is the way back to Welcome Harbor, so the merge order of the two
+    // PRs does not matter. After both merge, narrow this to `/explore/welcome-harbor`.
+    const link = await screen.findByRole('link', { name: 'Go there' });
+    expect(link.getAttribute('href')).toMatch(
+      /^\/island\/child-1\/(world|explore\/welcome-harbor)$/,
+    );
   });
 
   it('saves a checkpoint when the child crosses one', async () => {

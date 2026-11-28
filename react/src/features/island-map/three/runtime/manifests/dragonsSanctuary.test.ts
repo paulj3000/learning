@@ -7,7 +7,17 @@ import {
   dragonScaleChangeKey,
   fireRuneChangeKey,
 } from '../../../../dragons-sanctuary/types';
-import { DRAGON_SCALE_SPOTS, FIRE_RUNE_SPOTS, SEALED_GATES } from '../../dragonsSanctuaryRegion';
+import {
+  COLLIDERS,
+  DRAGON_EGG,
+  DRAGON_SCALE_SPOTS,
+  FIRE_RUNE_SPOTS,
+  HARBOR_EXIT_ZONE,
+  SEALED_GATES,
+  isInsideRect,
+} from '../../dragonsSanctuaryRegion';
+import { DRAGONS_SANCTUARY_INTERACTIONS, areRequirementsMet } from '../../../worldObjects';
+import { DRAGONS_SANCTUARY_CHECKPOINTS } from '../../../../discovery/checkpoints';
 import { DRAGONS_SANCTUARY_MANIFEST as MANIFEST } from './dragonsSanctuary';
 import type { ThreeLocationManifest } from '../locationManifest';
 
@@ -119,5 +129,56 @@ describe("Dragon's Sanctuary manifest", () => {
     // Every entity it draws has no art of its own.
     for (const prop of MANIFEST.props) expect(prop.assetId).toBeUndefined();
     for (const collectible of MANIFEST.collectibles) expect(collectible.assetId).toBeUndefined();
+  });
+});
+
+describe("Dragon's Sanctuary egg, harbor exit and unlock guard (LAI-2205)", () => {
+  it.each(['dragons-sanctuary-egg', 'dragons-sanctuary-harbor-exit'])(
+    "carries Phaser's %s with the same action and requirements",
+    (id) => {
+      const three = MANIFEST.interactions.find((interaction) => interaction.id === id);
+      const phaser = DRAGONS_SANCTUARY_INTERACTIONS.find((interaction) => interaction.id === id);
+      expect(three).toBeDefined();
+      expect(phaser).toBeDefined();
+      expect(JSON.stringify(three!.action)).toBe(JSON.stringify(phaser!.action));
+      expect(JSON.stringify(three!.requirements)).toBe(JSON.stringify(phaser!.requirements));
+    },
+  );
+
+  it('places the egg as a prop on open ground, reachable on foot', () => {
+    const prop = MANIFEST.props.find((entry) => entry.entityId === DRAGON_EGG.id);
+    expect(prop?.interactionId).toBe(DRAGON_EGG.id);
+    // Not inside any solid, so no jump is needed to reach it.
+    expect(COLLIDERS.some((rect) => isInsideRect(DRAGON_EGG.x, DRAGON_EGG.z, rect))).toBe(false);
+    expect(MANIFEST.colliders.some((c) => isInsideRect(DRAGON_EGG.x, DRAGON_EGG.z, c.rect))).toBe(
+      false,
+    );
+  });
+
+  it('puts the harbor exit on bare floor, clear of every collider and of the spawn point', () => {
+    const zone = MANIFEST.zones.find((entry) => entry.rect.id === HARBOR_EXIT_ZONE.id);
+    expect(zone).toBeDefined();
+    const corners = [
+      [HARBOR_EXIT_ZONE.minX, HARBOR_EXIT_ZONE.minZ],
+      [HARBOR_EXIT_ZONE.maxX, HARBOR_EXIT_ZONE.minZ],
+      [HARBOR_EXIT_ZONE.minX, HARBOR_EXIT_ZONE.maxZ],
+      [HARBOR_EXIT_ZONE.maxX, HARBOR_EXIT_ZONE.maxZ],
+    ] as const;
+    for (const [x, z] of corners) {
+      expect(COLLIDERS.some((rect) => isInsideRect(x, z, rect))).toBe(false);
+    }
+    const spawn = DRAGONS_SANCTUARY_CHECKPOINTS[0]!;
+    expect(isInsideRect(spawn.x, spawn.z, HARBOR_EXIT_ZONE)).toBe(false);
+  });
+
+  it('is shut until the Ember Mountain story is finished, and open after', () => {
+    expect(MANIFEST.entryRequirements).toEqual([
+      { type: 'WORLD_CHANGE_PRESENT', changeKey: 'DRAGON_OF_EMBER_MOUNTAIN_COMPLETE' },
+    ]);
+    expect(areRequirementsMet(MANIFEST.entryRequirements!, state())).toBe(false);
+    expect(
+      areRequirementsMet(MANIFEST.entryRequirements!, state('DRAGON_OF_EMBER_MOUNTAIN_COMPLETE')),
+    ).toBe(true);
+    expect(MANIFEST.copy.locked).toMatch(/not been discovered yet/);
   });
 });

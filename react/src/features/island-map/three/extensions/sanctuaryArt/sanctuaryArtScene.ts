@@ -43,6 +43,7 @@ const EMBER_ORANGE = 0xd9622b;
 const OLD_BRONZE = 0x9c7a3c;
 const SCALE_GREEN = 0x3f8f6b;
 const CRYSTAL_BLUE = 0x5fb8d9;
+const EGG_CREAM = 0xf0d9b0;
 
 export const sanctuaryArtExtension: WorldExtension = {
   id: 'sanctuary-art',
@@ -171,6 +172,21 @@ export const sanctuaryArtExtension: WorldExtension = {
         }),
       );
       into(entityId, scale);
+    }
+
+    /** The dragon's egg: a warm, softly glowing ovoid, small enough to sit beside Ember. */
+    if (config.eggEntityId) {
+      const egg = own(
+        new SphereGeometry(0.4, 14, 10),
+        new MeshStandardMaterial({
+          color: EGG_CREAM,
+          emissive: EMBER_ORANGE,
+          emissiveIntensity: 0.25,
+        }),
+      );
+      egg.scale.set(1, 1.3, 1);
+      egg.position.y = 0.52;
+      into(config.eggEntityId, egg);
     }
 
     /*

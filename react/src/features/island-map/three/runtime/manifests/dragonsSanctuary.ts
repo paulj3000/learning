@@ -1,4 +1,5 @@
-import type { WorldInteraction } from '../../../worldObjects';
+import type { WorldInteraction, WorldRequirement } from '../../../worldObjects';
+import { getIslandLocation } from '../../../../island/locations';
 import { HOME_WORLD_SLUG } from '../../../../worlds/slugs';
 import {
   DRAGONS_SANCTUARY_CHECKPOINTS,
@@ -14,12 +15,14 @@ import {
   AREA_LABELS,
   AREA_ZONES,
   BOUNDARY_WALLS,
+  DRAGON_EGG,
   DRAGON_SCALE_SPOTS,
   EMBER_ID,
   FIRE_RUNE_SPOTS,
   FORGE,
   FORGE_HEARTH,
   GROUND_HALF_EXTENT,
+  HARBOR_EXIT_ZONE,
   KEEPER_LODGE,
   NPC_SPOTS,
   ROOST_STONES,
@@ -68,6 +71,12 @@ import {
 const FORGE_LIT = SANCTUARY_CHANGE_KEYS.FORGE_LIT;
 const TALK_TO_EMBER_ID = 'dragons-sanctuary:talk-to-ember';
 
+const UNLOCK_KEY = getIslandLocation('dragons-sanctuary')?.unlockRequirement?.changeKey;
+if (!UNLOCK_KEY) throw new Error("The Dragon's Sanctuary lost its unlock requirement");
+const ENTRY_REQUIREMENTS: readonly WorldRequirement[] = [
+  { type: 'WORLD_CHANGE_PRESENT', changeKey: UNLOCK_KEY },
+];
+
 const INTERACTIONS: readonly WorldInteraction[] = [
   {
     id: TALK_TO_EMBER_ID,
@@ -76,6 +85,33 @@ const INTERACTIONS: readonly WorldInteraction[] = [
     title: 'Talk to Ember',
     targetId: EMBER_ID,
     action: { kind: 'TALK_TO', npcId: EMBER_ID },
+  },
+  /*
+    The two Phaser interactions this world was missing (LAI-2205). `action` and
+    `requirements` are copied from `DRAGONS_SANCTUARY_INTERACTIONS` exactly, and
+    `phaserParity.test.ts` pins that. The exit's `NAVIGATE 'world'` is left as
+    Phaser has it; where that lands is GE-077's to retarget.
+  */
+  {
+    id: DRAGON_EGG.id,
+    type: 'OBJECT',
+    trigger: 'TAP',
+    title: "The dragon's egg",
+    targetId: DRAGON_EGG.id,
+    requirements: [{ type: 'ALWAYS' }],
+    action: {
+      kind: 'SHOW_MESSAGE',
+      message: 'The egg glows warm and safe, tucked close beside its mother.',
+    },
+  },
+  {
+    id: HARBOR_EXIT_ZONE.id,
+    type: 'LOCATION',
+    trigger: 'APPROACH',
+    title: 'The path back to Welcome Harbor',
+    targetId: 'welcome-harbor',
+    requirements: [{ type: 'ALWAYS' }],
+    action: { kind: 'NAVIGATE', to: 'world' },
   },
   {
     id: FORGE_HEARTH.id,
@@ -187,6 +223,12 @@ const SCENERY: readonly ScenerySpec[] = [
 
 /** The hearth and the two sealed gates: interactive, and drawn by `sanctuary-art`. */
 const PROPS: readonly PropSpec[] = [
+  {
+    entityId: DRAGON_EGG.id,
+    position: { x: DRAGON_EGG.x, z: DRAGON_EGG.z },
+    label: DRAGON_EGG.label,
+    interactionId: DRAGON_EGG.id,
+  },
   {
     entityId: FORGE_HEARTH.id,
     position: { x: FORGE_HEARTH.x, z: FORGE_HEARTH.z },
@@ -323,10 +365,14 @@ export const DRAGONS_SANCTUARY_MANIFEST: ThreeLocationManifest = {
   props: PROPS,
   collectibles: COLLECTIBLES,
 
-  zones: AREA_ZONES.map((zone) => ({
-    rect: { ...zone },
-    enterMessage: `You're at ${AREA_LABELS[zone.id] ?? 'the sanctuary'}.`,
-  })),
+  zones: [
+    ...AREA_ZONES.map((zone) => ({
+      rect: { ...zone },
+      enterMessage: `You're at ${AREA_LABELS[zone.id] ?? 'the sanctuary'}.`,
+    })),
+    // The way home. No toast: the exit offer it opens is the message.
+    { rect: { ...HARBOR_EXIT_ZONE } },
+  ],
 
   ambient: [
     {
@@ -338,6 +384,13 @@ export const DRAGONS_SANCTUARY_MANIFEST: ThreeLocationManifest = {
     },
   ],
 
+  /*
+    Unlock guard (LAI-2205): the same key Phaser and the island map use, read from
+    the location registry so the three can never disagree. Until the child has
+    finished the Ember Mountain story, `ThreeLocationWorldView` shows the calm
+    `copy.locked` line and a way back to the map, and builds no engine.
+  */
+  entryRequirements: ENTRY_REQUIREMENTS,
   interactions: INTERACTIONS,
   adventureBindings: [],
 
@@ -355,6 +408,7 @@ export const DRAGONS_SANCTUARY_MANIFEST: ThreeLocationManifest = {
         })),
         runeEntityIds: FIRE_RUNE_SPOTS.map((rune) => rune.id),
         scaleEntityIds: DRAGON_SCALE_SPOTS.map((scale) => scale.id),
+        eggEntityId: DRAGON_EGG.id,
         gates: SEALED_GATES.map((gate) => ({
           entityId: gate.id,
           halfWidth: gate.halfWidth,
@@ -409,5 +463,7 @@ export const DRAGONS_SANCTUARY_MANIFEST: ThreeLocationManifest = {
       },
     ],
     altNav: { label: 'Prefer not to walk in 3D? Go back to the island map', to: '' },
+    locked:
+      'This part of the island has not been discovered yet. Maybe a new story will lead you here.',
   },
 };

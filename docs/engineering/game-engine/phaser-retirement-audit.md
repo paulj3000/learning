@@ -34,7 +34,7 @@ intent. The percentage is gates met over 48.
 | 2 | Pirate Builder Bay | yes | yes | yes (`phaserParity`) | no | no | no | 3 |
 | 3 | Wonderwild Forest | yes | yes | yes (`phaserParity`) | no (Sprouts: Phaser only) | no | no | 3 |
 | 4 | Storykeeper Castle | yes | yes | yes (`castleRebootContracts` C-1) | no **[MVP: yes except Sprouts]** | no | no | 3 |
-| 5 | Dragon's Sanctuary | yes | **no (egg, exit, unlock guard)** | yes (`phaserParity`, gaps listed) | yes (route redirects) | no | no | 3 |
+| 5 | Dragon's Sanctuary | yes | yes (egg, harbor exit and `entryRequirements` unlock guard added, LAI-2205; Development Complete pending review) | yes (`phaserParity`, no gaps) | yes (route redirects) | no | no | 3 |
 | 6 | Fossil Ridge Camp | **no** | no | no | no | no | no | 0 |
 | 7 | Castle Writing Room | yes | yes (3D adds 2) | yes (`castleWritingRoomParity`) | no (test pins Phaser default) | no | no | 3 |
 | 8 | Bolt's Workshop | **no** | no | no | no | no | no | 0 |
@@ -171,7 +171,7 @@ not done). Each entry names its commits.
 | LAI-2203 | Wonderwild Forest: Sprouts 3D route (WF-10), 3D default for every band | **LAI 03** (owner, 2026-11-27) | P1 | MVP merged, LAI-2104S, LAI-2303 | Sprouts reach the 3D forest; `phaserParity` stays green |
 | LAI-2201 | Welcome Harbor 3D hub parity: the 12 harbor interactions, `BRIDGE_REPAIRED` state, both Phaser-only discoveries | **LAI 04** (owner, 2026-11-27) | P0 for retirement | MVP merged | All 12 ids in 3D; discoveries claimable in 3D; parity test vs `WELCOME_HARBOR_INTERACTIONS` |
 | GE-077 | 3D exits stay in Three.js: `NAVIGATE 'world'` and the Writing Room exit target the 3D hub/castle | **LAI 04** (owner, 2026-11-27); LAI 02 reviews castle | P0 for retirement | LAI-2201 | Exit hrefs; parity tests updated; Phaser routes unchanged |
-| LAI-2205 | Dragon's Sanctuary gaps: egg interaction, exit, `entryRequirements` unlock guard | **LAI 04** (owner, 2026-11-27) | P1 | none (but touches manifests: after MVP) | Direct URL refused before unlock; ids present |
+| LAI-2205 | Dragon's Sanctuary gaps: egg interaction, exit, `entryRequirements` unlock guard | **LAI 04** (owner, 2026-11-27) | P1 | none (but touches manifests: after MVP) | Direct URL refused before unlock; ids present. **Development Complete pending review** (not owner accepted): see section 8 |
 | LAI-2206 | Fossil Ridge Camp Three.js region (3 interactions, unlock) | **LAI 03** (owner, 2026-11-27); LAI 07 assets | P2 | LAI-2201 hub link | Manifest, parity test, jumping decision (LAI-JMP-01b) |
 | LAI-2208 | Bolt's Workshop Three.js region with Bolt (`metBolt`, quest stage) | **No owner yet**; stays in Backlog until MVP acceptance (owner, 2026-11-27); LAI 07 assets; NPC Manager owner | P1 (quest) | LAI-2201, MVP acceptance | Bolt talk sets `metBolt` in 3D; quest stage 1 reachable |
 | LAI-2104S | Sprouts guided profile in the engine: tap-to-move, assisted camera, no free look, large targets | LAI 04 | P0 for retirement | owner decision O6 (options in section 10). **Not started**; groundwork `movementSpecForProfile` built | Controller tests; profile applied by age band; no realm edits |
@@ -224,6 +224,7 @@ default switches.
 | LAI-2301R: Phaser-table parity | `react/src/test/phaserParity.test.ts` | 20 tests pass; listing a covered interaction as a gap fails (shrink-only check) |
 | Sprouts groundwork: `movementSpecForProfile` | `game/src/sdk/profiles.ts`, `sdk/profiles.test.ts` (7 tests) | game 714 passed; game tsc clean. Not wired to any location |
 | Tracker reconciliation | `tasks/TASK_TRACKER.md` LAI-2101 to 2103 | Section 5 |
+| LAI-2205: Dragon's Sanctuary egg, harbor exit, unlock guard | `react/src/features/island-map/three/{dragonsSanctuaryRegion.ts, extensions/sanctuaryArt/*, runtime/manifests/dragonsSanctuary{,.test,Parity.test}.*}`, `react/src/test/phaserParity.test.ts` | Both gaps removed from `GAPS`; `phaserParity`, `phaserRetirement` and the dragons and runtime tests pass; typecheck clean. The exit keeps `NAVIGATE 'world'` (GE-077 retargets it). Not owner accepted |
 
 ## 9. Recommended sequence
 

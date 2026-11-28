@@ -369,6 +369,38 @@ export const NPC_SPOTS: readonly { id: string; label: string; x: number; z: numb
 ];
 
 /**
+ * Ember's egg (LAI-2205, parity with the Phaser `dragons-sanctuary-egg`).
+ *
+ * Tucked just inside the open south side of the roost horseshoe, close beside
+ * Ember (the Phaser line says "tucked close beside its mother"). It stands on
+ * open valley floor between the two side roost stones, so a child on foot
+ * reaches it without jumping, and it is clear of every collider.
+ */
+export const DRAGON_EGG = {
+  id: 'dragons-sanctuary-egg',
+  label: "the dragon's egg",
+  x: 1.8,
+  z: -14,
+};
+
+/**
+ * The path back to Welcome Harbor (LAI-2205, parity with the Phaser
+ * `dragons-sanctuary-harbor-exit`): a strip of floor along the south wall, at the
+ * far end of the valley from Ember and well clear of where a child arrives (they
+ * spawn at z = 21). Walking onto it offers the way home. It is bare floor, so the
+ * exit needs no jump, and it carries no toast of its own because the offer is the
+ * message.
+ */
+export const HARBOR_EXIT_ZONE: RectZone = {
+  id: 'dragons-sanctuary-harbor-exit',
+  minX: -3,
+  maxX: 3,
+  minZ: GROUND_HALF_EXTENT - 2,
+  // Half a meter short of the valley wall, so the strip is entirely walkable floor.
+  maxZ: GROUND_HALF_EXTENT - 0.5,
+};
+
+/**
  * The ring of nest stones at Ember's roost. Solid, and arranged as an open
  * horseshoe rather than a circle: a child can walk in to stand beside her.
  */
