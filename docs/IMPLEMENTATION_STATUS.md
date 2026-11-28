@@ -70,6 +70,32 @@ to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 - Tests: `apps/assets/tests/test_environment_assets.py`, plus 6 existing assertions updated for
   the two new metadata fields. Final results are in PR #116.
 
+## GE-101 full-screen gameplay: the canvas gets the viewport, settings and lists become stage menus (2026-11-26, `feature/shared-fullscreen-gameplay-ui`, `main` `41ee7320`, issue #101, Trello #257); Development Complete, NOT merged
+
+Owner playtest 2026-11-26. Agent 4 (Game Engine Core), with LAI 01 (Treasure Rush) and LAI 06
+(scoring overlays).
+
+- **Cause:** "Camera view", "Sprint with Shift" and "Things to do here" were in-flow panels below
+  the stage. The full-screen column (`.wrapper:fullscreen`) gave them up to 45vh, about half of a
+  phone screen. GE-090-D8 (#249) had measured the gap for the exits but never moved the panels.
+- **Fix (shared, every 3D realm):** `GameplayMenus.tsx` (new) adds compact menus in the
+  `WorldStage` toolbar beside "Full screen": "Things to do" (exploration) and "Settings" (camera
+  view and sprint, shown only when there is something to set). They are closed by default, one at
+  a time, and overlay the canvas.
+  - Escape or Close gives focus back to the menu's button.
+  - An item that starts a dialogue closes its menu, and any open dialogue, puzzle or interaction
+    closes the menus.
+  - Key presses inside menus stay away from the engine; releases still reach it.
+  - The full-screen wrapper is edge to edge (no padding or gap).
+- No engine (`game/`) change. Menus never rebuild the scene or move the camera (tested).
+- The sandbox view uses the same menus.
+- Contract and browser QA checklist: `docs/engineering/game-engine/gameplay-ui-contract.md`.
+- Realms: Treasure Rush, Storykeeper Castle, Firepeak and North Pole all render through
+  `ThreeLocationWorldView`, and none needs a realm code change.
+- Tests: `GameplayMenus.test.tsx` (new), `WorldStage.test.tsx` and `ThreeLocationWorldView.test.tsx`
+  (new cases). The parity tests now open "Things to do" first.
+- Not run: browser, Playwright and real-device checks. The QA checklist is for the owner or LAI 05.
+
 ## LAI 02 #99: Storykeeper Castle can be entered from the child UI (2026-11-26, `feature/storykeeper-playability-fixes` from `main` `41ee7320`, Trello #255); Development Complete, NOT merged, NOT owner accepted
 
 - **Root cause:** no crash and no server refusal. The castle has no Django 3D Area, so the Realms

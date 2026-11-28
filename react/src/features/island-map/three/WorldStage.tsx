@@ -20,13 +20,25 @@ function fullscreenSupported(): boolean {
  * "Full screen" toggle.
  *
  * The element that goes full screen is this stage's *parent* (each world
- * view's `.wrapper`), not the stage itself, so the interaction panels and
- * story sessions each view renders below the canvas stay visible while full
- * screen. `IslandWorldView.module.css` (`.wrapper:fullscreen`) lays that
- * parent out as a single viewport-high column with the stage filling
- * whatever the panels leave, so nothing needs page scrolling.
+ * view's `.wrapper`), not the stage itself, so the dialogue and puzzle layers
+ * each view renders beside the canvas (fixed to the viewport) stay visible
+ * while full screen. `IslandWorldView.module.css` (`.wrapper:fullscreen`)
+ * lays that parent out as a single viewport-high column with the stage
+ * filling it. Settings and exploration lists live in the stage toolbar's
+ * menus (GE-101), so nothing takes height from the game.
  */
-export function WorldStage({ children }: { children: ReactNode }) {
+export function WorldStage({
+  children,
+  menus,
+}: {
+  children: ReactNode;
+  /**
+   * GE-101: the view's compact menus (`GameplayMenus`), shown in the stage toolbar beside
+   * "Full screen". Settings and exploration lists go here, not below the stage, so full screen
+   * gives the whole viewport to the game.
+   */
+  menus?: ReactNode;
+}) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [supported] = useState(fullscreenSupported);
@@ -47,9 +59,10 @@ export function WorldStage({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // GE-090-D8: in full screen, settings below the stage (camera view, sprint)
-  // lift its bottom edge, and the exits with it, above the viewport's bottom.
-  // Measure the gap and publish it, and follow any later resize.
+  // GE-090-D8: in full screen, anything left in flow below the stage lifts its
+  // bottom edge, and the exits with it, above the viewport's bottom. Since
+  // GE-101 settings and lists are stage menus, so the gap is normally 0; it is
+  // still measured (and followed on resize) for whatever a view adds there.
   useEffect(() => {
     if (!isFullscreen) return;
     const stage = stageRef.current;
@@ -98,15 +111,28 @@ export function WorldStage({ children }: { children: ReactNode }) {
           <LeaveIslandButton />
         </div>
       ) : null}
-      {supported ? (
-        <button
-          type="button"
-          className={styles.fullscreenButton}
-          onClick={toggle}
-          aria-pressed={isFullscreen}
-        >
-          {isFullscreen ? 'Exit full screen' : 'Full screen'}
-        </button>
+      {/*
+        GE-101: one toolbar, bottom left, over the canvas: "Full screen" (or "Exit full
+        screen", always reachable while full screen) and the view's menus. The layer covers the
+        stage so an open menu panel can size itself to the stage; only its buttons take pointers.
+      */}
+      {supported || menus ? (
+        <div className={styles.toolbarLayer} data-stage-toolbar="">
+          <div className={styles.toolbar}>
+            {supported ? (
+              <button
+                type="button"
+                className={styles.fullscreenButton}
+                onClick={toggle}
+                onKeyDown={(event) => event.stopPropagation()}
+                aria-pressed={isFullscreen}
+              >
+                {isFullscreen ? 'Exit full screen' : 'Full screen'}
+              </button>
+            ) : null}
+            {menus}
+          </div>
+        </div>
       ) : null}
     </div>
   );

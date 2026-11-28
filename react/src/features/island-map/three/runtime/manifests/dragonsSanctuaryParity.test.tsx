@@ -69,6 +69,7 @@ import { getWorldState, recordCharacterMet, saveCheckpoint } from '../../../../d
 import { getInventory } from '../../../../rewards/api';
 import { listQuestStates } from '../../../../quests/api';
 import { getCompanionProfile } from '../../../../island/api';
+import { openThingsToDo } from '../../../../../test/gameplayMenus';
 
 const STONE_RUNE = FIRE_RUNE_SPOTS[0]!;
 
@@ -177,6 +178,7 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
       { changeKey: fireRuneChangeKey(STONE_RUNE.id) },
     ] as never);
     await renderAndWait();
+    await openThingsToDo();
     expect(
       screen.queryByText('A fire rune is hidden behind the Keeper Lodge.'),
     ).not.toBeInTheDocument();
@@ -246,6 +248,7 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
   it('offers a way to talk to Ember without walking to her', async () => {
     const user = userEvent.setup();
     await renderAndWait();
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: 'Talk to Ember' }));
     expect(await screen.findByText('conversation with ember-dragon')).toBeInTheDocument();
   });
@@ -253,6 +256,7 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
   it('offers a way to interact without a mouse look', async () => {
     const user = userEvent.setup();
     await renderAndWait();
+    await user.click(await screen.findByRole('button', { name: 'Things to do' }));
     await user.click(screen.getByRole('button', { name: "Interact with what you're looking at" }));
     expect(engine.interact).toHaveBeenCalledTimes(1);
   });
@@ -266,6 +270,7 @@ describe("The Dragon's Sanctuary on the generic view: parity with DragonsSanctua
 
   it('tells the child where the runes and scales are, so exploring is never guesswork', async () => {
     await renderAndWait();
+    await openThingsToDo();
     expect(
       screen.getByText('A fire rune is hidden out on the sky cliff ledge.'),
     ).toBeInTheDocument();
