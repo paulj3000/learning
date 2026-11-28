@@ -18,6 +18,7 @@ from apps.progression.models import WorldChange
 from apps.quests import engine
 from apps.quests.models import QuestProgress
 from apps.quests.services import build_context
+from apps.regions.dependencies import scene_asset_ids
 from apps.regions.models import PlacementKind, TreasureChest, WorldRegion
 from apps.users.models import AgeBand
 
@@ -92,7 +93,7 @@ def world_change_keys_by_location(child) -> set[tuple[str, str]]:
 
 def region_bootstrap(child, region: WorldRegion) -> dict:
     # Imported here: `play` imports this module's neighbours, and the lock rule lives there.
-    from .play import chest_lock
+    from .play import chest_lock, puzzle_opened_keys
 
     changes = world_change_keys_by_location(child)
     items = owned_item_ids(child)
@@ -108,6 +109,7 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
         if p.kind != PlacementKind.NPC
     ]
     chests = []
+    puzzle_keys = puzzle_opened_keys(region)
     for chest in region.chests.select_related(
         "region__location",
         "required_item",
@@ -123,7 +125,11 @@ def region_bootstrap(child, region: WorldRegion) -> dict:
                 "is_open": is_open,
                 "challenge_available": spec is not None and spec.status == ContentStatus.PUBLISHED,
                 "lock_reason": (
-                    None if is_open else chest_lock(child, chest, keys=changes, items=items)
+                    None
+                    if is_open
+                    else chest_lock(
+                        child, chest, keys=changes, items=items, puzzle_keys=puzzle_keys
+                    )
                 ),
             }
         )
@@ -344,24 +350,14 @@ def region_catalog(region: WorldRegion) -> dict:
     is drawn as a stand-in until an administrator publishes one (FP-3).
     """
     scene = region.scene if isinstance(region.scene, dict) else {}
-    effects = scene.get("effects", {}) if isinstance(scene.get("effects"), dict) else {}
     ids = set(region.placements.exclude(asset_id="").values_list("asset_id", flat=True))
     ids.update(region.chests.exclude(asset_id="").values_list("asset_id", flat=True))
-    for value in (scene.get("groundAssetId"), (effects.get("backdrop") or {}).get("assetId")):
-        if isinstance(value, str) and value:
-            ids.add(value)
-    # TR-PALM-05: models that replace layout placeholders (the cove's palms).
-    layout = scene.get("layout") if isinstance(scene.get("layout"), dict) else {}
-    # TR-ENV-06: and the barrels and logs it draws from the asset library.
-    # ENV-2: and its bushes, flowers and grass.
-    for entry in [
-        *(layout.get("procedural") or []),
-        *(layout.get("props") or []),
-        *(layout.get("vegetation") or []),
-    ]:
-        value = entry.get("assetId") if isinstance(entry, dict) else None
-        if isinstance(value, str) and value:
-            ids.add(value)
+    # Every id the scene names, by the dependency registry's own rule (`assetId`, any
+    # `...AssetId`, any `...AssetIds` list): ground, backdrop, layout props, vegetation,
+    # procedural, scenery, platforms, building parts. Before, only a hand-picked few layout
+    # keys were read, so an id used only as `layout.scenery` (North Pole's pines, lanterns and
+    # candy canes) was never sent and the client refused the Area with UNKNOWN_ASSET.
+    ids.update(scene_asset_ids(scene))
     assets = ContentAsset.objects.filter(asset_id__in=ids).order_by("asset_id")
     return {
         "worldSlug": region.location.world.slug,

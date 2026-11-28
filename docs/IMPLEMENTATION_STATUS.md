@@ -68,6 +68,107 @@ Status: **Development Complete on its branch**, not merged, not owner-accepted (
   `following-instructions`); LAI 04's optional `hintsUsed` gameplay-event field; 3D scenes for the
   new kinds (a separate LAI 01 and LAI 04 ticket).
 
+## LAI-01 Treasure Rush gameplay redesign (#102, Trello #258; 2026-11-26, `feature/treasure-rush-gameplay-redesign`, `main` `41ee7320`, merged `d812ad71` 2026-11-27)
+
+Status: Development Complete when the PR's checks pass; **not owner-accepted** (the owner plays
+the redesigned adventure first, checklist section F). Design:
+[TREASURE_RUSH_GAME_DESIGN.md](TREASURE_RUSH_GAME_DESIGN.md).
+
+- The owner's playtest found the cove a repeated counting quiz. Each chest is now the reward at
+  the end of a play stage built from the existing 3D Area puzzle kinds (no new kind, no engine
+  change): the missing map (find three pieces, walk to the right sign), Crocodile Creek (cross the
+  stepping stones in sequence), the supply dock (walk to the right cargo crate), the forgotten
+  cave (find three carvings, press the rune stones in a riddle's order) and Pip's lost treasure
+  (light the torches in the order of the adventure). 11 Django-authored `AreaPuzzle`s, all three
+  age bands, 2 to 4 variants each, hints, practice on replay, skill evidence on every learning
+  stage.
+- Progress-compatible: each chest stage records the chest's existing world change key and grants
+  its existing reward rule, so quests, rewards, the bridge and every child's history are
+  unchanged; a chest a published puzzle opens issues no challenge (`LockReason.PUZZLE`).
+- Shared rule change, owner-approved 2026-11-27: `regions/authoring_kinds.py` lets a puzzle record
+  the key of a chest in its own 3D Area (still refused for another Area's chest, another puzzle or
+  a replay activity).
+- Seed: `ADVENTURE_VERSION` 2 (stand-ins, clues), `LAYOUT_VERSION` 10 (the creek; the decorative
+  waymarkers became the map stage's signs); `publish_treasure_rush` validates and publishes the
+  puzzles. No migration.
+- Client: `ChestLockReason` gains `PUZZLE`; `AreaPuzzleLayer` supports many `COLLECT_OBJECT`
+  puzzles in one Area and labels the pick-up button with the object.
+- Deferred: jumping onto the creek's stones (a separate LAI 04 ticket after PR #109 merges,
+  owner-approved 2026-11-27), map assembly and
+  LAI 06's proposed kinds (need scenes), Pip's spoken stage intros (NPC release), a cave interior.
+
+## GE-101 full-screen gameplay: the canvas gets the viewport, settings and lists become stage menus (2026-11-26, `feature/shared-fullscreen-gameplay-ui`, `main` `41ee7320`, issue #101, Trello #257); Development Complete, NOT merged
+
+Owner playtest 2026-11-26. Agent 4 (Game Engine Core), with LAI 01 (Treasure Rush) and LAI 06
+(scoring overlays).
+
+- **Cause:** "Camera view", "Sprint with Shift" and "Things to do here" were in-flow panels below
+  the stage. The full-screen column (`.wrapper:fullscreen`) gave them up to 45vh, about half of a
+  phone screen. GE-090-D8 (#249) had measured the gap for the exits but never moved the panels.
+- **Fix (shared, every 3D realm):** `GameplayMenus.tsx` (new) adds compact menus in the
+  `WorldStage` toolbar beside "Full screen": "Things to do" (exploration) and "Settings" (camera
+  view and sprint, shown only when there is something to set). They are closed by default, one at
+  a time, and overlay the canvas.
+  - Escape or Close gives focus back to the menu's button.
+  - An item that starts a dialogue closes its menu, and any open dialogue, puzzle or interaction
+    closes the menus.
+  - Key presses inside menus stay away from the engine; releases still reach it.
+  - The full-screen wrapper is edge to edge (no padding or gap).
+- No engine (`game/`) change. Menus never rebuild the scene or move the camera (tested).
+- The sandbox view uses the same menus.
+- Contract and browser QA checklist: `docs/engineering/game-engine/gameplay-ui-contract.md`.
+- Realms: Treasure Rush, Storykeeper Castle, Firepeak and North Pole all render through
+  `ThreeLocationWorldView`, and none needs a realm code change.
+- Tests: `GameplayMenus.test.tsx` (new), `WorldStage.test.tsx` and `ThreeLocationWorldView.test.tsx`
+  (new cases). The parity tests now open "Things to do" first.
+- Not run: browser, Playwright and real-device checks. The QA checklist is for the owner or LAI 05.
+
+## LAI 02 #99: Storykeeper Castle can be entered from the child UI (2026-11-26, `feature/storykeeper-playability-fixes` from `main` `41ee7320`, Trello #255); Development Complete, NOT merged, NOT owner accepted
+
+- **Root cause:** no crash and no server refusal. The castle has no Django 3D Area, so the Realms
+  pages offer only "Visit". On the Place page the 3D castle was a link labelled "early 3D
+  preview", below the card tale and the Phaser view. Sprouts and Explorers were also told "not
+  available for your age yet", because the page took the location's first template (the
+  Pathfinder tale). The Writing Room had the same template bug for Pathfinders and Explorers.
+- **Fix** (`react/src/routes/IslandLocationPage.tsx`):
+  - "Enter the castle" is the first action for Pathfinders and Explorers.
+  - Sprouts keep the card route first (C-10, ADR-008) and get "Walk inside the castle" as well.
+  - The Phaser view stays as a secondary link (retiring it is SC-R10-03).
+  - Each band is offered its own template (`resolveAdventureForAgeBand`).
+  - Explorers are told that their castle adventure starts inside, at the Great Library's secret
+    door.
+- **Evidence:**
+  - API probe on PostgreSQL 18 with `load_content` only: every castle API the 3D castle calls
+    answers 200 for all three bands.
+  - Regression tests in `IslandLocationPage.test.tsx`.
+- **Unverified:** no browser test. The owner's navigation checklist and the per-area status are
+  in `docs/regions/storykeeper_castle_entry_99.md`.
+- **Follow-up for LAI 05 and the owner:** a direct castle entry button on the Realms card, which
+  would mean the catalog knowing about bundled regions.
+- **Acceptance spec (LAI 04 finding):** `react/e2e/acceptance/p0-navigation.spec.ts` no longer
+  clicks "Try exploring the castle (new!)" as a Pathfinder. A Pathfinder now goes Realms, Visit
+  Storykeeper Castle, Enter the castle (`/explore/storykeeper-castle`); a new Sprout test checks
+  that "Start: Quill's Picture Story" comes before "Walk inside the castle". No other `react/e2e`
+  spec used the old link. Playwright not run (deferred to merge readiness).
+
+## LAI-07 MVP realm asset support: realm thumbnails, Treasure Rush audit, region catalog fix (2026-11-26, `feature/mvp-realm-asset-support`, `main` `41ee7320`)
+
+- Report: `docs/qa/MVP_REALM_ASSET_SUPPORT_2026-11-26.md` (realm thumbnail matrix, Treasure Rush
+  asset matrix, missing-required and optional lists, asset findings for #98, #99 and #100).
+- Realm thumbnails (PR #104): the page uses the existing child-scoped image resolver and
+  published-art filter; no realm authors an `artAssetId` and no approved art exists, so every
+  card shows its drawn scene (the designed fallback).
+- Treasure Rush (LAI 01, #102): no new asset is required to be playable; existing bundled ids
+  `crate`, `barrel`, `signpost`, `cave-mouth`, `treasure-chest`, `clue-map`, `star-carving` cover
+  part of it, the rest are stand-ins. The 16 required cove audio cues remain missing.
+- #98, #99, #100: no asset contributes; each fails in routing or catalog data first.
+- Fix: `apps/game_sessions/play_state.py` `region_catalog` collects scene ids with the
+  dependency registry's `scene_asset_ids`, so North Pole's scenery-only ids reach the client and
+  the served Area is no longer refused with `UNKNOWN_ASSET` once #98's routing lands.
+- Tests: `test_environment_catalog.py` (4 new, fail on `main`), new
+  `test_region_catalog_completeness.py` (North Pole per band through the API, Firepeak volcano and
+  heart). PG18 slot 9; no browser tests.
+
 ## LAI-01 Treasure Rush final release preparation (2026-11-25, `lai-01/treasure-rush-release-prep`, `main` `05b54d8a`)
 
 Status: release candidate on `main`, **not owner-accepted** (TR-21 stays open until the owner's

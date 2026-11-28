@@ -72,6 +72,7 @@ import { getWorldState, saveCheckpoint } from '../../../../discovery/api';
 import { getInventory } from '../../../../rewards/api';
 import { listQuestStates } from '../../../../quests/api';
 import { getCompanionProfile } from '../../../../island/api';
+import { openThingsToDo } from '../../../../../test/gameplayMenus';
 
 function renderForest(ageBand: AgeBandValue = 'PATHFINDER') {
   return render(
@@ -138,6 +139,7 @@ describe('Wonderwild Forest on the generic view: parity with WonderwildForestWor
 
   it('renders the scene and HUD, and lists the available interactions once ready', async () => {
     await renderAndWait();
+    await openThingsToDo();
     expect(screen.getByText('The buzzing bee hive')).toBeInTheDocument();
     expect(screen.getByText('Peek at the hive')).toBeInTheDocument();
     expect(screen.getByText('A quiet pond')).toBeInTheDocument();
@@ -226,6 +228,7 @@ describe('Wonderwild Forest on the generic view: parity with WonderwildForestWor
     } as never);
     await renderAndWait();
 
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: 'The buzzing bee hive' }));
     await user.click(await screen.findByRole('button', { name: /start the adventure/i }));
 
@@ -238,6 +241,7 @@ describe('Wonderwild Forest on the generic view: parity with WonderwildForestWor
   it('tells a Sprout the tale is not for their band rather than starting it', async () => {
     const user = userEvent.setup();
     await renderAndWait('SPROUT');
+    await openThingsToDo();
     await user.click(screen.getByRole('button', { name: 'The buzzing bee hive' }));
     expect(await screen.findByText(/not available for your age yet/i)).toBeInTheDocument();
     expect(resumeOrStartSession).not.toHaveBeenCalled();
@@ -246,7 +250,7 @@ describe('Wonderwild Forest on the generic view: parity with WonderwildForestWor
   it('runs the reticle’s "interact" button through the engine', async () => {
     const user = userEvent.setup();
     await renderAndWait();
-    await user.click(screen.getByText('Things to do here'));
+    await user.click(await screen.findByRole('button', { name: 'Things to do' }));
     await user.click(screen.getByRole('button', { name: "Interact with what you're looking at" }));
     expect(engine.interact).toHaveBeenCalledTimes(1);
   });
@@ -290,6 +294,7 @@ describe('Wonderwild Forest on the generic view: parity with WonderwildForestWor
         ),
       );
       // ...and the butterfly is what that key makes real, as a requirement.
+      await openThingsToDo();
       expect(screen.getByText('A visiting butterfly')).toBeInTheDocument();
     });
 
@@ -306,6 +311,7 @@ describe('Wonderwild Forest on the generic view: parity with WonderwildForestWor
 
     it('hides the butterfly from a child whose garden is still bare', async () => {
       await renderAndWait();
+      await openThingsToDo();
       expect(screen.queryByText('A visiting butterfly')).not.toBeInTheDocument();
     });
   });

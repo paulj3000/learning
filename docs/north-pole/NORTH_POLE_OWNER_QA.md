@@ -6,6 +6,9 @@ tested only. **Not owner-tested, not browser-verified, not deployed.** Nothing i
 has been ticked by a development session; every item is for the owner. Record pass, fail or skip
 per id.
 
+Entry from Realms was broken until #98 and #100 (2026-11-26): run the entry checks in
+`docs/qa/FIREPEAK_NORTH_POLE_ENTRY_QA.md` first, then this checklist.
+
 ## 1. Local startup (no AWS)
 
 From the repository root of `main` (at or after `f0de1087`, for skill evidence), with Docker running.

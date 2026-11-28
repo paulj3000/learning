@@ -40,8 +40,24 @@ From a fresh checkout, at the repository root:
    `VITE_COGNITO_*` in `react/.env.local`, template `react/.env.example`).
 5. Start PostgreSQL 18: `make up` (127.0.0.1:5432; `POSTGRES_PORT` overrides).
 6. Apply the migrations: `make migrate`.
-7. Load the content and Treasure Rush:
-   `cd lai && ../.venv/bin/python manage.py load_content && ../.venv/bin/python manage.py seed_treasure_rush && ../.venv/bin/python manage.py publish_treasure_rush && cd ..`
+7. Load the content and the 3D Areas of every Realm. Each Area is seeded as DRAFT and stays
+   invisible to children until it is published. The `publish_*` commands refuse unless `DEBUG`
+   is on and the database is on loopback (both true for the local defaults). Without them,
+   Realms shows no Firepeak and an empty North Pole:
+   ```bash
+   cd lai
+   ../.venv/bin/python manage.py load_content
+   ../.venv/bin/python manage.py seed_treasure_rush && ../.venv/bin/python manage.py publish_treasure_rush
+   ../.venv/bin/python manage.py seed_firepeak && ../.venv/bin/python manage.py publish_firepeak
+   ../.venv/bin/python manage.py seed_firepeak_heart && ../.venv/bin/python manage.py publish_firepeak_heart
+   ../.venv/bin/python manage.py seed_north_pole && ../.venv/bin/python manage.py publish_north_pole
+   cd ..
+   ```
+   Storykeeper Castle needs no seed: its 3D Area ships with the app. NPC characters, sound
+   and seasonal events are optional extras, listed in
+   [docs/TREASURE_RUSH_LOCAL_DEV.md](docs/TREASURE_RUSH_LOCAL_DEV.md),
+   [docs/firepeak/FIREPEAK_OWNER_QA.md](docs/firepeak/FIREPEAK_OWNER_QA.md) and
+   [docs/north-pole/NORTH_POLE_OWNER_QA.md](docs/north-pole/NORTH_POLE_OWNER_QA.md).
 8. Optional, for Django Admin: `make createsuper`.
 9. In one terminal, start Django: `make runserver` (http://127.0.0.1:8000/api/v1/health/ answers
    `ok`).

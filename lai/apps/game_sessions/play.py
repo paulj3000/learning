@@ -100,7 +100,7 @@ class AttemptAlreadyAnswered(PlayError):
 
 
 class ChestLocked(PlayError):
-    """The chest's requirements do not hold yet. `reason` is `PROGRESS` or `ITEM`."""
+    """The chest's requirements do not hold yet. `reason` is `PROGRESS`, `ITEM` or `PUZZLE`."""
 
     code = "chest_locked"
 
@@ -112,6 +112,8 @@ class ChestLocked(PlayError):
 class LockReason:
     PROGRESS = "PROGRESS"
     ITEM = "ITEM"
+    PUZZLE = "PUZZLE"
+    """#102: a 3D Area puzzle opens this chest (the stage before it records the chest's key)."""
 
 
 def _require_published_region(region: WorldRegion) -> None:
@@ -211,12 +213,25 @@ def chest_is_open(child, chest: TreasureChest) -> bool:
     )
 
 
-def chest_lock(child, chest: TreasureChest, *, keys=None, items=None) -> str | None:
+def puzzle_opened_keys(region: WorldRegion) -> set[str]:
+    """The world change keys this 3D Area's published puzzles record (#102)."""
+    return set(
+        region.puzzles.filter(status=ContentStatus.PUBLISHED).values_list(
+            "world_change_key", flat=True
+        )
+    )
+
+
+def chest_lock(
+    child, chest: TreasureChest, *, keys=None, items=None, puzzle_keys=None
+) -> str | None:
     """Why `chest` is locked for `child` now (a `LockReason`), or None when it may be opened.
 
     An earlier encounter comes first: a child who has not got that far is told to follow Pip's
-    clues, not to look for a key. `keys` and `items` may be passed in to read state once for many
-    chests.
+    clues, not to look for a key. A chest whose world change a published puzzle in its region
+    records is opened by solving that puzzle (#102), so it never issues its own challenge: the
+    reason is `PUZZLE`. `keys`, `items` and `puzzle_keys` (`puzzle_opened_keys`) may be passed
+    in to read state once for many chests.
     """
     location = chest.region.location.slug
     if chest.required_world_change_key:
@@ -233,6 +248,10 @@ def chest_lock(child, chest: TreasureChest, *, keys=None, items=None) -> str | N
             items = owned_item_ids(child)
         if chest.required_item.item_id not in items:
             return LockReason.ITEM
+    if puzzle_keys is None:
+        puzzle_keys = puzzle_opened_keys(chest.region)
+    if chest.world_change_key in puzzle_keys:
+        return LockReason.PUZZLE
     return None
 
 

@@ -145,7 +145,7 @@ function chest(r: Reader): ChestState {
     lockReason: optional(
       r,
       'lockReason',
-      (v) => v.nullable((reason) => reason.oneOf(['PROGRESS', 'ITEM'] as const)),
+      (v) => v.nullable((reason) => reason.oneOf(['PROGRESS', 'ITEM', 'PUZZLE'] as const)),
       null,
     ),
     requiredItemId: optional(r, 'requiredItemId', (v) => v.nullable((id) => id.string()), null),

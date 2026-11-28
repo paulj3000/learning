@@ -53,6 +53,8 @@ export const PLAY_COPY = {
   // Pip's Missing Treasure (TR-14)
   chestNeedsKey: 'This chest is locked. You need a key to open it!',
   chestNotYet: "Not yet! Follow Pip's clues to find the treasures in order.",
+  // #102: a chest that the stage before it opens; it never asks a question of its own.
+  chestOpensByPuzzle: 'This chest opens by itself when you finish the challenge nearby.',
   puzzleTouch: 'Touch the rune stone with the right number. You can also choose it here.',
   puzzleSolved: 'The pedestal glows! The golden chest is unlocked.',
   puzzleWrong: 'Not that stone. The numbers changed. Try again!',
