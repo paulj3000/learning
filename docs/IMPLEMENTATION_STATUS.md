@@ -37,6 +37,24 @@ Bedrock** in this session (not just structurally deployed) — a real signed-in
 parent, a real child profile, and a real HINT-intent call all the way through
 to a validated `CompanionTurn` and a written `AIInteractionAudit` row.
 
+## LAI 04 GE-077: a child leaving a 3D world stays in Three.js (2026-11-28, `feature/GE-077-3d-exits-stay-3d`, on LAI-2201 `a073ccb5`)
+
+- `react/src/features/island-map/three/runtime/navigationTarget.ts`: a NAVIGATE taken in a 3D
+  world resolves to the 3D location when one exists. `'world'` (the Phaser harbor) goes to the 3D
+  Welcome Harbor hub (`HUB_REGION_ID`, from the harbor manifest), and `'world/<slug>'` goes to
+  `explore/<slug>`. Location cards, story pages and Phaser-only worlds are unchanged.
+  `WorldActionPanel` uses it.
+- The interaction tables in `worldObjects.ts` are not edited, so the Phaser worlds and
+  `phaserParity` are unaffected.
+- `navigationTarget.test.ts` walks every NAVIGATE in every 3D manifest and fails if one lands in
+  Phaser. Its Phaser-only allowlist is empty and shrink-only.
+- Pirate Builder Bay's harbor exit now goes to `explore/welcome-harbor`, and the Writing Room's
+  castle door to `explore/storykeeper-castle`; both parity tests are updated. LAI 02 reviews the
+  castle exits.
+- Tests: `island-map/three` plus `src/test`: 203 files, 2493 passed; `npm run typecheck` clean.
+  Deferred: full suites, lint, browser.
+- Not owner accepted.
+
 ## LAI-2201 Welcome Harbor 3D hub parity (2026-11-28, `feature/LAI-2201-welcome-harbor-hub`, from `fd3d3974`); Development Complete, NOT merged, NOT owner accepted
 
 - The 3D harbor (`manifests/welcomeHarbor.ts`) now carries all 12 Phaser harbor interactions, imported
